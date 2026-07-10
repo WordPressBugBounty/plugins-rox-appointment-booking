@@ -1,0 +1,17 @@
+// Frontend App Styles
+// =====================
+
+// Import variables and mixins if needed
+// @import "../../scss/variables";
+
+@import url("https://fonts.googleapis.com/css2?family=Heebo:wght@100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
+
+
+.rox-appointment-booking-frontend {
+  font-family: "Heebo", sans-serif;
+  box-sizing: border-box;
+  
+  *, *::before, *::after {
+    box-sizing: inherit;
+  }
+}

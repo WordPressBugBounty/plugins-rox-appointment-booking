@@ -1,0 +1,93 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "rox-appointment-booking/service-list",
+  "title": "Rox Appointment Service List",
+  "category": "widgets",
+  "icon": "list-view",
+  "description": "Booking flow that starts from the service list (service → agent → schedule → info → payment).",
+  "textdomain": "rox-appointment-booking",
+  "keywords": [
+    "booking",
+    "appointment",
+    "service",
+    "rox"
+  ],
+  "supports": {
+    "html": false,
+    "spacing": {
+      "margin": true,
+      "padding": true
+    }
+  },
+  "attributes": {
+    "showStepSidebar": {
+      "type": "boolean",
+      "default": false
+    },
+    "showInfoSidebar": {
+      "type": "boolean",
+      "default": false
+    },
+    "showServiceImage": {
+      "type": "boolean",
+      "default": true
+    },
+    "serviceLayout": {
+      "type": "string",
+      "default": "grid"
+    },
+    "nextLabel": {
+      "type": "string",
+      "default": "Next"
+    },
+    "nextBg": {
+      "type": "string",
+      "default": ""
+    },
+    "nextColor": {
+      "type": "string",
+      "default": ""
+    },
+    "nextHoverBg": {
+      "type": "string",
+      "default": ""
+    },
+    "nextHoverColor": {
+      "type": "string",
+      "default": ""
+    },
+    "nextMargin": {
+      "type": "object",
+      "default": {}
+    },
+    "nextPadding": {
+      "type": "object",
+      "default": {}
+    },
+    "backLabel": {
+      "type": "string",
+      "default": "Back"
+    },
+    "backColor": {
+      "type": "string",
+      "default": ""
+    },
+    "backHoverColor": {
+      "type": "string",
+      "default": ""
+    },
+    "backMargin": {
+      "type": "object",
+      "default": {}
+    },
+    "backPadding": {
+      "type": "object",
+      "default": {}
+    }
+  },
+  "editorScript": "rox-appointment-booking-service-list-editor",
+  "editorStyle": "rox-appointment-booking-service-list-editor-style",
+  "viewScript": "rox-appointment-booking-service-list-view",
+  "viewStyle": "rox-appointment-booking-service-list-view-style"
+}

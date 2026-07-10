@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "rox-appointment-booking/booking-panel",
+  "title": "Rox Appointment Booking Panel",
+  "category": "widgets",
+  "icon": "calendar-alt",
+  "description": "Displays the booking panel.",
+  "textdomain": "rox-appointment-booking",
+  "keywords": [
+    "booking",
+    "appointment",
+    "panel",
+    "rox"
+  ],
+  "supports": {
+    "html": false
+  },
+  "attributes": {
+    "hideNavigation": {
+      "type": "boolean",
+      "default": false
+    },
+    "hideInfo": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "editorScript": "rox-appointment-booking-booking-panel-editor",
+  "editorStyle": "rox-appointment-booking-booking-panel-editor-style",
+  "viewScript": "rox-appointment-booking-frontend",
+  "viewStyle": "rox-appointment-booking-frontend"
+}

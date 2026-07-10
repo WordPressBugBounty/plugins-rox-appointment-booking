@@ -1,0 +1,84 @@
+// Custom Scrollbar Mixin
+// Usage: @include custom-scrollbar($width: 6px, $height: 6px, $track-color: #f1f1f1, $thumb-color: #888);
+@mixin custom-scrollbar($width: 6px, $height: 6px, $track-color: #f1f1f1, $thumb-color: #888, $thumb-hover-color: #555) {
+  // Enable scrolling
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  // Webkit browsers (Chrome, Safari, Edge)
+  &::-webkit-scrollbar {
+    width: $width;
+    height: $height;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: $track-color;
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: $thumb-color;
+    border-radius: 4px;
+    border: 2px solid $track-color;
+
+    &:hover {
+      background: $thumb-hover-color;
+    }
+  }
+
+  // Firefox
+  scrollbar-color: $thumb-color $track-color;
+  scrollbar-width: thin;
+}
+
+// Simplified scrollbar-func helper - accepts just width parameter
+@mixin scrollbar-func($width: 6px) {
+  @include custom-scrollbar(
+    $width: $width,
+    $height: $width,
+    $track-color: #f1f1f1,
+    $thumb-color: #888,
+    $thumb-hover-color: #555
+  );
+}
+
+// Variant: Only apply scrollbar styling without forcing overflow
+@mixin scrollbar-style-only($width: 6px, $track-color: #f1f1f1, $thumb-color: #888, $thumb-hover-color: #555) {
+  &::-webkit-scrollbar {
+    width: $width;
+    height: $width;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: $track-color;
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: $thumb-color;
+    border-radius: 4px;
+    border: 2px solid $track-color;
+
+    &:hover {
+      background: $thumb-hover-color;
+    }
+  }
+
+  scrollbar-color: $thumb-color $track-color;
+  scrollbar-width: thin;
+}
+
+
+// usage example:
+
+//     @include custom-scrollbar(
+//       $width: 6px,
+//       // Scrollbar width
+//       $height: 6px,
+//       // Scrollbar height (for horizontal)
+//       $track-color: #f1f1f1,
+//       // Background color of track
+//       $thumb-color: #888,
+//       // Color of the scrollbar thumb
+//       $thumb-hover-color: #555 // Color on hover
+//     );

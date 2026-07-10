@@ -1,0 +1,31 @@
+// Shrink the editor block wrapper to the booking widget so the selection
+// outline hugs the content instead of spanning the full column. Keeps the
+// blue border tight in every layout (grid/list, with or without sidebars).
+.wp-block-rox-appointment-booking-service-list {
+	width: fit-content;
+	max-width: 100%;
+}
+
+.rox-appointment-booking-service-list-placeholder {
+	border: 1px dashed #c3c4c7;
+	border-radius: 6px;
+	background: #f6f7f7;
+	padding: 24px;
+	text-align: center;
+
+	&__inner {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+
+		strong {
+			font-size: 14px;
+			color: #1e1e1e;
+		}
+
+		span {
+			font-size: 13px;
+			color: #757575;
+		}
+	}
+}

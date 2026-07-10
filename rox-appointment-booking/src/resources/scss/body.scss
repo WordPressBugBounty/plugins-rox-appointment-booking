@@ -1,0 +1,26 @@
+body {
+    background-color: rgb(245, 247, 250) !important;
+}
+
+#wpcontent {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+}
+
+#adminmenumain {
+    display: none !important;
+}
+
+#wpadminbar,
+#wpfooter,
+.update-nag {
+    display: none !important;
+}
+
+html.wp-toolbar {
+    padding-top: 0 !important;
+}
+
+#wpbody-content {
+    padding: 0 !important;
+}

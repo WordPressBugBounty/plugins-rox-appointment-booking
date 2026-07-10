@@ -1,0 +1,364 @@
+// Block-owned styles for the Service List block. The shared frontend look
+// (cards, calendar, payment, layout shell) comes from `bookingstyle.scss`,
+// which is pulled into the bundle by the reused components (view) or imported
+// in `edit.jsx` (editor). This file only adds the block's own pieces.
+
+.rab-sl-app {
+  width: fit-content;
+}
+
+// Bespoke step indicator in the sidebar.
+.rab-sl-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px 20px;
+  font-family: "Heebo", sans-serif;
+
+  .rab-sl-step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: #9aa0ac;
+
+    .rab-sl-step-dot {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #e2e4ea;
+      color: #6b7280;
+      font-size: 12px;
+      font-weight: 600;
+      flex: 0 0 auto;
+    }
+
+    &.active {
+      color: #151720;
+      font-weight: 600;
+
+      .rab-sl-step-dot {
+        background: #3560fb;
+        color: #fff;
+      }
+    }
+
+    &.done {
+      color: #151720;
+
+      .rab-sl-step-dot {
+        background: #c7d2fe;
+        color: #3560fb;
+      }
+    }
+  }
+}
+
+// Bespoke nav (consumes the --rab-* custom properties printed by PHP).
+.rab-sl-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 62px;
+  width: 100%;
+  background-color: #fff;
+  padding: 12px;
+  box-sizing: border-box;
+  border-top: 1px solid #e2e4ea;
+
+  .rab-sl-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: "Heebo", sans-serif;
+    color: var(--rab-back-color, #151720);
+    margin: var(--rab-back-margin, 0);
+    padding: var(--rab-back-padding, 0 0 0 44px);
+    transition:
+      color 0.2s ease,
+      gap 0.3s ease;
+
+    &:hover {
+      color: var(--rab-back-color-hover, #727377);
+      gap: 10px;
+    }
+  }
+
+  .rab-sl-next {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: "Heebo", sans-serif;
+    background-color: var(--rab-next-bg, #3560fb);
+    color: var(--rab-next-color, #fff);
+    margin: var(--rab-next-margin, 0);
+    padding: var(--rab-next-padding, 8px 16px);
+    transition:
+      background-color 0.2s ease,
+      gap 0.3s ease;
+
+    &:hover {
+      background-color: var(--rab-next-bg-hover, #5a7eff);
+      color: var(--rab-next-color-hover, var(--rab-next-color, #fff));
+      gap: 10px;
+    }
+
+    &.is-disabled,
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.rab-sl-loading {
+  padding: 24px;
+  color: #6b7280;
+  font-family: "Heebo", sans-serif;
+}
+
+.service-card.is-readonly {
+  cursor: default;
+}
+
+// Title + duration stacked block inside the service card.
+.rab-sl-app .service-card {
+  .service-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .service-duration {
+    font-size: 13px;
+    font-weight: 400;
+    color: #9aa0ac;
+    font-family: "Heebo", sans-serif;
+    line-height: 1;
+  }
+}
+
+// Service list (vs grid) layout.
+.rab-sl-services-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 30px;
+
+  .base-card {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  // Bigger thumbnail in the list rows than the shared 30x30 icon.
+  .service-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    background: #f3f4f9;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex: 0 0 auto;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+}
+
+// Grid layout = thumbnail card: a big image on top, then title, with the
+// duration + price on a footer row. Scoped to the block so the shortcode's
+// `.services-grid` is untouched.
+.rab-sl-app .services-grid {
+  .service-card {
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0;
+    padding: 0;
+    overflow: hidden;
+
+    .service-info {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
+      width: 100%;
+    }
+
+    // Big thumbnail image, flush to the card top.
+    .service-icon {
+      width: 100%;
+      height: 160px;
+      border-radius: 0;
+      background: #f3f4f9;
+      font-size: 34px;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    }
+
+    .service-meta {
+      padding: 16px 16px 0;
+      gap: 6px;
+    }
+
+    .service-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .service-duration {
+      font-size: 13px;
+    }
+
+    // Price pinned to the bottom-right so every card in a row lines up.
+    .service-price {
+      align-self: stretch;
+      justify-content: flex-end;
+      padding: 12px 16px 16px;
+      margin-top: auto;
+      font-size: 18px;
+      font-weight: 600;
+    }
+  }
+}
+
+// Optional right-hand info panel.
+.rab-sl-summary {
+  width: 240px;
+  flex: 0 0 auto;
+  background: #fafafa;
+  border-left: 1px solid #e2e4ea;
+  margin: 6px 6px 6px 0;
+
+  .rab-sl-summary-inner {
+    padding: 20px;
+    font-family: "Heebo", sans-serif;
+  }
+
+  .rab-sl-summary-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #151720;
+    margin-bottom: 14px;
+  }
+
+  .rab-sl-summary-empty {
+    color: #9aa0ac;
+    font-size: 14px;
+  }
+
+  .rab-sl-summary-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    li {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid #eef0f4;
+      font-size: 14px;
+
+      span {
+        color: #727377;
+      }
+
+      strong {
+        color: #151720;
+        text-align: right;
+      }
+    }
+  }
+
+  .rab-sl-summary-total {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #151720;
+  }
+}
+
+.rab-sl-complete {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 24px;
+  font-family: "Heebo", sans-serif;
+
+  .rab-sl-complete-check {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: #d1fae5;
+    color: #059669;
+    font-size: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .rab-sl-complete-msg {
+    font-size: 16px;
+    color: #151720;
+    margin: 0;
+  }
+
+  .rab-sl-complete-details {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    max-width: 360px;
+
+    li {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #eef0f4;
+
+      span {
+        color: #727377;
+      }
+
+      strong {
+        color: #151720;
+      }
+    }
+  }
+}
+
+// Editor preview chrome. (Card clicks are disabled via ServicesStep readOnly and
+// the nav button is disabled, so the block stays selectable in the editor.)
+.rab-sl-editor-preview {
+  .service-layout {
+    box-shadow: none;
+  }
+}

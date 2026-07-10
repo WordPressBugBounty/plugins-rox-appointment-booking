@@ -1,0 +1,129 @@
+<?php
+
+namespace RoxAppointmentBooking\Modules\FrontendBookingPanel\REST;
+
+use WP_REST_Request;
+use WP_REST_Response;
+use WP_Error;
+use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+
+/**
+ * Class BookingPanelStructure
+ *
+ * @package RoxAppointmentBooking\Modules\FrontendBookingPanel\REST
+ * @description Provides booking engine location data via REST API.
+ */
+class BookingPanelStructure extends AbstractREST
+{
+    /**
+     * Whether this REST endpoint should be loaded.
+     *
+     * @var bool
+     */
+    public static $loadable = true;
+
+    /**
+     * REST route for the booking panel structure.
+     *
+     * @var string
+     */
+    public static string $route = 'booking-panel-structure';
+
+    /**
+     * Get the HTTP methods allowed for this route.
+     *
+     * @return string|array
+     */
+    protected function getMethods(): string|array
+    {
+        return 'GET';
+    }
+
+    /**
+     * Handle the REST API request.
+     *
+     * @param WP_REST_Request $request REST request instance.
+     * @return WP_REST_Response|WP_Error
+     */
+    public function handleRequest(WP_REST_Request $request): WP_REST_Response|WP_Error
+    {
+        return rox_appointment_booking_rest_response(
+            data: $this->getInitialStructures(),
+            message: array(
+                'success' => array(
+                    esc_html__('Booking Panel structure Retrieved Successfully', 'rox-appointment-booking')
+                )
+            )
+        );
+    }
+
+    /**
+     * Check whether the current user can access this endpoint.
+     *
+     * @param WP_REST_Request $request REST request instance.
+     * @return bool
+     */
+    public function permissionCheck(WP_REST_Request $request): bool
+    {
+        return true;
+    }
+
+    /**
+     * Get initial booking panel structures.
+     *
+     * @return array
+     */
+    private function getInitialStructures(): array
+    {
+        $plugin_url = plugin_dir_url(dirname(dirname(dirname(dirname(dirname(__FILE__)))))) . 'rox-appointment-booking/public/';
+
+        $location_module_enable = get_option('rox_appointment_booking_location_settings', [])['location_module_enable'] ?? false;
+
+        // The location step is a Pro feature. Even when the location module is
+        // enabled, the booking panel must only start from the location step when
+        // Pro is active; otherwise it starts from the category step.
+        $location_module_enable = $location_module_enable && rox_appointment_booking_is_pro_user();
+
+        $integrations_settings = get_option('rox_appointment_booking_integrations_settings', []);
+
+        return apply_filters('rox_appointment_booking_temp_location_data', [
+            "title" => $location_module_enable ? "Location Selection" : "Category Selection",
+            "subTitle" => "Select the location where you'd like to book your appointment.",
+            "icon" => $plugin_url . "svgs/sidebar_image.svg",
+            "location" => $location_module_enable ? true : false,
+
+            // The Mailchimp opt-in checkbox on the Customer Information step only
+            // shows when the integration is enabled AND fully configured (API key
+            // + audience) — matches the exact gate the Pro sync hook checks before
+            // pushing a contact to Mailchimp, so the checkbox never appears without
+            // the sync actually being able to run.
+            "mailchimpConsentEnabled" => !empty($integrations_settings['mailchimp_enabled'])
+                && !empty($integrations_settings['mailchimp_api_key'])
+                && !empty($integrations_settings['mailchimp_audience_id']),
+            "mailchimpConsentText" => $integrations_settings['mailchimp_consent_text'] ?? 'Subscribe me to updates',
+
+            // Pro custom fields shown on the Customer Information step. Empty
+            // array unless the Pro plugin answers this filter.
+            "customFields" => apply_filters('rox_appointment_booking_custom_fields', []),
+
+            // Built-in field config (enable/required per field). Defaults unless
+            // the Pro plugin overrides via the system-fields filter.
+            "systemFields" => rox_appointment_booking_system_fields(),
+
+            // API endpoints for the booking panel
+            "content" => [
+                "locationsApi" =>  esc_url_raw(get_rest_url(null, "rox-appointment-booking/v1/public/location")),
+                "categoriesApi" =>  esc_url_raw(get_rest_url(null, "rox-appointment-booking/v1/public/category")),
+                "servicesApi" => esc_url_raw(get_rest_url(null, "rox-appointment-booking/v1/public/service")),
+                "extraservicesApi" => esc_url_raw(get_rest_url(null, "rox-appointment-booking/v1/public/extra-service")),
+                "agentsApi" => esc_url_raw(get_rest_url(null, "rox-appointment-booking/v1/public/agent")),
+                "appointmentSchedulesApi" => esc_url_raw(get_rest_url(null, "rox-appointment-booking/v1/public/appointment-schedule")),
+                'customerMeApi' => esc_url_raw(rest_url('rox-appointment-booking/v1/public/customer/me')),
+            ],
+            "store" => [
+                'bookingApi' => esc_url_raw(rest_url('rox-appointment-booking/v1/public/booking')),
+                'customerLoginApi' => esc_url_raw(rest_url('rox-appointment-booking/v1/public/customer/login')),
+            ]
+        ]);
+    }
+}

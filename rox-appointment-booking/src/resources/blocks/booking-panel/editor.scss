@@ -1,0 +1,9 @@
+// Editor-only styles for the Rox Appointment Booking Panel block preview.
+.rox-booking-panel-block-editor {
+	.rox-booking-panel-preview__loading {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 200px;
+	}
+}

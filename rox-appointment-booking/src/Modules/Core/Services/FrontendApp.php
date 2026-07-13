@@ -60,6 +60,8 @@ class FrontendApp
             'siteUrl' => esc_url_raw(site_url()),
             // User authentication status only - actual user data fetched via secure API
             'is_user_logged_in' => is_user_logged_in(),
+            // Real WP session can only be ended server-side; used by the panel's logout link.
+            'logout_url' => html_entity_decode(wp_logout_url()),
         ];
     }
 

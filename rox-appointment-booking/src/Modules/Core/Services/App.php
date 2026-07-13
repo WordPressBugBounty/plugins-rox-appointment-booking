@@ -89,7 +89,7 @@ class App
         $user_roles = $user ? $user->roles : [];
         $userInfo = new UserInfo();
 
-        return [
+        $vars = [
             'version' => ROX_APPOINTMENT_BOOKING_VERSION,
             'appTitle' => 'Rox Appointment Booking',
             'defaultLocale' => 'en_US',
@@ -137,6 +137,14 @@ class App
             'durationOptions' => ServiceService::getDurationOptions(),
             'currencySymbol' => rox_appointment_booking__get_currency_symbol(rox_appointment_booking_payment_settings('payment_currency')),
         ];
+
+        /**
+         * Filter the admin React app config injected as
+         * `window.rox_appointment_booking.config.app`. The Pro plugin uses this to
+         * declare feature flags (e.g. `proFeatures.googleLogin`) so the admin UI
+         * only surfaces sections a given Pro version can actually back.
+         */
+        return apply_filters('rox_appointment_booking_app_config_structure', $vars);
     }
 
     /**

@@ -1,7 +1,7 @@
 import { createReduxStore, register } from "@wordpress/data";
 
 // Session storage key
-const SESSION_STORAGE_KEY = "rox_appointment_booking_service_state";
+export const SESSION_STORAGE_KEY = "rox_appointment_booking_service_state";
 
 // Helper function to deserialize dates in bookingProcess
 const deserializeBookingProcess = (bookingProcess) => {

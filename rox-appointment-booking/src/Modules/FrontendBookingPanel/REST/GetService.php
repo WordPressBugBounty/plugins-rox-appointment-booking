@@ -78,6 +78,7 @@ class GetService extends AbstractREST
             'id' => $service->getID(),
             'name' => $service->title,
             'price' => $service->price,
+            'hide_price_booking_panel' => (bool) $service->hide_price_booking_panel,
             'duration' => (int) $service->duration,
             'iconPath' => $service->thumbnail_id ? wp_get_attachment_url($service->thumbnail_id) : '',
             'currency_symbol' => rox_appointment_booking__get_currency_symbol($currency),

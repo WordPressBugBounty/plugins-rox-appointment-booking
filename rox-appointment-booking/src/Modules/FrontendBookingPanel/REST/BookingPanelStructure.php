@@ -86,6 +86,19 @@ class BookingPanelStructure extends AbstractREST
 
         $integrations_settings = get_option('rox_appointment_booking_integrations_settings', []);
 
+        // The "Sign in with Google" button config comes from a filter that ONLY a
+        // Pro version shipping the Google-login backend answers (see the Pro
+        // Integrations Provider). Any Pro that predates the feature — or no Pro at
+        // all — leaves the filter unanswered, so 'enabled' stays false, the button
+        // never renders, and the google-login endpoint is never called. This
+        // self-versioning mirrors the `rox_appointment_booking_custom_fields`
+        // pattern above and avoids any hardcoded Pro version check.
+        $google_login = apply_filters('rox_appointment_booking_google_login_config', [
+            'enabled'    => false,
+            'clientId'   => '',
+            'buttonText' => 'Continue with Google',
+        ]);
+
         return apply_filters('rox_appointment_booking_temp_location_data', [
             "title" => $location_module_enable ? "Location Selection" : "Category Selection",
             "subTitle" => "Select the location where you'd like to book your appointment.",
@@ -101,6 +114,13 @@ class BookingPanelStructure extends AbstractREST
                 && !empty($integrations_settings['mailchimp_api_key'])
                 && !empty($integrations_settings['mailchimp_audience_id']),
             "mailchimpConsentText" => $integrations_settings['mailchimp_consent_text'] ?? 'Subscribe me to updates',
+
+            // "Sign in with Google" button on the Customer Information step. Only
+            // true when the Gmail-capable Pro answered the filter above with the
+            // integration enabled + a Client ID configured (see $google_login).
+            "googleLoginEnabled"    => (bool) $google_login['enabled'],
+            "googleClientId"        => (string) $google_login['clientId'],
+            "googleLoginButtonText" => (string) $google_login['buttonText'],
 
             // Pro custom fields shown on the Customer Information step. Empty
             // array unless the Pro plugin answers this filter.
@@ -123,6 +143,12 @@ class BookingPanelStructure extends AbstractREST
             "store" => [
                 'bookingApi' => esc_url_raw(rest_url('rox-appointment-booking/v1/public/booking')),
                 'customerLoginApi' => esc_url_raw(rest_url('rox-appointment-booking/v1/public/customer/login')),
+                'customerResetPasswordApi' => esc_url_raw(rest_url('rox-appointment-booking/v1/public/customer/reset-password-request')),
+                'customerSetPasswordApi' => esc_url_raw(rest_url('rox-appointment-booking/v1/public/customer/reset-password')),
+                // Always built, but only ever called when googleLoginEnabled is
+                // true — which only the Gmail-capable Pro can make true — so the URL
+                // is never hit without the matching Pro endpoint present.
+                'googleLoginApi' => esc_url_raw(rest_url('rox-appointment-booking/v1/public/customer/google-login')),
             ]
         ]);
     }

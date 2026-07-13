@@ -228,6 +228,7 @@ class BookingPanelBlock
             'restBaseUrl'       => esc_url_raw(rest_url()),
             'siteUrl'           => esc_url_raw(site_url()),
             'is_user_logged_in' => is_user_logged_in(),
+            'logout_url'        => html_entity_decode(wp_logout_url()),
         ];
     }
 

@@ -61,6 +61,35 @@ class CustomerService
     }
 
     /**
+     * Find or create a customer from a verified external profile (e.g. a Google
+     * sign-in). Unlike saveCustomer() this requires only a valid email — name is
+     * optional — because the identity provider has already authenticated the
+     * user. Reuses the same email dedup and optional WP-user auto-creation.
+     *
+     * @param array $profile ['email' => .., 'first_name' => .., 'last_name' => ..].
+     * @return array|WP_Error Formatted customer data, or WP_Error on invalid email.
+     */
+    public function findOrCreateByEmail(array $profile): array|WP_Error
+    {
+        if (empty($profile['email']) || !is_email($profile['email'])) {
+            return new WP_Error('invalid_email', esc_html__('Invalid email address', 'rox-appointment-booking'), ['status' => 400]);
+        }
+
+        $existing = CustomerModel::query()->where('email', $profile['email'])->first();
+        if ($existing) {
+            return $this->formatCustomerData($existing);
+        }
+
+        $customer = new CustomerModel();
+        $customer->fill(array_intersect_key($profile, array_flip($customer->getFillable())));
+        $customer->save();
+
+        $this->handleAutoUserCreation($customer);
+
+        return $this->formatCustomerData($customer);
+    }
+
+    /**
      * Create or link a WordPress user when auto creation is enabled.
      *
      * @param CustomerModel $customer Customer model instance.

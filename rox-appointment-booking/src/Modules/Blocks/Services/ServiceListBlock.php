@@ -200,6 +200,7 @@ class ServiceListBlock
             'siteUrl'           => esc_url_raw(site_url()),
             'nonce'             => wp_create_nonce('rox_appointment_booking_frontend_nonce'),
             'is_user_logged_in' => is_user_logged_in(),
+            'logout_url'        => html_entity_decode(wp_logout_url()),
             'timezone'          => get_option('timezone_string') ?: 'UTC',
             'dateFormat'        => get_option('date_format') ?: 'Y-m-d',
             'timeFormat'        => get_option('time_format') ?: 'H:i:s',

@@ -4,7 +4,7 @@ Tags: booking, reservation, appointments, calendar
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.0.6
+Stable tag: 1.0.7
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -15,6 +15,8 @@ Advanced booking plugin for appointments & events. Control scheduling, calendars
 Rox Appointment Booking is a feature-rich, multi-purpose WordPress appointment & booking plugin. The team Wpmet, a credible name in the WordPress industry, has developed this tool for effortless appointment scheduling and service reservations of all sizes.
 
 Whether you run a salon, dental clinic, car rental service, or professional practice, Rox Appointment Booking helps you build a modern booking system for your service business. It offers precise appointment controls for both administrators and customers.
+
+From room booking to tour reservations to ticket sales, Rox Appointment Booking is designed to replace multiple single-purpose tools with one unified, free booking plugin for WordPress that scales as your business grows. Built by the Wpmet team — the same developers behind ElementsKit, ShopEngine, and MetForm, trusted by over 1,000,000 WordPress users worldwide — Rox Appointment Booking brings that same reliability to your scheduling workflow.
 
 ## Key Features
 
@@ -87,10 +89,6 @@ Track your appointment with an advanced calendar view. Where you can customize t
 
 View detailed customer profiles and maintain a customer database from an interactive dashboard with various filter systems.
 
-### Upcoming Features
-
-✅ AI Booking System - Intelligent scheduling recommendations and automated customer service
-
 ### Types of Booking
 
 Rox Appointment Booking supports a wide variety of booking types, making it the ideal booking plugin for WordPress across multiple industries:
@@ -160,6 +158,11 @@ Whether you're a solo practitioner or managing multiple locations with dozens of
 
 From functioning as a service finder bookings plugin for WordPress to managing complex hotel operations, Rox Appointment Booking adapts to your specific industry needs.
 
+### Upcoming Features
+
+✅ AI Booking System - Intelligent scheduling recommendations and automated customer service
+
+
 ###  🤝 BACKED BY A TRUSTED TEAM
 Rox Appointment Booking Plugin is build by the team Wpmet, a name **trusted by 10,00,000+ satisfied users worldwide!**
 
@@ -215,6 +218,14 @@ After activation, you can configure the plugin settings from the WordPress admin
 
 
 == Changelog ==
+Version: 1.0.7 // 2026-07-13
+* Added: Customer password reset from the booking panel (forgot → email link → reset → login, all in-panel).
+* Improved: Filtering mechanism across all tables.
+* Improved: UI of multi-select fields.
+* Improved: Bulk data delete functionality.
+* Improved: Profile menu UI.
+* Improved: Login/logout process on the booking panel during booking.
+
 Version: 1.0.6 // 2026-07-06
 * Added: Stripe payment method connect/disconnect option.
 * Added: Option to access the specific client's Stripe payment details dashboard from the order view.
@@ -303,27 +314,33 @@ Provider: Google LLC
 
 == Frequently Asked Questions ==
 
-= Does Rox Appointment Booking plugin cause conflicts with other plugins or themes? =
-No, this plugin works seamlessly with any themes & plugins.
+= How do I add the booking form to my website? =
+You can embed the Rox Appointment Booking form using the Gutenberg block, the Elementor widget, or a shortcode. Simply add it to any page or post where you want customers to book appointments.
 
-= What kind of appointment can be build by Rox Appointment Booking plugin? =
-You can build booking & advanced appointment system with this plugin for any size of business.
+= Can I accept online payments through the booking form? =
+Yes. Rox Appointment Booking integrates with Stripe for online payment processing. You can also enable the "Pay Later" option for customers who prefer to pay at the time of service.
 
-= Do I need to know coding & design knowledge to build booking & appointment with this plugin? =
-No, Rox Appointment Booking plugin requires no coding or technical knowledge to setup the booking functionalities within WordPress.
+= Is there a limit on the number of staff, services, or locations? =
+No. You can add unlimited agents, services, and business locations with no restrictions.
 
-= What are the system requirements? =
+= Does this work with Elementor and Gutenberg? =
+Yes. The plugin provides both a native Gutenberg block and an Elementor widget for embedding the booking panel on your site.
 
-Rox Appointment Booking requires WordPress 5.0 or higher and PHP 7.4 or higher.
+= Can I use this plugin for salon, clinic, or car rental bookings? =
+Absolutely. Rox Appointment Booking is a multi-purpose WordPress booking plugin that works for salons, clinics, car rentals, consulting, fitness, education, events, and any service-based business.
 
-= Is the plugin translation ready? =
+= How do I prevent double bookings? =
+The plugin automatically checks availability based on your configured working hours, existing bookings, holidays, and buffer times. Once a time slot is booked, it becomes unavailable to other customers.
 
-Yes, Rox Appointment Booking is fully translation ready with the text domain 'rox-appointment-booking'.
+= Can I set different schedules for different staff members? =
+Yes. Each agent can have their own weekly working hours, holiday calendar, and special day overrides.
 
-= Can I customize the booking forms? =
+= Does the plugin support coupons and discounts? =
+Yes. You can create discount coupons with fixed or percentage values, usage limits, validity dates, and targeting rules for specific services, categories, or agents.
 
-Yes, the plugin provides various hooks and filters for customization. Check the documentation for details.
+= Is customer data stored on my own server? =
+Yes. All booking and customer data is stored in your WordPress database. No data is sent to external servers except for payment processing via Stripe and map services via OpenStreetMap.
 
-= Is it compatible with other plugins? =
+= Can I customize the booking form fields? =
+Yes. The plugin supports custom fields so you can collect specific information from customers during the booking process, such as special requests, notes, or preferences.
 
-Rox Appointment Booking is designed to work seamlessly with most WordPress plugins and themes. If you encounter any compatibility issues, please report them in the support forum.

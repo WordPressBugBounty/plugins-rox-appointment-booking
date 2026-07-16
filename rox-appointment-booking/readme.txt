@@ -4,7 +4,7 @@ Tags: booking, reservation, appointments, calendar
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.0.7
+Stable tag: 1.0.8
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -218,6 +218,10 @@ After activation, you can configure the plugin settings from the WordPress admin
 
 
 == Changelog ==
+Version: 1.0.8 // 2026-07-15
+* Improved: UI refinements to the Service, Appointment and Agent creation drawers.
+* Improved: Service settings option.
+
 Version: 1.0.7 // 2026-07-13
 * Added: Customer password reset from the booking panel (forgot → email link → reset → login, all in-panel).
 * Improved: Filtering mechanism across all tables.

@@ -188,6 +188,9 @@ class GetAppointment extends AbstractREST
                 'tax_amount' => $order ? (float) ($order->tax_amount ?? 0) : 0,
                 'total_amount' => $order ? (float) ($order->total_amount ?? 0) : 0,
                 'agent_name' => $agent ? $agent->full_name : '',
+                // Answered by Pro's Google Calendar integration, if connected and
+                // this appointment synced with a Meet link; empty otherwise.
+                'meet_link' => apply_filters('rox_appointment_booking_meet_link', '', $appointmentData['id'] ?? 0),
             ];
             return rox_appointment_booking_rest_response(
                 data: $response,

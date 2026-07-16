@@ -1,1 +1,1 @@
-<?php return array('dependencies' => array('react', 'react-dom', 'react-jsx-runtime', 'wp-api-fetch', 'wp-data'), 'version' => 'fdf903f8c078191edc32', 'handle' => 'undefined-blocks/service-list/view');
+<?php return array('dependencies' => array('react', 'react-dom', 'react-jsx-runtime', 'wp-api-fetch', 'wp-data'), 'version' => 'be2eb1b9b3d19ee0847b', 'handle' => 'undefined-blocks/service-list/view');

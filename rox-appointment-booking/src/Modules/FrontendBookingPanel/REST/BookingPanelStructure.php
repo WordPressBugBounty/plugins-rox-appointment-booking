@@ -84,6 +84,14 @@ class BookingPanelStructure extends AbstractREST
         // Pro is active; otherwise it starts from the category step.
         $location_module_enable = $location_module_enable && rox_appointment_booking_is_pro_user();
 
+        // Even with the module enabled on Pro, the location step is only usable
+        // once at least one location exists — otherwise the panel would open on
+        // an empty location step with nothing to pick. Start from the category
+        // step until a location has been created.
+        if ($location_module_enable) {
+            $location_module_enable = \RoxAppointmentBookingPro\Modules\Location\Data\LocationModel::count() > 0;
+        }
+
         $integrations_settings = get_option('rox_appointment_booking_integrations_settings', []);
 
         // The "Sign in with Google" button config comes from a filter that ONLY a

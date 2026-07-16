@@ -112,6 +112,18 @@ class SaveAppointment extends AbstractREST
                     $appointmentService->sendRescheduleNotification($existing, $oldDate, $oldStartTime, $newDate, $newStartTime);
                 }
 
+                /**
+                 * Fires after an appointment is created or updated via the admin
+                 * SaveAppointment endpoint (covers edits and status changes,
+                 * including cancellation). Not fired for the public booking panel —
+                 * see `rox_appointment_booking_after_booking_confirmed` for that.
+                 *
+                 * @param AppointmentModel $appointment    The saved appointment.
+                 * @param bool             $isNew          False here (update path).
+                 * @param string|null      $previousStatus The appointment's status before this save.
+                 */
+                do_action('rox_appointment_booking_after_appointment_saved', $existing, false, $oldStatus);
+
                 $message = esc_html__('Appointment updated successfully', 'rox-appointment-booking');
                 $order = null;
                 $payment = null;
@@ -173,6 +185,9 @@ class SaveAppointment extends AbstractREST
                     $appointmentService->sendAppointmentNotification($result);
                 }
 
+                /** Fires after a new appointment is created via the admin SaveAppointment endpoint. */
+                do_action('rox_appointment_booking_after_appointment_saved', $result, true, null);
+
                 $message = esc_html__('Your appointment has been booked successfully. A confirmation has been sent.', 'rox-appointment-booking');
             }
 
@@ -225,10 +240,20 @@ class SaveAppointment extends AbstractREST
             ? intval(wp_unslash($data['service_id'])) 
             : null;
 
-        if (!isset($data['agent_id']) || intval(wp_unslash($data['agent_id'])) <= 0) {
-            $errors['agent_id'] = esc_html__('Agent ID is required and must be a positive integer.', 'rox-appointment-booking');
-        } else {
+        // Agent is required unless the selected service is agent-less
+        // (allow_without_agent). Stored NULL when omitted on an agent-less service.
+        // Agent-optional booking is a Pro feature — without Pro active, agent stays required.
+        $selected_service = !empty($sanitized['service_id']) ? ServiceModel::find($sanitized['service_id']) : null;
+        $service_allows_no_agent = $selected_service
+            && defined('ROX_APPOINTMENT_BOOKING_PRO_VERSION')
+            && (bool) $selected_service->allow_without_agent;
+
+        if (isset($data['agent_id']) && intval(wp_unslash($data['agent_id'])) > 0) {
             $sanitized['agent_id'] = intval(wp_unslash($data['agent_id']));
+        } elseif ($service_allows_no_agent) {
+            $sanitized['agent_id'] = null;
+        } else {
+            $errors['agent_id'] = esc_html__('Agent ID is required and must be a positive integer.', 'rox-appointment-booking');
         }
 
         if (!isset($data['customer_id']) || intval(wp_unslash($data['customer_id'])) <= 0) {
@@ -337,13 +362,19 @@ class SaveAppointment extends AbstractREST
         }
 
         try {
-            if (preg_match('/^\d{2}:\d{2}:\d{2}/', $datetime) && !preg_match('/^\d{4}-\d{2}-\d{2}/', $datetime)) {
+            // Time-only values (e.g. the admin slot picker's "08:00 AM", or a
+            // bare "08:00:00") have no leading date — prepend the
+            // appointment's date so DateTime doesn't silently default to
+            // today. Detected by the ABSENCE of a leading Y-m-d date, rather
+            // than matching one specific time format, since callers send
+            // times in different shapes (24h "HH:MM:SS" vs 12h "hh:mm A").
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}/', $datetime)) {
                 $date = $defaultDate ?? gmdate('Y-m-d');
                 $datetime = $date . ' ' . $datetime;
             }
 
             $dt = new \DateTime($datetime);
-            
+
             return $dt->format('Y-m-d H:i:s');
         } catch (\Exception $e) {
             return sanitize_text_field($datetime);
@@ -358,6 +389,38 @@ class SaveAppointment extends AbstractREST
      */
     private function checkSlotAvailability($data)
     {
+        // Agent-less appointment (agent_id NULL): enforce the service capacity —
+        // reject when overlapping non-cancelled bookings of THIS service (any agent)
+        // already reach max_capacity (default 1).
+        if (empty($data['agent_id'])) {
+            $max_capacity = 1;
+            if (!empty($data['service_id'])) {
+                $service = ServiceModel::find($data['service_id']);
+                if ($service && (int) $service->without_agent_capacity > 0) {
+                    $max_capacity = (int) $service->without_agent_capacity;
+                }
+            }
+
+            $overlapping_count = AppointmentModel::where('service_id', $data['service_id'])
+                ->where('date', $data['date'])
+                ->where('status', '!=', 'cancelled')
+                ->where(function($query) use ($data) {
+                    $query->where('start_time', '<', $data['end_time'])
+                          ->where('end_time', '>', $data['start_time']);
+                })
+                ->count();
+
+            if ($overlapping_count >= $max_capacity) {
+                return new WP_Error(
+                    'slot_already_booked',
+                    esc_html__('This time slot is fully booked. Please choose a different time.', 'rox-appointment-booking'),
+                    ['status' => 409]
+                );
+            }
+
+            return true;
+        }
+
         // HARD CONFLICT CHECK:
         // Why this is needed: The UI might show a slot as available based on the base service duration.
         // However, when "Extra Services" are added, the total duration increases and the end_time is recalculated.

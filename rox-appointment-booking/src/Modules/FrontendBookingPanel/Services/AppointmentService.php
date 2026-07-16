@@ -35,8 +35,9 @@ class AppointmentService
         $appointmentIds = [];
         
         foreach ($params['appointments'] as $appointmentData) {
-            // Frontend might send end_time or we can calculate it securely
-            $required = ['service_id', 'agent_id', 'date', 'start_time'];
+            // Frontend might send end_time or we can calculate it securely.
+            // agent_id is validated conditionally below (agent-less services skip it).
+            $required = ['service_id', 'date', 'start_time'];
             foreach ($required as $field) {
                 if (empty($appointmentData[$field])) {
                     // translators: %s = field name
@@ -63,6 +64,16 @@ class AppointmentService
                 );
             }
 
+            // Agent-less services (allow_without_agent) may be booked with no agent;
+            // everything else still requires one. agent_id is stored NULL when agent-less.
+            // Pro feature: without Pro active the service stays agent-required.
+            $allow_without_agent = defined('ROX_APPOINTMENT_BOOKING_PRO_VERSION') && (bool) $service->allow_without_agent;
+            if (!$allow_without_agent && empty($appointmentData['agent_id'])) {
+                // translators: %s = field name
+                return new WP_Error('missing_field', sprintf(esc_html__('%s is required', 'rox-appointment-booking'), esc_html('agent_id')), ['status' => 400]);
+            }
+            $agent_id = $allow_without_agent ? null : intval($appointmentData['agent_id']);
+
             if ($service && !empty($service->duration)) {
                 $total_duration += (int) $service->duration;
             }
@@ -85,36 +96,65 @@ class AppointmentService
             $full_start_time = $appointmentData['date'] . ' ' . $appointmentData['start_time'];
             $full_end_time = $appointmentData['date'] . ' ' . $calculated_end_time;
 
-            // HARD CONFLICT CHECK:
-            // Why this is needed: The frontend might show a slot as available based on the base service duration.
-            // However, when a user adds "Extra Services", the total duration increases. 
-            // If the total duration extends into another appointment that is already booked later in the same day,
-            // we must reject it here to prevent the agent from being double-booked.
-            $existing = AppointmentModel::query()
-                ->where('agent_id', intval($appointmentData['agent_id']))
-                ->where('date', $appointmentData['date'])
-                ->where('status', '!=', 'cancelled')
-                ->where(function($query) use ($full_start_time, $full_end_time) {
-                    $query->where(function($q) use ($full_start_time, $full_end_time) {
-                        $q->where('start_time', '<', $full_end_time)
-                          ->where('end_time', '>', $full_start_time);
-                    });
-                })
-                ->first();
+            if ($allow_without_agent) {
+                // CAPACITY CONFLICT CHECK (agent-less):
+                // Slots are shared across all agents for this service. Reject when the
+                // number of overlapping non-cancelled bookings of THIS service already
+                // reaches its max_capacity (default 1).
+                $max_capacity = (int) $service->without_agent_capacity;
+                if ($max_capacity <= 0) {
+                    $max_capacity = 1;
+                }
 
-            if ($existing) {
-                return new WP_Error(
-                    'time_conflict',
-                    esc_html__('The selected time slot does not have enough time to accommodate your selected extra services. Please choose a different time.', 'rox-appointment-booking'),
-                    ['status' => 409]
-                );
+                $overlapping_count = AppointmentModel::query()
+                    ->where('service_id', intval($appointmentData['service_id']))
+                    ->where('date', $appointmentData['date'])
+                    ->where('status', '!=', 'cancelled')
+                    ->where(function($query) use ($full_start_time, $full_end_time) {
+                        $query->where('start_time', '<', $full_end_time)
+                              ->where('end_time', '>', $full_start_time);
+                    })
+                    ->count();
+
+                if ($overlapping_count >= $max_capacity) {
+                    return new WP_Error(
+                        'slot_full',
+                        esc_html__('This time slot is fully booked. Please choose a different time.', 'rox-appointment-booking'),
+                        ['status' => 409]
+                    );
+                }
+            } else {
+                // HARD CONFLICT CHECK:
+                // Why this is needed: The frontend might show a slot as available based on the base service duration.
+                // However, when a user adds "Extra Services", the total duration increases.
+                // If the total duration extends into another appointment that is already booked later in the same day,
+                // we must reject it here to prevent the agent from being double-booked.
+                $existing = AppointmentModel::query()
+                    ->where('agent_id', $agent_id)
+                    ->where('date', $appointmentData['date'])
+                    ->where('status', '!=', 'cancelled')
+                    ->where(function($query) use ($full_start_time, $full_end_time) {
+                        $query->where(function($q) use ($full_start_time, $full_end_time) {
+                            $q->where('start_time', '<', $full_end_time)
+                              ->where('end_time', '>', $full_start_time);
+                        });
+                    })
+                    ->first();
+
+                if ($existing) {
+                    return new WP_Error(
+                        'time_conflict',
+                        esc_html__('The selected time slot does not have enough time to accommodate your selected extra services. Please choose a different time.', 'rox-appointment-booking'),
+                        ['status' => 409]
+                    );
+                }
             }
 
             $appointment = new AppointmentModel();
             $appointment->fill([
                 'customer_id' => $customerId,
                 'service_id' => intval($appointmentData['service_id']),
-                'agent_id' => intval($appointmentData['agent_id']),
+                'agent_id' => $agent_id,
                 'location_id' => $appointmentData['location_id'] ?? null,
                 'category_id' => $appointmentData['category_id'] ?? null,
                 'date' => $appointmentData['date'],

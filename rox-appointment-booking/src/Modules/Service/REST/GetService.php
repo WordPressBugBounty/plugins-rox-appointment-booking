@@ -111,6 +111,8 @@ class GetService extends AbstractREST
                 'hide_price_booking_panel' => $service->hide_price_booking_panel ? ['1'] : [],
                 'hide_duration_booking_panel' => $service->hide_duration_booking_panel ? ['1'] : [],
                 'only_visible_to_agent' => $service->only_visible_to_agent ? ['1'] : [],
+                'allow_without_agent' => $service->allow_without_agent ? ['1'] : [],
+                'without_agent_capacity' => $service->without_agent_capacity,
                 'extra_services' => $this->getExtraServiceIdsByServiceId($service->getID()),
                 'internal_notes' => $service->internal_notes,
                 'created_by' => $service->created_by,
@@ -122,6 +124,8 @@ class GetService extends AbstractREST
             return [
                 'value' => $service->getID(),
                 'label' => $service->title,
+                // Agent-optional booking is a Pro feature — flag is false unless Pro is active.
+                'allow_without_agent' => defined('ROX_APPOINTMENT_BOOKING_PRO_VERSION') && (bool) $service->allow_without_agent,
             ];
         }
 

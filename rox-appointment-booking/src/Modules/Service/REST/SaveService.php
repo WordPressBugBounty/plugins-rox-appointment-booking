@@ -256,9 +256,14 @@ class SaveService extends AbstractREST
             // Convert boolean fields
             $boolean_fields = [
                 'deposit', 'hide_price_booking_panel', 'hide_duration_booking_panel',
-                'only_visible_to_agent', 'set_service_specific_payment_methods',
+                'only_visible_to_agent', 'allow_without_agent', 'set_service_specific_payment_methods',
                 'active_minimum_extra_service', 'active_maximum_extra_service'
             ];
+
+            // Fields living on the Pro-locked Settings tab: a non-Pro save never
+            // submits them, so leave the stored value untouched instead of resetting
+            // it to false (otherwise a Pro user's setting would be wiped on any edit).
+            $preserve_when_absent = ['allow_without_agent', 'hide_price_booking_panel'];
 
             foreach ($boolean_fields as $field) {
                 if (isset($params[$field])) {
@@ -270,10 +275,20 @@ class SaveService extends AbstractREST
                         // Handle single checkbox values
                         $params[$field] = filter_var($params[$field], FILTER_VALIDATE_BOOLEAN);
                     }
+                } elseif (in_array($field, $preserve_when_absent, true)) {
+                    // Not submitted (Pro-locked tab) → keep the existing DB value.
+                    unset($params[$field]);
                 } else {
                     // Set default to false for boolean fields that are not present
                     $params[$field] = false;
                 }
+            }
+
+            // Agent-less concurrent-booking capacity: clamp to a positive integer
+            // (min 1) whenever the field is present, so a blank/0 input never stores
+            // an invalid capacity.
+            if (isset($params['without_agent_capacity'])) {
+                $params['without_agent_capacity'] = max(1, intval($params['without_agent_capacity']));
             }
 
             // Handle weekly_schedule JSON

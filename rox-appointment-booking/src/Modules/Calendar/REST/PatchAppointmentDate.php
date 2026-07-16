@@ -158,6 +158,15 @@ class PatchAppointmentDate extends AbstractREST
             'new_start_time' => $newStartTime ?? '',
         ]);
 
+        /**
+         * Fires after an appointment is rescheduled via calendar drag-and-drop.
+         *
+         * @param AppointmentModel $appointment  The rescheduled appointment (already updated).
+         * @param string|null      $previousStart Start time before the reschedule.
+         * @param string|null      $previousEnd   End time before the reschedule.
+         */
+        do_action('rox_appointment_booking_after_appointment_rescheduled', $appointment, $oldStartTime, $oldEndTime);
+
         return rox_appointment_booking_rest_response(
             data: [
                 'id'         => $id,

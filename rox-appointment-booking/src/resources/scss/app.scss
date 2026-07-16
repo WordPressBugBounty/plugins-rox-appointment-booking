@@ -47,6 +47,27 @@
     .ant-select-selection-search-input {
       box-shadow: none;
     }
+
+    .ant-select-clear {
+      // AntD sizes/centers this box for its own 12px fontSizeIcon token
+      // (top: 50%; margin-top: -6px). Our Greycross icon renders at 16px,
+      // so it overflows that assumption and drifts off-center — resize the
+      // box to match and recenter for the larger icon.
+      width: 16px;
+      height: 16px;
+      margin-top: -8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      svg path:first-child {
+        transition: fill 0.2s ease;
+      }
+
+      &:hover svg path:first-child {
+        fill: #75777d;
+      }
+    }
   }
 
   .ant-select-multiple .ant-select-selector,
@@ -57,6 +78,58 @@
 
     .ant-select-selection-wrap {
       width: 100% !important;
+    }
+  }
+
+  // Keep multi-select fields a fixed single-line 40px row, matching the
+  // other inputs. maxTagCount="responsive" decides how many tags fit, but
+  // its own width measurement can be off by one tag right at the collapse
+  // threshold (e.g. exactly 2 selected) — clip rather than let that edge
+  // case wrap the field onto a second line.
+  .ant-select-multiple .ant-select-selector {
+    height: 40px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    // Overrides the 14px padding-left every other input/select gets (see the
+    // shared `.ant-select-selector` rule above) — 4px before the first tag,
+    // 8px after the last one.
+    padding-left: 4px;
+    padding-right: 8px;
+
+    // Centering the selector itself isn't enough — AntD's own stylesheet
+    // pins .ant-select-selection-wrap to `align-self: flex-start` (by
+    // design, so a wrapped multi-line tag list anchors to the top instead
+    // of centering awkwardly). That explicit align-self wins over the
+    // parent's align-items regardless of what we set here, so it has to be
+    // overridden directly for our forced single-line layout.
+    .ant-select-selection-wrap {
+      align-self: center;
+      display: flex;
+      align-items: center;
+    }
+
+    .ant-select-selection-overflow {
+      display: flex;
+      align-items: center;
+    }
+
+    .ant-select-selection-item {
+      background: #fff;
+      border: 1px solid #cfd1d9;
+      //padding: 4px 4px 4px 8px;
+
+      .ant-select-selection-item-content {
+        font-size: 14px;
+        font-weight: 500;
+        margin-inline-end: 6px;
+      }
+
+      // AntD already swaps the remove icon's color on hover, but with no
+      // transition it's an instant snap — smooth that out too.
+      .ant-select-selection-item-remove {
+        transition: color 0.2s ease;
+      }
     }
   }
 
@@ -113,15 +186,53 @@
 
     .ant-select-item-option {
       border-radius: 5px;
+      // AntD derives the dropdown option's min-height from the same
+      // controlHeight token we set to 40 (to fix the closed field's
+      // height) — see antd/es/select/style/token.js `optionHeight:
+      // controlHeight`. That min-height floors the row at 40px no matter
+      // how much the padding below is reduced, so it has to be overridden
+      // directly here.
+      min-height: 36px !important;
+      // AntD's default option padding (~12px inline-end) leaves too much
+      // space after our flush-right checkbox; the content itself already
+      // has padding-inline-end: 0, so this is the only remaining gap.
+      padding-inline-end: 8px !important;
+      padding-block: 8px !important;
+
+      // AntD adds its own `-active` class on hover/keyboard-focus, which
+      // carries a taller default padding — override it explicitly so the
+      // row doesn't grow on hover.
+      &:hover,
+      &.ant-select-item-option-active {
+        padding-block: 8px !important;
+      }
 
       .ant-select-item-option-content {
+        //display:flex;
+        justify-content: center;
+        align-items: center;
         color: #151720;
         font-family: "Heebo", sans-serif;
         font-size: 14px;
-        font-weight: 400;
+        font-weight: 400 !important;
+        padding-inline-end: 0;
+        line-height: 20px;
       }
 
-      &:hover:not(.ant-select-item-option-selected) {
+      // Our own checkbox (rendered inside optionRender) replaces AntD's
+      // built-in selected-check icon; drop its reserved space so the
+      // checkbox sits flush against the option's right edge.
+      .ant-select-item-option-state {
+        display: none;
+      }
+
+      &.ant-select-item-option-selected {
+        background: #f5f7ff;
+      }
+
+      // Placed after the selected rule (equal specificity) so hover always
+      // wins, even on an already-selected option.
+      &:hover {
         background: #f3f4f9;
       }
     }
@@ -642,6 +753,40 @@
 
     div {
       line-height: 1;
+    }
+
+    &.has-checkbox {
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    .select-options-with-icon-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+  }
+
+  .select-option-checkbox {
+    flex-shrink: 0;
+    box-sizing: border-box;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 1px solid #d9d9d9;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+
+    &:hover {
+      border-color: #3560fb;
+    }
+
+    &.checked {
+      background: #3560fb;
+      border-color: #3560fb;
     }
   }
 
@@ -1645,34 +1790,41 @@
       font-size: 14px;
       font-weight: 500;
       font-family: "Heebo", sans-serif;
-      padding: 8px;
+      padding: 7px;
       height: 36px;
-      width: 36px;
+      min-width: 36px;
+      max-width: 36px;
       line-height: 1;
       overflow: hidden;
       justify-content: flex-start;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: all 0.45s cubic-bezier(0.4, 0, 0.2, 1);
       gap: 0;
 
       .ant-btn-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
         line-height: 1;
         margin-inline-end: 0;
       }
 
       .breadcrumb-text {
+        font-size:14px;
+        font-weight: 500;
+        color: #151720;
         opacity: 0;
         max-width: 0;
         overflow: hidden;
         display: inline-block;
         white-space: nowrap;
-        transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.25s cubic-bezier(0.4, 0, 0.2, 1), margin 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: opacity 0.45s cubic-bezier(0.4, 0, 0.2, 1), max-width 0.45s cubic-bezier(0.4, 0, 0.2, 1), margin 0.45s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
       &:hover {
 
         background: #E7EAFA;
-        width: auto;
-        padding: 8px 14px 8px 8px;
+        max-width: 200px;
+        padding: 7px 14px 7px 7px;
         border-color: transparent;
 
         .breadcrumb-text {
@@ -2475,7 +2627,11 @@
 
     .ant-modal-mask,
     .ant-modal-wrap {
-      z-index: 99999 !important;
+      z-index: 500000 !important;
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
     }
   }
 

@@ -354,6 +354,131 @@ class GetAppointmentSchedule extends AbstractREST
     }
 
     /**
+     * Booked timeslots for an agent-less service.
+     *
+     * A slot is "full" when the number of overlapping non-cancelled bookings of
+     * THIS service (across all agents) reaches $max_capacity. Mirrors the overlap
+     * math of getBookedTimeslots(), but counts concurrency against a capacity
+     * limit instead of blocking on the first overlapping appointment.
+     *
+     * @param int $service_id Service ID
+     * @param int $service_duration Duration of the combined service
+     * @param int $max_capacity Max concurrent bookings per slot (min 1)
+     * @param array $weekly_schedule Valid slots for each day
+     * @param array $special_days Valid slots for special dates
+     * @return array Booked timeslots as array of objects
+     */
+    public function getBookedTimeslotsByServiceCapacity(
+        int $service_id,
+        int $service_duration,
+        int $max_capacity,
+        array $weekly_schedule = [],
+        array $special_days = []
+    ): array {
+        if ($max_capacity <= 0) {
+            $max_capacity = 1;
+        }
+
+        $booked_timeslots = [];
+
+        // Query all future appointments for this service (any agent)
+        $appointments = AppointmentModel::query()
+            ->where('service_id', $service_id)
+            ->where('date', '>=', gmdate('Y-m-d'))
+            ->get();
+
+        if (!$appointments || $appointments->isEmpty()) {
+            return [];
+        }
+
+        $grouped_appointments = [];
+        foreach ($appointments as $appointment) {
+            $status = strtolower(trim((string) ($appointment->status ?? '')));
+            if (in_array($status, ['cancelled', 'canceled', 'rejected'], true)) {
+                continue;
+            }
+
+            $date = $appointment->date;
+            if (empty($date) || empty($appointment->start_time) || empty($appointment->end_time)) {
+                continue;
+            }
+            if (!isset($grouped_appointments[$date])) {
+                $grouped_appointments[$date] = [];
+            }
+
+            $appointment_start_time = $this->extractTimeFromStartTime((string) $appointment->start_time);
+            $appointment_end_time = $this->extractTimeFromStartTime((string) $appointment->end_time);
+
+            if (empty($appointment_start_time) || empty($appointment_end_time)) {
+                continue;
+            }
+
+            $grouped_appointments[$date][] = [
+                'start' => \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$appointment_start_time}"),
+                'end' => \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$appointment_end_time}"),
+            ];
+        }
+
+        // Map special days by date for quick lookup
+        $special_days_map = [];
+        foreach ($special_days as $sd) {
+            $special_days_map[$sd['date']] = $sd['timeslots'] ?? [];
+        }
+
+        foreach ($grouped_appointments as $date => $day_appointments) {
+            // Figure out base available timeslots for this date
+            if (isset($special_days_map[$date])) {
+                $day_slots = $special_days_map[$date];
+            } else {
+                $day_index = (int) date('w', strtotime($date));
+                // PHP's 'w' (0=Sun, 6=Sat). Our array uses 0=Mon, 6=Sun. Adjust index:
+                $adjusted_index = ($day_index === 0) ? 6 : $day_index - 1;
+                $day_slots = $weekly_schedule[$adjusted_index]['timeslots'] ?? [];
+            }
+
+            if (empty($day_slots)) {
+                continue;
+            }
+
+            $blocked = [];
+            foreach ($day_slots as $slot_time_str) {
+                $slot_start = \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$slot_time_str}");
+                $slot_end = clone $slot_start;
+                $slot_end->modify("+{$service_duration} minutes");
+
+                // Count concurrent bookings overlapping this slot
+                $overlap_count = 0;
+                foreach ($day_appointments as $appt) {
+                    if (!$appt['start'] || !$appt['end']) continue;
+                    // Condition for overlap: slot_start < appt_end AND slot_end > appt_start
+                    if ($slot_start < $appt['end'] && $slot_end > $appt['start']) {
+                        $overlap_count++;
+                    }
+                }
+
+                // Slot is full only when concurrency reaches the capacity limit
+                if ($overlap_count >= $max_capacity) {
+                    $blocked[] = $slot_time_str;
+                }
+            }
+
+            if (!empty($blocked)) {
+                $booked_timeslots[] = [
+                    'date' => $date,
+                    'timeslots' => array_values(array_unique($blocked))
+                ];
+            }
+        }
+
+        // Sort by date
+        usort($booked_timeslots, function($a, $b) {
+            return strcmp($a['date'], $b['date']);
+        });
+
+        return $booked_timeslots;
+    }
+
+    /**
      * Extract time portion from start_time field
      * Handles formats: "HH:MM:SS", "YYYY-MM-DD HH:MM:SS", "HH:MM"
      * 
@@ -625,8 +750,8 @@ class GetAppointmentSchedule extends AbstractREST
         $service_id = $request->get_param('service_id');
         $extra_services_param = $request->get_param('extra_services'); // Can be string or array
 
-        // Validate input parameters
-        if (empty($agent_id) || empty($service_id)) {
+        // service_id is always required
+        if (empty($service_id)) {
             return rox_appointment_booking_rest_response(
                 data: ['error' => 'Missing required parameters: agent_id and service_id'],
                 status: 'error',
@@ -635,18 +760,7 @@ class GetAppointmentSchedule extends AbstractREST
         }
 
         try {
-            // Validate agent exists
-            $agent_service = new AgentService();
-            $agent_exists = $agent_service->getAgent($agent_id);
-            if (!$agent_exists) {
-                return rox_appointment_booking_rest_response(
-                    data: ['error' => 'Agent not found'],
-                    status: 'error',
-                    code: 404
-                );
-            }
-
-            // Validate service exists
+            // Validate service exists (needed to know if it is agent-less)
             $service_service = new ServiceService();
             $service_exists = $service_service->getService($service_id);
             if (!$service_exists) {
@@ -657,13 +771,42 @@ class GetAppointmentSchedule extends AbstractREST
                 );
             }
 
-            // Validate agent provides this service
-            if (!ServiceAgentRelationModel::relationExists((int)$agent_id, (int)$service_id)) {
-                return rox_appointment_booking_rest_response(
-                    data: ['error' => 'The selected agent does not provide this service'],
-                    status: 'error',
-                    code: 400
-                );
+            // Agent-less path only when no agent is passed AND the service allows it.
+            // Agent-optional booking is a Pro feature: without Pro active every
+            // service is treated as agent-required (DB flag is ignored, not wiped).
+            $allow_without_agent = defined('ROX_APPOINTMENT_BOOKING_PRO_VERSION') && (bool) $service_exists->allow_without_agent;
+            $is_agent_less = empty($agent_id) && $allow_without_agent;
+
+            $agent_service = new AgentService();
+
+            // When an agent is required (or one was passed), validate it as before.
+            if (!$is_agent_less) {
+                if (empty($agent_id)) {
+                    return rox_appointment_booking_rest_response(
+                        data: ['error' => 'Missing required parameters: agent_id and service_id'],
+                        status: 'error',
+                        code: 400
+                    );
+                }
+
+                // Validate agent exists
+                $agent_exists = $agent_service->getAgent($agent_id);
+                if (!$agent_exists) {
+                    return rox_appointment_booking_rest_response(
+                        data: ['error' => 'Agent not found'],
+                        status: 'error',
+                        code: 404
+                    );
+                }
+
+                // Validate agent provides this service
+                if (!ServiceAgentRelationModel::relationExists((int)$agent_id, (int)$service_id)) {
+                    return rox_appointment_booking_rest_response(
+                        data: ['error' => 'The selected agent does not provide this service'],
+                        status: 'error',
+                        code: 400
+                    );
+                }
             }
 
             // Get service duration (minutes)
@@ -695,20 +838,30 @@ class GetAppointmentSchedule extends AbstractREST
 
             // Fetch all schedule and holiday data
             $global_weekly_schedule = (new SettingsService())->getWeeklySchedule();
-            $agent_weekly_schedule = $agent_service->getWeeklySchedule($agent_id);
             $service_weekly_schedule = $service_service->getWeeklySchedule($service_id);
-
-            // Check if agent schedule is enabled, otherwise use global schedule will be agent schedule
-            if(!isset($agent_weekly_schedule['is_enabled']) || $agent_weekly_schedule['is_enabled'] != 1) {
-                $agent_weekly_schedule['weekly_schedule'] = $global_weekly_schedule;
-            }
 
             // Check if service schedule is enabled, otherwise use global schedule will be service schedule
             if(!isset($service_weekly_schedule['is_enabled']) || $service_weekly_schedule['is_enabled'] != 1) {
                 $service_weekly_schedule['weekly_schedule'] = $global_weekly_schedule;
             }
-            
-            $agent_holidays = $agent_service->getHolidays($agent_id);
+
+            if ($is_agent_less) {
+                // No agent: build the schedule from service + global only. Feeding the
+                // global schedule in as the "agent" slot reduces the 3-way intersection
+                // to service ∩ global. Holidays come from global only.
+                $agent_weekly_schedule = ['weekly_schedule' => $global_weekly_schedule];
+                $agent_holidays = [];
+            } else {
+                $agent_weekly_schedule = $agent_service->getWeeklySchedule($agent_id);
+
+                // Check if agent schedule is enabled, otherwise use global schedule will be agent schedule
+                if(!isset($agent_weekly_schedule['is_enabled']) || $agent_weekly_schedule['is_enabled'] != 1) {
+                    $agent_weekly_schedule['weekly_schedule'] = $global_weekly_schedule;
+                }
+
+                $agent_holidays = $agent_service->getHolidays($agent_id);
+            }
+
             $global_holidays = (new SettingsService())->getHolidays();
 
             // Validate schedule data
@@ -728,14 +881,32 @@ class GetAppointmentSchedule extends AbstractREST
                 (int)$service_duration
             );
 
-            // Merge holidays
+            // Merge holidays ($agent_holidays is [] for agent-less → global only)
             $final_holidays = $this->mergeHolidays($agent_holidays, $global_holidays);
 
-            // Get and process special days
-            $special_days = $this->getProcessedSpecialDays((int)$agent_id, (int)$service_duration);
+            if ($is_agent_less) {
+                // No agent → no agent special days; block slots by service capacity.
+                $special_days = [];
 
-            // Get booked timeslots for this agent with overlap logic
-            $booked_timeslots = $this->getBookedTimeslots((int)$agent_id, (int)$service_duration, $final_weekly_schedule, $special_days);
+                $max_capacity = (int) $service_exists->without_agent_capacity;
+                if ($max_capacity <= 0) {
+                    $max_capacity = 1;
+                }
+
+                $booked_timeslots = $this->getBookedTimeslotsByServiceCapacity(
+                    (int)$service_id,
+                    (int)$service_duration,
+                    $max_capacity,
+                    $final_weekly_schedule,
+                    $special_days
+                );
+            } else {
+                // Get and process special days
+                $special_days = $this->getProcessedSpecialDays((int)$agent_id, (int)$service_duration);
+
+                // Get booked timeslots for this agent with overlap logic
+                $booked_timeslots = $this->getBookedTimeslots((int)$agent_id, (int)$service_duration, $final_weekly_schedule, $special_days);
+            }
 
             $final_schedule_holidays = [
                 'weekly_schedule' => $final_weekly_schedule,

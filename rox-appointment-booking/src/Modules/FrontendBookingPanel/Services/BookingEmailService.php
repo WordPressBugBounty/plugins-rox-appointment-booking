@@ -95,9 +95,17 @@ class BookingEmailService
             $location = class_exists(\RoxAppointmentBookingPro\Modules\Location\Data\LocationModel::class)
                 ? LocationModel::find($appointment->location_id)
                 : null;
-            
+
+            // Answered by Pro's Google Calendar integration, if connected and
+            // this appointment synced with a Meet link; empty otherwise.
+            $meetLink = apply_filters('rox_appointment_booking_meet_link', '', $appointment->id ?? 0);
+            $meetLinkHtml = $meetLink
+                ? sprintf('<a href="%1$s">%1$s</a>', esc_url($meetLink))
+                : 'N/A';
+
             $appointmentsHtml .= sprintf(
                 '<tr>' .
+                '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' .
                 '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' .
                 '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' .
                 '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' .
@@ -112,7 +120,8 @@ class BookingEmailService
                 $location ? $location->title : 'N/A',
                 $appointment->date ?? 'N/A',
                 gmdate('h:i A', strtotime($appointment->start_time)) . ' - ' . gmdate('h:i A', strtotime($appointment->end_time)),
-                ucfirst($appointment->status ?? 'Pending')
+                ucfirst($appointment->status ?? 'Pending'),
+                $meetLinkHtml
             );
         }
 
@@ -138,6 +147,7 @@ class BookingEmailService
             '<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Date</th>' .
             '<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Time</th>' .
             '<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Status</th>' .
+            '<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Video Call</th>' .
             '</tr>' .
             '%s' .
             '</table>' .

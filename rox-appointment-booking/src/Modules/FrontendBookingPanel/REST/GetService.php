@@ -80,6 +80,8 @@ class GetService extends AbstractREST
             'price' => $service->price,
             'hide_price_booking_panel' => (bool) $service->hide_price_booking_panel,
             'duration' => (int) $service->duration,
+            // Agent-optional booking is a Pro feature — flag is false unless Pro is active.
+            'allow_without_agent' => defined('ROX_APPOINTMENT_BOOKING_PRO_VERSION') && (bool) $service->allow_without_agent,
             'iconPath' => $service->thumbnail_id ? wp_get_attachment_url($service->thumbnail_id) : '',
             'currency_symbol' => rox_appointment_booking__get_currency_symbol($currency),
             'extraServices' => $this->getExtraServiceIdsByServiceId($service->getID()),
@@ -104,6 +106,7 @@ class GetService extends AbstractREST
                 'weekly_schedule' => $service->weekly_schedule,
                 'hide_price_booking_panel' => $service->hide_price_booking_panel ? ['1'] : [],
                 'hide_duration_booking_panel' => $service->hide_duration_booking_panel ? ['1'] : [],
+                'allow_without_agent' => $service->allow_without_agent ? ['1'] : [],
                 'extra_services' => $this->getExtraServiceIdsByServiceId($service->getID()),
                 'internal_notes' => $service->internal_notes,
                 'created_by' => $service->created_by,

@@ -46,7 +46,8 @@ const themeConfig = {
       colorBorder: "rgb(219,221,225)",
       colorTextPlaceholder: "#494a4c",
       colorText: "rgb(21,23,32)",
-      optionActiveBg: "#F3F4F9"
+      optionActiveBg: "#F3F4F9",
+      controlHeight: 40,
     },
     DatePicker: {
       colorBorder: "rgb(219,221,225)",

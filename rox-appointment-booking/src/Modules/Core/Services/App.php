@@ -110,6 +110,11 @@ class App
             // computed inside AppConfig::getLocationMenuItem(); now surfaced as a
             // single boolean for the static JS sidebar config (config/sidebar.js).
             'locationModuleEnabled' => $this->isLocationModuleEnabled(),
+            // Whether at least one location has actually been created. The
+            // Location field on the booking form is only usable once a location
+            // exists. Kept separate from the flag above so the Locations menu and
+            // settings stay reachable even when there are zero locations.
+            'locationsExist' => $this->hasLocations(),
             // Current-user display data for the topbar avatar, previously built
             // server-side in AppConfig::getAppConfigStructure().
             'currentUser' => [
@@ -181,6 +186,25 @@ class App
         return !rox_appointment_booking_is_pro_user()
             || (isset($location_settings['location_module_enable'])
                 && filter_var($location_settings['location_module_enable'], FILTER_VALIDATE_BOOLEAN));
+    }
+
+    /**
+     * Whether at least one location record exists.
+     *
+     * Only Pro can create locations, so on the free plan this is always false.
+     * Used to hide the (empty, unselectable) Location field on the admin booking
+     * form until a location has actually been created — without hiding the
+     * Locations menu, which stays gated on isLocationModuleEnabled().
+     *
+     * @return bool
+     */
+    private function hasLocations(): bool
+    {
+        if (!rox_appointment_booking_is_pro_user()) {
+            return false;
+        }
+
+        return \RoxAppointmentBookingPro\Modules\Location\Data\LocationModel::count() > 0;
     }
 
     /**

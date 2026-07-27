@@ -1,0 +1,343 @@
+// Customer Panel styles — converted from dev-resources/exmaple-customer-dashboard.html.
+// Everything is scoped under `.rox-cp` (see CUSTOMER_PANEL_PLAN.md §2c): the CSS
+// variables that the mockup put on `:root` live on `.rox-cp`, and the bare
+// `html,body` rule is dropped (its typography is applied to `.rox-cp` instead).
+// This avoids the build's CSSReplacementPlugin rewriting `:root`->`:host` and
+// stripping `body{}`.
+
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap');
+
+.rox-cp {
+  --primary: #3560fb;
+  --primary-hover: #5175f8;
+  --primary-soft: #eef2ff;
+  --primary-light: #dbe4ff;
+  --text: #151720;
+  --text-secondary: #4b4f5a;
+  --text-muted: #97999e;
+  --border: #dbdde1;
+  --border-soft: #eaecef;
+  --bg: #f4f5f7;
+  --bg-soft: #f7f8fa;
+  --surface: #ffffff;
+  --green: #16a34a;
+  --green-soft: #dcfce7;
+  --green-text: #15803d;
+  --blue-badge: #dbeafe;
+  --blue-badge-text: #1d4ed8;
+  --yellow: #fbbf24;
+  --yellow-soft: #fef3c7;
+  --yellow-text: #a16207;
+  --red: #ef4444;
+  --red-soft: #fee2e2;
+  --red-text: #b91c1c;
+  --pink-soft: #fce7f3;
+  --pink-text: #be185d;
+  --orange: #f97316;
+  --orange-soft: #ffedd5;
+  --orange-text: #c2410c;
+  --teal-soft: #ccfbf1;
+  --teal-text: #0f766e;
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, .06);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, .08);
+  --shadow-drawer: -12px 0 32px rgba(15, 23, 42, .12);
+  --radius: 8px;
+  --radius-sm: 5px;
+
+  // Base typography (moved off the mockup's html,body rule).
+  font-family: 'Heebo', sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  font-size: 14px;
+  line-height: 1.5;
+
+  * { box-sizing: border-box; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  input, select, textarea { font-family: inherit; font-size: 14px; }
+
+  /* === Public header (no WP admin) === */
+  .public-header { height: 64px; background: var(--surface); border-bottom: 1px solid var(--border-soft); display: flex; align-items: center; padding: 0 32px; gap: 24px; position: sticky; top: 0; z-index: 5; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-logo { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #3560fb, #7c3aed); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 16px; }
+  .brand-name { font-weight: 700; font-size: 17px; letter-spacing: -.3px; }
+  .brand-meta { font-size: 11px; color: var(--text-muted); font-weight: 500; background: var(--bg-soft); padding: 2px 8px; border-radius: 4px; margin-left: 6px; }
+  .header-nav { display: flex; gap: 4px; flex: 1; margin-left: 14px; }
+  .header-nav a { padding: 8px 14px; border-radius: 6px; font-weight: 500; font-size: 14px; color: var(--text-secondary); cursor: pointer; }
+  .header-nav a:hover { background: var(--bg-soft); color: var(--text); }
+  .header-nav a.active { background: var(--primary-soft); color: var(--primary); }
+  .header-right { display: flex; align-items: center; gap: 14px; }
+  .icon-bell { position: relative; color: var(--text-secondary); padding: 6px; cursor: pointer; }
+  .icon-bell .dot { position: absolute; top: 0; right: 0; background: var(--red); color: #fff; font-size: 10px; border-radius: 10px; min-width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; padding: 0 4px; font-weight: 600; }
+  .avatar { width: 38px; height: 38px; border-radius: 50%; background: #dbe4ff; display: flex; align-items: center; justify-content: center; color: var(--primary); font-weight: 600; font-size: 14px; overflow: hidden; }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .avatar-row { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px; border-radius: 8px; }
+  .avatar-row:hover { background: var(--bg-soft); }
+  .avatar-name { display: flex; flex-direction: column; line-height: 1.2; }
+  .avatar-name strong { font-size: 13.5px; font-weight: 600; }
+  .avatar-name small { font-size: 11.5px; color: var(--text-muted); }
+  .avatar-menu { position: relative; }
+  .avatar-dropdown { position: absolute; top: calc(100% + 8px); right: 0; min-width: 220px; background: var(--surface); border: 1px solid var(--border-soft); border-radius: 10px; box-shadow: var(--shadow-md); padding: 6px; z-index: 60; }
+  .avatar-dropdown-head { padding: 10px 12px 12px; border-bottom: 1px solid var(--border-soft); margin-bottom: 6px; display: flex; flex-direction: column; line-height: 1.3; }
+  .avatar-dropdown-head strong { font-size: 13.5px; font-weight: 600; }
+  .avatar-dropdown-head small { font-size: 11.5px; color: var(--text-muted); }
+  .avatar-dropdown-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: none; background: transparent; border-radius: 7px; font-size: 13.5px; font-weight: 500; color: var(--text); cursor: pointer; text-align: left; }
+  .avatar-dropdown-item:hover { background: var(--red-soft); color: var(--red-text); }
+
+  /* === Main layout === */
+  .container { max-width: 1180px; margin: 0 auto; padding: 32px; }
+  .page-title { font-size: 28px; font-weight: 700; margin: 0 0 6px; }
+  .page-sub { color: var(--text-muted); margin: 0 0 28px; font-size: 14.5px; }
+
+  // `max-width`/`min-width`/`margin`/`padding` reset neutralize WordPress admin's
+  // own `.card` rule (wp-admin common.css: max-width:520px, min-width:255px,
+  // padding:.7em 2em 1em, margin-top:20px) leaking in — our cards are full-width
+  // and pad via their inner elements.
+  .card { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 12px; box-shadow: var(--shadow-sm); max-width: none; min-width: 0; margin: 0; padding: 0; }
+
+  /* === Buttons === */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: var(--radius-sm); font-weight: 500; font-size: 14px; border: 1px solid transparent; cursor: pointer; transition: .15s; line-height: 1; }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-hover); }
+  .btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
+  .btn-secondary:hover { background: var(--bg-soft); }
+  .btn-ghost { background: transparent; color: var(--text-secondary); }
+  .btn-ghost:hover { background: var(--bg-soft); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-sm { padding: 7px 12px; font-size: 13px; }
+
+  /* Pills */
+  .pill { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600; letter-spacing: .2px; }
+  .pill-approved, .pill-rescheduled { background: var(--green-soft); color: var(--green-text); }
+  .pill-pending { background: var(--yellow-soft); color: var(--yellow-text); }
+  .pill-completed { background: var(--blue-badge); color: var(--blue-badge-text); }
+  .pill-cancelled { background: var(--red-soft); color: var(--red-text); }
+
+  /* === Hero booking summary === */
+  .hero { background: linear-gradient(135deg, #3560fb 0%, #5175f8 100%); border-radius: 14px; padding: 28px; color: #fff; margin-bottom: 24px; display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; box-shadow: var(--shadow-md); position: relative; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; right: -40px; top: -40px; width: 200px; height: 200px; border-radius: 50%; background: rgba(255, 255, 255, .08); }
+  .hero::after { content: ''; position: absolute; right: -100px; bottom: -100px; width: 280px; height: 280px; border-radius: 50%; background: rgba(255, 255, 255, .05); }
+  .hero-content { position: relative; z-index: 1; }
+  .hero-greet { font-size: 14px; font-weight: 500; opacity: .85; margin-bottom: 6px; color: #fff; }
+  .hero-title { font-size: 24px; font-weight: 700; margin: 0 0 8px; color: #fff; }
+  .hero-sub { font-size: 14px; opacity: .9; margin: 0; color: #fff; }
+  .hero-cta { position: relative; z-index: 1; }
+  .hero-cta .btn { background: #fff; color: var(--primary); font-weight: 600; padding: 11px 22px; }
+  .hero-cta .btn:hover { background: var(--primary-soft); }
+
+  /* === Tab bar === */
+  .tab-bar { display: flex; gap: 4px; border-bottom: 1px solid var(--border-soft); margin-bottom: 18px; }
+  .tab { padding: 10px 18px; font-weight: 500; font-size: 14px; color: var(--text-secondary); border-bottom: 2px solid transparent; cursor: pointer; }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+  .tab .count { background: var(--bg-soft); color: var(--text-secondary); font-size: 11.5px; padding: 2px 7px; border-radius: 9px; margin-left: 5px; font-weight: 600; }
+  .tab.active .count { background: var(--primary-soft); color: var(--primary); }
+
+  /* === Booking cards === */
+  .booking-list { display: flex; flex-direction: column; gap: 14px; }
+  .booking-card { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 12px; padding: 0; overflow: hidden; display: grid; grid-template-columns: 120px 1fr auto; gap: 0; cursor: pointer; transition: .2s; box-shadow: var(--shadow-sm); }
+  .booking-card:hover { border-color: var(--primary-light); box-shadow: var(--shadow-md); }
+  .booking-date { background: var(--bg-soft); padding: 18px 16px; text-align: center; border-right: 1px solid var(--border-soft); display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; }
+  .booking-date .month { font-size: 12px; font-weight: 600; color: var(--primary); text-transform: uppercase; letter-spacing: .6px; }
+  .booking-date .day { font-size: 30px; font-weight: 700; color: var(--text); line-height: 1; }
+  .booking-date .weekday { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; }
+  .booking-card.completed .booking-date { background: #f3f4f6; }
+  .booking-card.completed .booking-date .month { color: var(--text-secondary); }
+  .booking-info { padding: 18px; }
+  .booking-title { font-weight: 600; font-size: 16px; color: var(--text); margin: 0 0 4px; }
+  .booking-with { font-size: 13px; color: var(--text-secondary); margin: 0 0 8px; }
+  .booking-meta { display: flex; gap: 16px; font-size: 12.5px; color: var(--text-muted); flex-wrap: wrap; }
+  .booking-meta span { display: flex; align-items: center; gap: 5px; }
+  .booking-actions { padding: 18px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; justify-content: space-between; border-left: 1px solid var(--border-soft); background: var(--bg-soft); }
+  .booking-price { font-weight: 700; font-size: 17px; color: var(--text); }
+  .booking-quick-actions { display: flex; gap: 6px; }
+
+  /* === Detail drawer (no WP-style) === */
+  /* Off-canvas clip layer: a fixed, full-viewport container with overflow hidden.
+     The closed drawers (translated off-screen right) are clipped by THIS layer, so
+     they never create page-level horizontal overflow — which means we don't need
+     an `overflow-x: hidden` hack on html/body (that hack pushed the open drawer a
+     scrollbar-width past the viewport, clipping its right padding). Drawers are
+     positioned `absolute` within this layer, so `right: 0` anchors to the true
+     viewport content edge (correct with a vertical scrollbar present). */
+  .drawer-overlay { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 50; }
+  .drawer-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, .42); opacity: 0; pointer-events: none; transition: opacity .25s; }
+  .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+  .drawer { position: absolute; top: 0; right: 0; height: 100%; width: 460px; max-width: 100%; background: var(--surface); box-shadow: var(--shadow-drawer); transform: translateX(100%); transition: transform .3s ease; z-index: 51; display: flex; flex-direction: column; pointer-events: auto; }
+  .drawer.open { transform: translateX(0); }
+  .drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 22px; border-bottom: 1px solid var(--border-soft); }
+  .drawer-title { font-weight: 600; font-size: 16px; display: flex; align-items: center; gap: 10px; }
+  .drawer-close { cursor: pointer; color: var(--text-muted); padding: 4px; }
+  /* The scroll container carries NO horizontal padding so its vertical scrollbar
+     sits at the drawer's right edge, not on top of the content's right padding
+     (which otherwise eats the right gap and clips right-aligned values). The
+     padding lives on the inner wrapper, inside the scrollbar. */
+  .drawer-body { flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
+  .drawer-body-inner { padding: 20px 22px; }
+  .drawer-foot { padding: 16px 22px; border-top: 1px solid var(--border-soft); display: flex; gap: 10px; background: var(--bg-soft); }
+  @media (max-width: 520px) { .drawer { width: 100%; } }
+
+  .detail-summary { background: linear-gradient(135deg, #eef2ff 0%, #dcfce7 100%); border-radius: 10px; padding: 18px; margin-bottom: 18px; }
+  .detail-service { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .detail-with { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; }
+  .detail-time { font-size: 15px; font-weight: 600; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+
+  .detail-section { margin-bottom: 20px; }
+  .detail-section-title { font-size: 11.5px; text-transform: uppercase; letter-spacing: .6px; font-weight: 600; color: var(--text-muted); margin-bottom: 10px; }
+  .detail-row { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--border-soft); font-size: 13.5px; }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-row .label { color: var(--text-muted); flex: 0 0 auto; }
+  .detail-row .value { color: var(--text); font-weight: 500; text-align: right; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+
+  /* === Modal for cancel === */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, .5); display: flex; align-items: center; justify-content: center; z-index: 60; opacity: 0; pointer-events: none; transition: .2s; }
+  .modal-backdrop.open { opacity: 1; pointer-events: auto; }
+  .modal { background: var(--surface); border-radius: 12px; padding: 28px; max-width: 420px; width: 90%; text-align: center; box-shadow: var(--shadow-md); transform: scale(.95); transition: .2s; }
+  .modal-backdrop.open .modal { transform: scale(1); }
+  .modal-icon { width: 64px; height: 64px; border-radius: 50%; background: var(--red-soft); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; color: var(--red-text); font-size: 28px; }
+  .modal-title { font-size: 18px; font-weight: 700; margin: 0 0 6px; }
+  .modal-msg { color: var(--text-secondary); margin: 0 0 22px; font-size: 14px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: center; }
+
+  /* === Pay Now (Stripe card) modal === */
+  .paynow-modal { text-align: left; max-width: 440px; }
+  .paynow-modal .modal-title { text-align: center; }
+  .paynow-field { margin: 18px 0 4px; }
+  .paynow-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+  .paynow-card { border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; background: var(--surface); }
+  .paynow-card-loading { font-size: 13px; color: var(--text-muted); }
+  .paynow-error { color: var(--red-text); background: var(--red-soft); border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-top: 12px; }
+  .paynow-secure { font-size: 12px; color: var(--text-muted); margin: 14px 0 20px; text-align: center; }
+
+  /* === Reschedule flow === */
+  .reschedule-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 18px; }
+  .cal-day-head { font-size: 11px; color: var(--text-muted); text-align: center; font-weight: 600; text-transform: uppercase; padding: 6px 0; }
+  .cal-day { aspect-ratio: 1; border: 1px solid var(--border-soft); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 14px; cursor: pointer; transition: .15s; background: var(--surface); }
+  .cal-day:hover:not(.disabled) { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+  .cal-day.selected { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .cal-day.disabled { color: var(--text-muted); background: var(--bg-soft); cursor: not-allowed; opacity: .5; }
+  .cal-day.today { font-weight: 700; border-color: var(--primary); }
+  .slot-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .slot { padding: 10px; border: 1px solid var(--border-soft); border-radius: 6px; text-align: center; font-size: 13px; font-weight: 500; cursor: pointer; transition: .15s; }
+  .slot:hover:not(.disabled) { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+  .slot.selected { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .slot.disabled { color: var(--text-muted); background: var(--bg-soft); cursor: not-allowed; text-decoration: line-through; }
+
+  /* === Toast === */
+  .toast-container { position: fixed; top: 24px; right: 24px; display: flex; flex-direction: column; gap: 10px; z-index: 100; max-width: 380px; }
+  .toast { background: var(--surface); border-left: 4px solid var(--green-text); border-radius: 10px; box-shadow: var(--shadow-md); padding: 14px 16px; display: flex; align-items: flex-start; gap: 12px; animation: rox-cp-slideIn .3s ease; }
+  .toast.warn { border-left-color: var(--yellow-text); }
+  .toast.err { border-left-color: var(--red-text); }
+  .toast.info { border-left-color: var(--primary); }
+  .toast-icon { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 14px; }
+  .toast.success .toast-icon { background: var(--green-text); }
+  .toast.warn .toast-icon { background: var(--yellow-text); }
+  .toast.err .toast-icon { background: var(--red-text); }
+  .toast.info .toast-icon { background: var(--primary); }
+  .toast-body { flex: 1; }
+  .toast-title { font-weight: 600; font-size: 14px; color: var(--text); }
+  .toast-msg { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+  .toast-close { cursor: pointer; color: var(--text-muted); padding: 2px; }
+
+  /* Field */
+  .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+  .field label { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+  .field input, .field select, .field textarea { padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); outline: none; color: var(--text); }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--primary); }
+  .field textarea { min-height: 80px; resize: vertical; }
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* Profile */
+  .profile-grid { display: grid; grid-template-columns: 280px 1fr; gap: 24px; }
+  .profile-side { background: var(--surface); border: 1px solid var(--border-soft); border-radius: 12px; padding: 24px; text-align: center; box-shadow: var(--shadow-sm); height: fit-content; }
+  .profile-avatar { width: 96px; height: 96px; border-radius: 50%; background: linear-gradient(135deg, #3560fb, #7c3aed); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 700; margin: 0 auto 14px; overflow: hidden; }
+  .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .profile-name { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
+  .profile-email { font-size: 13px; color: var(--text-muted); margin: 0 0 12px; }
+  .profile-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border-soft); }
+  .profile-stat-value { font-size: 20px; font-weight: 700; color: var(--text); }
+  .profile-stat-label { font-size: 11.5px; color: var(--text-muted); font-weight: 500; }
+  .profile-form-title { margin-top: 0; font-size: 18px; }
+  .profile-section-title { font-size: 18px; margin: 28px 0 16px; padding-top: 18px; border-top: 1px solid var(--border-soft); }
+  .pref-toggle { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 12px 14px; border: 1px solid var(--border-soft); border-radius: 8px; margin-bottom: 10px; cursor: pointer; }
+  .pref-toggle-title { font-weight: 500; }
+  .pref-toggle-desc { font-size: 12px; color: var(--text-muted); }
+  .profile-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+
+  /* Empty state */
+  .empty-state { text-align: center; padding: 60px 20px; background: var(--surface); border-radius: 12px; border: 1px dashed var(--border); }
+  .empty-icon { font-size: 48px; margin-bottom: 14px; color: var(--text-muted); opacity: .6; }
+  .empty-title { font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .empty-msg { font-size: 13.5px; color: var(--text-muted); margin-bottom: 18px; }
+
+  /* === Skeleton (loading placeholders) === */
+  .skel { display: block; background: var(--bg-soft); position: relative; overflow: hidden; }
+  .skel::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .55), transparent); animation: rox-cp-shimmer 1.3s ease-in-out infinite; }
+  @keyframes rox-cp-shimmer { 100% { transform: translateX(100%); } }
+
+  /* Payment row */
+  .pay-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border-soft); }
+  .pay-row:last-child { border-bottom: none; }
+  .pay-row-left { display: flex; align-items: center; gap: 14px; }
+  .pay-icon { width: 40px; height: 40px; border-radius: 8px; background: var(--green-soft); color: var(--green-text); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; }
+  .pay-icon.refunded { background: var(--teal-soft); color: var(--teal-text); }
+  .pay-icon.failed { background: var(--red-soft); color: var(--red-text); }
+  .pay-row-title { font-weight: 600; font-size: 14px; }
+  .pay-row-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .pay-row-amount { font-weight: 700; font-size: 16px; }
+  .pay-row-amount.negative { color: var(--red-text); }
+  .pay-row.pending { background: var(--yellow-soft); }
+  .pay-icon.pending { background: var(--yellow); color: #fff; }
+  .pay-tx-head { padding: 16px 18px; border-bottom: 1px solid var(--border-soft); font-weight: 600; }
+  .pay-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+  .stat-card { padding: 18px; }
+  .stat-label { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
+  .stat-value { font-size: 24px; font-weight: 700; margin-top: 6px; }
+
+  /* View toggle */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .stepper { display: flex; align-items: center; gap: 14px; padding: 18px 22px; border-bottom: 1px solid var(--border-soft); justify-content: center; }
+  .step-bubble { display: flex; align-items: center; gap: 8px; }
+  .step-circle { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; color: var(--text-secondary); background: var(--surface); }
+  .step-bubble.active .step-circle { border-color: var(--primary); color: var(--primary); }
+  .step-bubble.done .step-circle { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .step-label { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+  .step-bubble.active .step-label { color: var(--primary); }
+  .step-conn { width: 40px; height: 1px; background: var(--border); }
+
+  /* Book New — cascade step body + selectable choice cards */
+  .booknew-wrap { max-width: 760px; margin: 0 auto; }
+  .booknew-body { padding: 22px; }
+  /* Compact Date & Time step: calendar on the left, time picker on the right.
+     Halving the width shrinks the aspect-ratio calendar cells and the two-column
+     slot grid keeps the whole step short. (The shared .reschedule-cal stays
+     full-width inside the narrow reschedule drawer.) */
+  .booknew-dt { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; margin-top: 4px; }
+  .booknew-dt-cal .reschedule-cal { gap: 4px; margin-bottom: 0; }
+  .booknew-dt-cal .cal-day { font-size: 13px; border-radius: 6px; }
+  .booknew-dt-slots .slot-row { grid-template-columns: repeat(3, 1fr); gap: 5px; }
+  .booknew-dt-slots .slot { padding: 6px 4px; font-size: 11.5px; }
+  @media (max-width: 640px) { .booknew-dt { grid-template-columns: 1fr; } }
+  .booknew-heading { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+  .booknew-sub { margin: 0 0 18px; font-size: 13.5px; color: var(--text-muted); }
+  .choice-list { display: flex; flex-direction: column; gap: 10px; }
+  .choice-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1px solid var(--border-soft); border-radius: 10px; cursor: pointer; background: var(--surface); transition: border-color .15s, box-shadow .15s; }
+  .choice-card:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); }
+  .choice-card.selected { border-color: var(--primary); background: var(--primary-soft); }
+  .choice-icon { width: 42px; height: 42px; flex: 0 0 42px; border-radius: 10px; background: var(--primary-soft); color: var(--primary); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .choice-body { flex: 1; min-width: 0; }
+  .choice-title { font-weight: 600; font-size: 14.5px; }
+  .choice-sub { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
+  .choice-meta { text-align: right; font-size: 13px; font-weight: 600; color: var(--text-secondary); white-space: nowrap; }
+  .booknew-foot { display: flex; justify-content: space-between; gap: 10px; margin-top: 24px; }
+  .booknew-summary { border: 1px solid var(--border-soft); border-radius: 10px; overflow: hidden; margin-bottom: 18px; }
+  .booknew-summary .detail-row { padding: 12px 16px; border-bottom: 1px solid var(--border-soft); margin: 0; }
+  .booknew-summary .detail-row:last-child { border-bottom: none; }
+}
+
+@keyframes rox-cp-slideIn {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}

@@ -1,0 +1,12 @@
+// Shrink the editor block wrapper to the form so the selection outline hugs the
+// content instead of spanning the full column — the same fix applied to the
+// service-list block.
+.wp-block-rox-appointment-booking-login-form {
+	width: fit-content;
+	max-width: 100%;
+}
+
+// The preview is a mock: nothing in it should look clickable or focusable.
+.rlf-editor-preview {
+	pointer-events: none;
+}

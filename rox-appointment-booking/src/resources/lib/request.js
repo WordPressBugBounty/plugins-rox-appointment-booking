@@ -12,6 +12,7 @@
  */
 
 import apiFetch from "@wordpress/api-fetch";
+import { __ } from '@wordpress/i18n';
 import { api } from "../config/env.js";
 import { dispatchNotificationsRefresh } from "./notificationEvents.js";
 
@@ -65,7 +66,7 @@ export async function request(path, { method = "GET", data, params } = {}) {
     response?.code === 201;
 
   if (!ok) {
-    throw new Error(response?.message || "Request failed");
+    throw new Error(response?.message || __("Request failed", "rox-appointment-booking"));
   }
 
   // A successful mutation (appointment/order/payment save, status change,
@@ -95,7 +96,7 @@ export async function requestPage(path, { params } = {}) {
 
   const ok = response?.success === true || response?.code === 200;
   if (!ok) {
-    throw new Error(response?.message || "Request failed");
+    throw new Error(response?.message || __("Request failed", "rox-appointment-booking"));
   }
 
   const meta = response.options || {};

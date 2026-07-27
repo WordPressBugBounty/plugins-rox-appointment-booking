@@ -76,8 +76,6 @@ class GetAppointment extends AbstractREST
         $appointmentId = isset($request) ? intval($request->get_param('id')) : null;
         $customerService = new CustomerService();
         $agentService = new AgentService();
-        $currentCustomerId = AppointmentService::getCurrentCustomerId();
-        $isCustomerUser = AppointmentService::isCustomerUser();
         $currentAgentId = AppointmentService::getCurrentAgentId();
         $isAgentUser = AppointmentService::isAgentUser();
         if ($appointmentId) {
@@ -93,24 +91,6 @@ class GetAppointment extends AbstractREST
             $appointmentData = $appointment->toArray();
 
             if (!Security::canManageBookings()) {
-                if ($isCustomerUser && !$currentCustomerId) {
-                    return rox_appointment_booking_rest_response(
-                        data: null,
-                        code: 403,
-                        message: esc_html__('Customer account not found for this user.', 'rox-appointment-booking'),
-                        headers: ['status' => 403]
-                    );
-                }
-
-                if ($isCustomerUser && $currentCustomerId && (int) ($appointmentData['customer_id'] ?? 0) !== $currentCustomerId) {
-                    return rox_appointment_booking_rest_response(
-                        data: null,
-                        code: 403,
-                        message: esc_html__('You are not allowed to view this appointment.', 'rox-appointment-booking'),
-                        headers: ['status' => 403]
-                    );
-                }
-
                 if ($isAgentUser && !$currentAgentId) {
                     return rox_appointment_booking_rest_response(
                         data: null,
@@ -153,6 +133,7 @@ class GetAppointment extends AbstractREST
             $response = [
                 'id' => $appointmentData['id'] ?? null,
                 'location_id' => $appointmentData['location_id'] ?? null,
+                'location_option' => $this->getLocationOption($appointmentData['location_id'] ?? null), // {value,label} so the form's Location select shows a label even without the Pro list endpoint
                 'category_id' => $appointmentData['category_id'] ?? null,
                 'service_id' => $appointmentData['service_id'] ?? null,
                 'extra_services' => $extraServiceIds,
@@ -207,13 +188,7 @@ class GetAppointment extends AbstractREST
         
         $query = \RoxAppointmentBooking\Modules\Appointment\Data\AppointmentModel::query();
         if (!Security::canManageBookings()) {
-            if ($isCustomerUser) {
-                if ($currentCustomerId) {
-                    $query->where('customer_id', $currentCustomerId);
-                } else {
-                    $query->where('id', 0);
-                }
-            } elseif ($isAgentUser) {
+            if ($isAgentUser) {
                 if ($currentAgentId) {
                     $query->where('agent_id', $currentAgentId);
                 } else {
@@ -274,6 +249,37 @@ class GetAppointment extends AbstractREST
         }
 
         return Security::canAccessPanel();
+    }
+
+    /**
+     * Get a {value,label} pair for a location ID.
+     *
+     * Reads the `rox_appointment_location` table directly (created by core on
+     * activation) instead of going through the Pro-only Location REST endpoint,
+     * so the label resolves even when the Pro plugin isn't active.
+     *
+     * @param int|null $locationId
+     * @return array|null
+     */
+    private function getLocationOption($locationId): ?array
+    {
+        if (empty($locationId)) {
+            return null;
+        }
+
+        global $wpdb;
+        $table = ROX_APPOINTMENT_BOOKING_DB_PREFIX . ROX_APPOINTMENT_BOOKING_PREFIX . '_location';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- No core Location model exists; table is created by core regardless of Pro.
+        $title = $wpdb->get_var($wpdb->prepare("SELECT title FROM $table WHERE id = %d", $locationId));
+
+        if ($title === null) {
+            return null;
+        }
+
+        return [
+            'value' => (int) $locationId,
+            'label' => $title,
+        ];
     }
 
     /**
@@ -503,6 +509,7 @@ class GetAppointment extends AbstractREST
         $map = [
             'pay_later' => 'On-site',
             'stripe' => 'Stripe',
+            'woocommerce' => 'WooCommerce',
         ];
 
         if (isset($map[$method])) {

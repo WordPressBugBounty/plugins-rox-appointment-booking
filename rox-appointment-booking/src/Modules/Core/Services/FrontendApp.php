@@ -116,6 +116,12 @@ class FrontendApp
             true,
         );
 
+        wp_set_script_translations(
+            'rox-appointment-booking-frontend',
+            'rox-appointment-booking',
+            $plugin_path . 'languages'
+        );
+
         wp_add_inline_script(
             'rox-appointment-booking-frontend',
             'window.rox_appointment_booking = window.rox_appointment_booking || {}; ' .

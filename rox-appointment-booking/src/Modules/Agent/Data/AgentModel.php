@@ -42,9 +42,8 @@ class AgentModel extends AbstractModel
         'internal_notes',
         'experience_years',
         'certifications',
-        'linkedin',
-        'twitter',
         'bio',
+        'social_profiles',
     ];
 
 	/**

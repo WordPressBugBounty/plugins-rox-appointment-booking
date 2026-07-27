@@ -4,7 +4,7 @@ Tags: booking, reservation, appointments, calendar
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.0.8
+Stable tag: 1.0.9
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -218,6 +218,24 @@ After activation, you can configure the plugin settings from the WordPress admin
 
 
 == Changelog ==
+Version: 1.0.9 // 2026-07-27
+* Added: Standalone customer login form via the `[rox_appointment_login]` shortcode — login, password reset and optional "Sign in with Google".
+* Added: "Rox Appointment Login Form" Gutenberg block with full style controls, post-login redirect and a custom button label.
+* Added: "Rox Appointment Login Form" Elementor widget with full style controls, post-login redirect and a custom button label.
+* Added: Field Repeater component for building repeatable form fields in the admin dashboard.
+* Added: Customer Panel — a dedicated portal for logged-in customers, separate from the admin dashboard.
+* Added: Customer Panel — My Bookings view with upcoming, past and cancelled tabs and booking details.
+* Added: Customer Panel — book a new appointment end-to-end (location → category → service → agent → date & time).
+* Added: Customer Panel — reschedule, cancel and pay outstanding balances (Stripe) for your own bookings.
+* Added: Customer Panel — payment history with totals and transaction list.
+* Added: Customer Panel — profile management for personal details and communication preferences.
+* Added: Currency selected in Settings now applies across the whole plugin, including the customer booking flow.
+* Improved: Redesigned Scheduler component UI.
+* Improved: Agent module fully revamped.
+* Improved: All admin dashboard tables are now fully responsive.
+* Improved: All static text is now translatable.
+* Fixed: Security hardening for the appointment creation flow.
+
 Version: 1.0.8 // 2026-07-15
 * Improved: UI refinements to the Service, Appointment and Agent creation drawers.
 * Improved: Service settings option.

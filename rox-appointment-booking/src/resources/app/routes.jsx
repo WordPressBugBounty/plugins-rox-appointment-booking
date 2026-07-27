@@ -14,7 +14,9 @@
  */
 
 import React from "react";
+import { Navigate } from "react-router-dom";
 import { applyConfigFilters, HOOKS } from "../config/hooks.js";
+import { userRoles } from "../config/env.js";
 import DashboardPage from "../pages/dashboard/DashboardPage.jsx";
 import CustomersPage from "../pages/customers/CustomersPage.jsx";
 import AgentsPage from "../pages/agents/AgentsPage.jsx";
@@ -26,6 +28,32 @@ import ProfilePage from "../pages/profile/ProfilePage.jsx";
 import SettingsPage from "../pages/settings/SettingsPage.jsx";
 import LocationsPage from "../pages/locations/LocationsPage.jsx";
 import CouponsPage from "../pages/coupons/CouponsPage.jsx";
+
+/**
+ * Whether the current user may reach the admin-only pages. Mirrors the PHP
+ * `Security::canManageBookings()` gate (admin/manager). Agents and customers
+ * fail this check and are confined to `RESTRICTED_USER_PATHS`.
+ *
+ * @return {boolean}
+ */
+function canAccessAdminRoutes() {
+  const roles = userRoles();
+  return (
+    roles.includes("administrator") ||
+    roles.includes("rox_appointment_booking_manager")
+  );
+}
+
+/**
+ * The only page paths agents and customers may open. Every other route (admin
+ * pages, Pro pages) is redirected away for them, even via a direct URL hash.
+ */
+const RESTRICTED_USER_PATHS = [
+  "/appointment",
+  "/appointment/:id",
+  "/calendar",
+  "/profile",
+];
 
 /**
  * The free plugin's migrated pages. Pages are added here as they move off the
@@ -66,5 +94,18 @@ function baseRoutes() {
  * @return {Array<{path: string, element: React.ReactElement}>}
  */
 export function getPageRoutes() {
-  return applyConfigFilters(HOOKS.pageRoutes, baseRoutes());
+  const routes = applyConfigFilters(HOOKS.pageRoutes, baseRoutes());
+
+  // Admins/managers get every page. Agents and customers are confined to their
+  // own pages; any other route (admin or Pro) renders a redirect to their
+  // default page instead of the real component.
+  if (canAccessAdminRoutes()) {
+    return routes;
+  }
+
+  return routes.map((route) =>
+    RESTRICTED_USER_PATHS.includes(route.path)
+      ? route
+      : { ...route, element: <Navigate to="/appointment" replace /> },
+  );
 }

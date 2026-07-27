@@ -113,6 +113,11 @@ class BookingPanelStructure extends AbstractREST
             "icon" => $plugin_url . "svgs/sidebar_image.svg",
             "location" => $location_module_enable ? true : false,
 
+            // Currency symbol for all price displays in the booking panel (service,
+            // extra service, summary, confirmation), resolved from the Payments
+            // settings currency code — mirrors App.php's admin `currencySymbol`.
+            "currencySymbol" => rox_appointment_booking__get_currency_symbol(rox_appointment_booking_payment_settings('payment_currency') ?? 'USD'),
+
             // The Mailchimp opt-in checkbox on the Customer Information step only
             // shows when the integration is enabled AND fully configured (API key
             // + audience) — matches the exact gate the Pro sync hook checks before

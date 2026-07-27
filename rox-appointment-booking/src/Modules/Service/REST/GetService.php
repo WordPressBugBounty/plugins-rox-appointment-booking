@@ -99,6 +99,7 @@ class GetService extends AbstractREST
                 'agent_ids' => $this->getAgentIdsByServiceId($service->getID()),
                 'category_names' => $this->getCategoryNamesByServiceId($service->getID()), // All category names
                 'location' => $this->getLocationIdsByServiceId($service->getID()),
+                'location_options' => $this->getLocationOptionsByServiceId($service->getID()), // {value,label} pairs so the form's Location select shows labels even without the Pro list endpoint
                 'agent' => $this->getAgentIdsByServiceId($service->getID()),
                 'capacity' => $service->capacity,
                 'max_capacity' => $service->max_capacity,
@@ -327,6 +328,43 @@ class GetService extends AbstractREST
         }
         
         return $locationIds;
+    }
+
+    /**
+     * Get location {value,label} pairs by service ID for form population.
+     *
+     * Reads the `rox_appointment_location` table directly (created by core on
+     * activation) instead of going through the Pro-only Location REST endpoint,
+     * so the labels resolve even when the Pro plugin isn't active.
+     *
+     * @param int $serviceId Service ID
+     * @return array Array of ['value' => id, 'label' => title]
+     */
+    protected function getLocationOptionsByServiceId($serviceId): array
+    {
+        $locationIds = $this->getLocationIdsByServiceId($serviceId);
+
+        if (empty($locationIds)) {
+            return [];
+        }
+
+        global $wpdb;
+        $table = ROX_APPOINTMENT_BOOKING_DB_PREFIX . ROX_APPOINTMENT_BOOKING_PREFIX . '_location';
+        $placeholders = implode(',', array_fill(0, count($locationIds), '%d'));
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- No core Location model exists; table is created by core regardless of Pro.
+        $rows = $wpdb->get_results(
+            $wpdb->prepare("SELECT id, title FROM $table WHERE id IN ($placeholders)", $locationIds)
+        );
+
+        $options = [];
+        foreach ($rows as $row) {
+            $options[] = [
+                'value' => (int) $row->id,
+                'label' => $row->title,
+            ];
+        }
+
+        return $options;
     }
 
     /**

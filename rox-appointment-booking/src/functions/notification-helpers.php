@@ -136,8 +136,8 @@ if (!function_exists('rox_appointment_booking_format_currency')) {
      */
     function rox_appointment_booking_format_currency(float $amount): string
     {
-        // Check if there's a currency setting, otherwise use a default
-        $currency_symbol = get_option('rox_appointment_booking_currency_symbol', '$');
+        // Resolve the currency symbol from the Payments settings currency code.
+        $currency_symbol = rox_appointment_booking__get_currency_symbol(rox_appointment_booking_payment_settings('payment_currency') ?? 'USD');
         $currency_position = get_option('rox_appointment_booking_currency_position', 'left');
         
         $formatted_amount = number_format($amount, 2);

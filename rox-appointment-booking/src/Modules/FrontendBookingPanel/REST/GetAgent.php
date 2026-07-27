@@ -105,6 +105,28 @@ class GetAgent extends AbstractREST
     }
 
     /**
+     * Build a flat {platform: url} socials map from the agent's social_profiles JSON.
+     *
+     * @param AgentModel $agent Agent model instance.
+     * @return array
+     */
+    private function getSocialsMap(AgentModel $agent): array
+    {
+        $profiles = json_decode($agent->social_profiles ?? '[]', true);
+        if (!is_array($profiles)) {
+            return [];
+        }
+
+        $socials = [];
+        foreach ($profiles as $profile) {
+            if (!empty($profile['key'])) {
+                $socials[$profile['key']] = $profile['value'] ?? '';
+            }
+        }
+        return $socials;
+    }
+
+    /**
      * Format agent data for REST responses.
      *
      * @param AgentModel $agent Agent model instance.
@@ -143,10 +165,7 @@ class GetAgent extends AbstractREST
             'certifications' => $agent->certifications ?? 0,
             'work_days' => $this->getWorkDays($agent->weekly_schedule),
             'bio' => $agent->bio ?? '',
-            'socials' => !empty($agent->socials) ? json_decode($agent->socials, true) : [
-                'twitter' => $agent->twitter ?? '',
-                'linkedin' => $agent->linkedin ?? ''
-            ],
+            'socials' => $this->getSocialsMap($agent),
         ];
         if ($detailed) {
             $data = array_merge($data, [
@@ -173,10 +192,7 @@ class GetAgent extends AbstractREST
                 'certifications' => $agent->certifications ?? 0,
                 'work_days' => $this->getWorkDays($agent->weekly_schedule),
                 'bio' => $agent->bio ?? '',
-                'socials' => !empty($agent->socials) ? json_decode($agent->socials, true) : [
-                    'twitter' => $agent->twitter ?? '',
-                    'linkedin' => $agent->linkedin ?? ''
-                ],
+                'socials' => $this->getSocialsMap($agent),
             ]);
         }
         

@@ -76,8 +76,13 @@ class SavePayments extends AbstractREST
     {
         $stripeEnabled   = filter_var($params['stripe_payment_gateway_enable'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $payLaterEnabled = filter_var($params['pay_later_payment_option_enable'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $hasEnabledOption = $stripeEnabled || $payLaterEnabled;
 
-        if (!$stripeEnabled && !$payLaterEnabled) {
+        // Let Pro (or any add-on) register its own payment option as
+        // satisfying this requirement, e.g. woocommerce_payment_gateway_enable.
+        $hasEnabledOption = apply_filters('rox_appointment_booking_payment_option_enabled', $hasEnabledOption, $params);
+
+        if (!$hasEnabledOption) {
             return esc_html__('At least one payment option must be enabled.', 'rox-appointment-booking');
         }
 
@@ -149,7 +154,26 @@ class SavePayments extends AbstractREST
                     ? ($field === 'stripe_connection_status' ? 'disconnected' : '')
                     : ($existingSettings[$field] ?? ($field === 'stripe_connection_status' ? 'disconnected' : ''));
             }
-            
+
+            // Currency now lives on the General settings form (which posts to a
+            // different option), so it's never in this form's own params —
+            // preserve whatever is already stored instead of letting the
+            // full-option overwrite below wipe it.
+            if (!array_key_exists('payment_currency', $params)) {
+                $params['payment_currency'] = $existingSettings['payment_currency'] ?? 'USD';
+            }
+
+            // Let Pro (or any add-on) declare backend-managed keys (e.g. an
+            // auto-created resource ID) that aren't part of the submitted
+            // form, so saving the page from a stale/older form state doesn't
+            // silently wipe them back out.
+            $preserveKeys = apply_filters('rox_appointment_booking_payment_settings_preserve_keys', []);
+            foreach ($preserveKeys as $field) {
+                if (!array_key_exists($field, $params) && array_key_exists($field, $existingSettings)) {
+                    $params[$field] = $existingSettings[$field];
+                }
+            }
+
             update_option('rox_appointment_booking_payments_settings', $params);
             
             return rox_appointment_booking_rest_response(

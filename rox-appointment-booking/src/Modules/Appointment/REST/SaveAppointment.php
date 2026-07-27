@@ -389,6 +389,28 @@ class SaveAppointment extends AbstractREST
      */
     private function checkSlotAvailability($data)
     {
+        // CUSTOMER DOUBLE-BOOKING CHECK:
+        // The same customer cannot hold two appointments that overlap in time,
+        // regardless of service or agent.
+        if (!empty($data['customer_id'])) {
+            $customer_conflict = AppointmentModel::where('customer_id', $data['customer_id'])
+                ->where('date', $data['date'])
+                ->where('status', '!=', 'cancelled')
+                ->where(function($query) use ($data) {
+                    $query->where('start_time', '<', $data['end_time'])
+                          ->where('end_time', '>', $data['start_time']);
+                })
+                ->first();
+
+            if ($customer_conflict) {
+                return new WP_Error(
+                    'customer_time_conflict',
+                    esc_html__('This customer already has an appointment at this time. To add or change a service, edit or reschedule the existing appointment.', 'rox-appointment-booking'),
+                    ['status' => 409]
+                );
+            }
+        }
+
         // Agent-less appointment (agent_id NULL): enforce the service capacity —
         // reject when overlapping non-cancelled bookings of THIS service (any agent)
         // already reach max_capacity (default 1).

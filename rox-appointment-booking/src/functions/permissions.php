@@ -269,3 +269,19 @@ if (!function_exists('rox_appointment_booking_has_settings_permission')) {
 		return rox_appointment_booking_has_permission('settings', $action);
 	}
 }
+
+if (!function_exists('rox_appointment_booking_is_customer')) {
+	/**
+	 * Whether the current user should get the separate Customer Panel UI instead
+	 * of the admin dashboard: any logged-in user who is neither an administrator
+	 * nor a booking agent. Mirrors config/env.js uiRole()'s "customer" fallback
+	 * and App.php reactAppVars()'s isCustomer flag.
+	 *
+	 * @return bool
+	 */
+	function rox_appointment_booking_is_customer() {
+		$roles = rox_appointment_booking_get_current_user_role();
+		return !in_array('administrator', $roles, true)
+			&& !in_array('rox_appointment_booking_agent', $roles, true);
+	}
+}

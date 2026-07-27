@@ -115,8 +115,8 @@
     }
 
     .ant-select-selection-item {
-      background: #fff;
-      border: 1px solid #cfd1d9;
+      background: #F3F4F9;
+      border: none;
       //padding: 4px 4px 4px 8px;
 
       .ant-select-selection-item-content {
@@ -139,6 +139,10 @@
     padding-left: 0px;
   }
 
+  .filter-bar-select .ant-select-selector {
+    height: 34px;
+  }
+
   .ant-select-auto-complete {
     height: 40px;
 
@@ -153,6 +157,29 @@
 
   .ant-input-password {
     padding-left: 0px;
+  }
+
+  .ant-checkbox-indeterminate .ant-checkbox-inner {
+    border-color: #3560fb;
+  }
+
+  // Location table's TOTAL AGENT avatar stack — antd's default overlap
+  // (~10%) and border are both too subtle against the design.
+  .location-agent-avatars .ant-avatar {
+    border: 3px solid #fff;
+
+    // -16px was calibrated for the old 32px avatars (~50% overlap); now
+    // they're 40px, so the same value only overlaps ~40% — bumped up to
+    // restore it.
+    &:not(:first-child) {
+      margin-inline-start: -19px;
+    }
+  }
+
+  // Location form's Services / Phone row (side by side).
+  .location-service-field .ant-select-selection-placeholder,
+  .location-phone-field input::placeholder {
+    color: #97999E;
   }
 
   .ant-input:hover,
@@ -192,7 +219,7 @@
       // controlHeight`. That min-height floors the row at 40px no matter
       // how much the padding below is reduced, so it has to be overridden
       // directly here.
-      min-height: 36px !important;
+      min-height: 32px !important;
       // AntD's default option padding (~12px inline-end) leaves too much
       // space after our flush-right checkbox; the content itself already
       // has padding-inline-end: 0, so this is the only remaining gap.
@@ -238,6 +265,19 @@
     }
   }
 
+  // Select / DetailsSelect popups run with `virtual: false` so the list
+  // scrolls natively via `.rc-virtual-list-holder`. That element sits inside
+  // the dropdown's own right padding (antd's default paddingXXS), so its
+  // native scrollbar renders inset from the dropdown's edge — move that
+  // padding onto the inner content instead so the scrollbar sits flush.
+  .select-fixed-list-dropdown {
+    padding-inline-end: 0 !important;
+
+    .rc-virtual-list-holder-inner {
+      padding-inline-end: 4px;
+    }
+  }
+
   textarea {
     min-height: 80px;
   }
@@ -253,25 +293,91 @@
       align-items: center;
       justify-content: space-between;
       margin-bottom: 8px;
+      padding-top: 12px;
 
-      .ant-checkbox-wrapper {
-        .ant-checkbox-label {
+      &:has(+ .breaks-container .break-item) {
+        padding-bottom: 12px;
+        border-bottom: 1px solid #e2e4ea;
+      }
+
+      &:not(:has(+ .breaks-container)) {
+        margin-bottom: 0;
+        padding-bottom: 12px;
+      }
+
+      .day-switch {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+
+        .day-label {
           color: #151720;
           font-family: "Heebo", sans-serif;
           font-size: 16px;
           font-style: normal;
           font-weight: 500;
         }
+
+        .ant-switch {
+          min-width: 34px;
+          height: 18px;
+          line-height: 18px;
+
+          .ant-switch-handle {
+            width: 14px;
+            height: 14px;
+            top: 2px;
+            inset-inline-start: 2px;
+          }
+
+          &.ant-switch-checked .ant-switch-handle {
+            inset-inline-start: calc(100% - 16px);
+          }
+
+          &:not(.ant-switch-checked) {
+            background: #d1d3da;
+          }
+        }
       }
     }
 
-    &:not(:last-child) {
-      border-bottom: 1px solid #e4e4e4;
-      margin: 24px 0;
-    }
+    border-bottom: 1px solid #e4e4e4;
 
     &:first-child {
       margin-top: 0;
+      border-top: 1px solid #e2e4ea;
+    }
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    // Covers both the day row's time-range picker and each break's own —
+    // both live under `.scheduler-wrapper`, overriding the shared 40px
+    // `.ant-picker` height set globally for the app root.
+    .ant-picker {
+      height: 34px;
+      // Smooths the disabled/enabled look toggling when the day switch is
+      // clicked (the switch's own thumb-slide animation is separate/already
+      // smooth) — without this, the background/text color snap instantly.
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+
+      .ant-picker-input input {
+        transition: color 0.2s ease;
+      }
+    }
+
+    // Day-off state keeps the time picker visible (disabled) rather than
+    // hiding it — override antd's default grey disabled look so the times
+    // still read as legible dark text on a plain field. The "→" separator
+    // is left at antd's default disabled grey, same as the other off days.
+    .ant-picker-disabled {
+      background: transparent;
+
+      .ant-picker-input input[disabled] {
+        color: #151720;
+      }
     }
   }
 
@@ -282,7 +388,12 @@
 
     .break-item {
       &:first-child {
-        margin-top: 8px;
+        margin-top: 4px;
+      }
+
+      & + .break-item {
+        padding-top: 12px;
+        border-top: 1px solid #e2e4ea;
       }
 
       display: flex;
@@ -290,19 +401,44 @@
       justify-content: space-between;
 
       .break-label {
-
+        display: flex;
+        align-items: center;
+        gap: 10px;
         color: #151720;
         font-family: "Heebo", sans-serif;
-        font-size: 14px;
-        font-weight: 400;
+        font-size: 16px;
+        font-weight: 500;
       }
 
       .break-time-range {
         display: flex;
         align-items: center;
+        gap: 8px;
 
         .ant-form-item {
           margin-bottom: 0px;
+        }
+
+        .break-delete-btn.ant-btn {
+          width: 34px;
+          height: 34px;
+          padding: 10px;
+          border: none;
+          border-radius: 5px;
+          background: #dddfed;
+          color: #151720;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.3s ease;
+          box-shadow: none;
+
+          // The icon no longer hardcodes a `color` prop, so it renders with
+          // `currentColor` — letting this `color` change actually reach it.
+          &:hover {
+            background: rgba(248, 20, 20, 0.1);
+            color: #F81414;
+          }
         }
       }
     }
@@ -312,12 +448,29 @@
     display: flex;
     align-items: flex-end;
     justify-content: flex-end;
+    margin-top: 4px;
+    margin-bottom: 10px;
 
     .ant-btn {
-      color: #62646a;
+      height: 28px;
+      padding: 0 10px 0 7px;
+      border-radius: 6px;
+      border-color: #dbdde1;
+      color: #151720;
       font-family: "Heebo", sans-serif;
       font-size: 14px;
       font-weight: 400;
+      box-shadow: none;
+      gap: 4px;
+
+      &:hover {
+        background: #f0f1f6;
+        border-color: transparent;
+      }
+    }
+    .ant-btn-icon{
+      display: flex;
+      align-items: center;
     }
   }
 
@@ -404,16 +557,20 @@
       border-radius: 6px;
       border: 1px solid #dbdde1;
       background: #f3f4f9;
+      color: #494a4c;
       cursor: pointer;
+      transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 
-      &:hover{
-         background: #D1D9FF;
+      &:hover {
+        background: #D1D9FF;
         border-color: transparent;
+        color: #151720;
       }
 
       &.is-active {
         background: #D1D9FF;
         border-color: transparent;
+        color: #151720;
       }
     }
 
@@ -449,6 +606,13 @@
         font-family: "Heebo", sans-serif;
         font-size: 14px;
         cursor: pointer;
+        transition: background-color 0.2s ease, border-color 0.2s ease;
+
+        &:hover,
+        &.is-active {
+          background: #D1D9FF;
+          border-color: transparent;
+        }
       }
 
       .filter-reset-btn {
@@ -460,7 +624,14 @@
         border: 1px solid #dbdde1;
         border-radius: 0 6px 6px 0;
         background: #fff;
+        color: #494A4C;
         cursor: pointer;
+        transition: background-color 0.2s ease, color 0.2s ease;
+
+        &:hover {
+          background: #F3F4F9;
+          color: #151720;
+        }
       }
 
       .filter-apply-btn {
@@ -471,6 +642,12 @@
         color: #151720;
         font-family: "Heebo", sans-serif;
         font-weight: 500;
+        box-shadow: none;
+        &:hover{
+          background: #D1D9FF;
+          color: #151720;
+          border-color:transparent;
+        }
       }
 
       .ant-select-selector,
@@ -553,17 +730,29 @@
       }
     }
 
-    .search-field{
+    .search-field {
       display: flex;
       align-items: center;
       flex-shrink: 0;
       width: 218px;
       height: 36px;
-      .ant-input-prefix{
-        margin-left: 14px;
+      transition: border-color 0.2s ease !important;
+      outline: none !important;
+
+      .ant-input-prefix {
+        margin-left: 12px;
       }
-      .ant-input{
+
+      .ant-input {
         padding-left: 1px;
+        outline: none !important;
+      }
+
+      &:focus-within {
+        border-color: #3560fb;
+        outline: 1.5px solid #3560fb !important;
+        outline-offset: 0;
+        box-shadow: none;
       }
     }
 
@@ -574,7 +763,7 @@
     .input-field,
     .ant-select-single .custom-phone-input,
     .ant-picker {
-      border-radius: 5px;
+      border-radius: 6px;
       height: 36px !important;
     }
   }
@@ -622,13 +811,14 @@
         font-family: "Heebo", sans-serif;
         font-size: 14px;
         font-weight: 500;
+        box-shadow: none;
       }
     }
   }
 
   .filter-add-menu {
-    width: 202px;
-    padding: 4px;
+    max-width: 200px;
+    padding: 2px 2px 0 2px;
     background: #fff;
     border: 1px solid #ecedef;
     border-radius: 6px;
@@ -639,11 +829,16 @@
       align-items: center;
       gap: 6px;
       height: 30px;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
       padding: 0 12px;
       background: #f3f4f9;
       border: 1px solid #e4e6ed;
       border-radius: 5px;
+      transition: background-color 0.2s ease;
+
+      &:focus-within {
+        background: #fff;
+      }
 
       input {
         width: 100%;
@@ -675,7 +870,7 @@
       display: flex;
       align-items: center;
       height: 32px;
-      padding: 0 12px;
+      padding: 0 12px 2px;
       border-radius: 5px;
       color: #151720;
       font-family: "Heebo", sans-serif;
@@ -688,6 +883,7 @@
       }
 
       &.empty {
+        justify-content: center;
         color: #97999e;
         cursor: default;
 
@@ -701,6 +897,7 @@
   // responsive design  for filter.  horizontal scroll on tab views.
   @media (max-width: 768px) {
     .filter-elements-wrapper {
+
       .filter-bar-top,
       .filter-elements-row {
         overflow-x: auto;
@@ -767,13 +964,64 @@
     }
   }
 
+  .payment-method-select-dropdown {
+    .ant-select-item-option {
+      padding-block: 6px !important;
+      padding-inline-start: 10px !important;
+
+      &:hover,
+      &.ant-select-item-option-active {
+        padding-block: 6px !important;
+      }
+    }
+  }
+
+  // Filter bar's select chips (Service, Category, Location, Status, …):
+  // 32px option rows with a 2px gap between them (`.rc-virtual-list-holder-inner`
+  // gap already comes from the base `.ant-select-dropdown` rule above). Row
+  // count is capped at 6 visible via `listHeight` on the Select itself
+  // (6 * 32px rows + 5 * 2px gaps = 202px) — the rest scrolls.
+  .filter-select-dropdown {
+    padding-inline-end: 0;
+
+    .ant-select-item-option {
+      min-height: 32px !important;
+      padding-block: 6px !important;
+
+      &:hover,
+      &.ant-select-item-option-active {
+        padding-block: 6px !important;
+      }
+    }
+
+    // Inset on the container (not a margin on each 100%-wide item, which
+    // overflowed the row by 4px and only looked right by coincidence when
+    // the scrollbar's own width happened to absorb it) — this keeps a
+    // constant 4px gap on the right whether or not the list is scrolling.
+    .rc-virtual-list-holder-inner {
+      padding-inline-end: 4px;
+    }
+
+    // The Select is rendered with `virtual={false}`, so rc-virtual-list skips
+    // its own translucent overlay scrollbar (which sat on top of the hover
+    // highlight) and scrolls `.rc-virtual-list-holder` natively instead —
+    // styled here to match the notification panel's scrollbar.
+    .rc-virtual-list-holder {
+      @include custom-scrollbar($width: 4px,
+        $height: 4px,
+        $track-color: #f1f1f1,
+        $thumb-color: #888,
+        $thumb-hover-color: #555);
+    }
+  }
+
   .select-option-checkbox {
     flex-shrink: 0;
     box-sizing: border-box;
     width: 20px;
     height: 20px;
-    border-radius: 4px;
-    border: 1px solid #d9d9d9;
+    border-radius: 5px;
+    border: 2px solid #CFD1D9;
     background: #fff;
     display: flex;
     align-items: center;
@@ -787,6 +1035,160 @@
     &.checked {
       background: #3560fb;
       border-color: #3560fb;
+    }
+  }
+
+  .field-repeater {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+
+    .field-repeater-fields {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px 16px;
+      width: 100%;
+
+      .field-repeater-field {
+        min-width: 0;
+        width: calc(50% - 8px);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        animation: field-repeater-field-enter 0.25s ease;
+        // A field's own width is a real, transitionable property (unlike a
+        // grid-column span), so repacking between half/full width glides
+        // instead of snapping.
+        transition: width 0.25s ease;
+
+        &.full {
+          width: 100%;
+        }
+
+        &.leaving {
+          overflow: hidden;
+          pointer-events: none;
+          max-height: 120px;
+          opacity: 1;
+          margin-bottom: 0;
+          // Kept still (full size) until `.collapsing` is added, so the
+          // dropdown's own close animation finishes before this starts.
+          transition: max-height 0.22s ease, opacity 0.22s ease, margin-bottom 0.22s ease;
+
+          &.collapsing {
+            max-height: 0;
+            opacity: 0;
+            // Cancels this row's share of the grid gap so the trigger below
+            // moves up smoothly instead of snapping once the row is removed.
+            margin-bottom: -16px;
+          }
+        }
+
+        label {
+          color: #151720;
+          font-family: "Heebo", sans-serif;
+          font-size: 14px;
+          font-weight: 400;
+          line-height: 1;
+        }
+      }
+    }
+
+    .field-repeater-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      height: 40px;
+      padding: 10px 14px 10px 16px;
+      background: #fff;
+      border: 1px dashed #c1c3c8;
+      border-radius: 6px;
+      color: #494a4c;
+      font-family: "Heebo", sans-serif;
+      font-size: 14px;
+      cursor: pointer;
+      transition: border-color 0.2s ease, color 0.2s ease;
+
+      &:hover {
+        border-color: #151720;
+        border-style: solid;
+        color: #151720;
+      }
+
+      &.disabled {
+        background: #f3f4f9;
+        border-color: #d5d7db;
+        color: #97999e;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .field-repeater-menu {
+    padding: 4px;
+    background: #fff;
+    border: 1px solid #ecedef;
+    border-radius: 6px;
+    box-shadow: 0px 10px 30px -10px rgba(10, 11, 15, 0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    .field-repeater-menu-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-sizing: border-box;
+      height: 36px;
+      padding: 8px 8px 8px 12px;
+      border-radius: 5px;
+      color: #151720;
+      font-family: "Heebo", sans-serif;
+      font-size: 14px;
+      cursor: pointer;
+
+      &:hover {
+        background: #f3f4f9;
+      }
+
+      &.checked {
+        background: #f5f7ff;
+      }
+    }
+
+    .field-repeater-menu-apply {
+      align-items: center;
+      background: #f3f4f9;
+      border: none;
+      border-radius: 5px;
+      color: #494a4c;
+      cursor: pointer;
+      display: flex;
+      font-family: Heebo, sans-serif;
+      font-size: 14px;
+      font-weight: 400;
+      height: 30px;
+      justify-content: center;
+      transition: all .2s ease;
+      width: 100%;
+
+      &:hover {
+        background: #E9EEFF;
+      }
+    }
+  }
+
+  @keyframes field-repeater-field-enter {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
     }
   }
 
@@ -809,7 +1211,7 @@
     justify-content: space-between;
     background: #fff;
     border-radius: 5px;
-    box-shadow: 0 1px 3px -1px rgba(21, 23, 32, 0.2);
+    box-shadow: none;
     transition: border 0.3s ease-in-out;
 
     .title {
@@ -846,7 +1248,7 @@
   // engine is deleted (Phase 12), after which the legacy copy goes away.
   #mutable-form-container {
     .tab-content {
-      padding-top: 32px;
+      padding-top: 20px;
     }
 
     .form-tab-radio-group {
@@ -860,23 +1262,28 @@
         align-items: center;
         justify-content: center;
         width: 100%;
-        color: #727377;
-        font-size: 16px;
-        font-weight: 500;
+        color: #151720;
+        font-size: 14px;
+        font-weight: 400;
         padding: 12px;
+        border-color: #d5d7db;
 
         .ant-radio-button-label {
           text-wrap: nowrap;
         }
 
-        &:hover {
-          color: #727377 !important;
+        &:first-child {
+          border-radius: 6px 0 0 6px;
+        }
+
+        &:last-child {
+          border-radius: 0 6px 6px 0;
         }
       }
 
       .ant-radio-button-wrapper-checked {
-        border: 1px solid #3560fb;
-        background: #eef1ff;
+        border-color: #3560fb;
+        background: rgba(53, 96, 251, 0.06);
         color: #3560fb;
       }
     }
@@ -914,8 +1321,11 @@
         justify-content: space-between;
         gap: 16px;
         min-height: 60px;
-        padding: 12px 0;
-        border-bottom: 1px solid #e2e4ea;
+        padding: 3px 0;
+
+        &+.special-day-row {
+          border-top: 1px solid #e2e4ea;
+        }
       }
 
       .special-day-row-label {
@@ -926,7 +1336,7 @@
         color: #151720;
         font-family: "Heebo", sans-serif;
         font-size: 16px;
-        font-weight: 400;
+        font-weight: 500;
         white-space: nowrap;
 
         &.special-day-row-label--primary {
@@ -943,6 +1353,7 @@
       .special-day-time-picker {
         width: 220px;
         flex-shrink: 0;
+        height: 34px;
       }
 
       .special-day-delete-btn.ant-btn {
@@ -955,6 +1366,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        box-shadow: none;
         transition: all 0.3s ease;
 
         &:hover {
@@ -969,15 +1381,28 @@
       .special-day-add-break {
         display: flex;
         justify-content: flex-end;
-        padding-top: 16px;
 
         .ant-btn {
+          height: 28px;
+          padding: 0 10px 0 7px;
           border-radius: 6px;
           border-color: #dbdde1;
           color: #151720;
           font-family: "Heebo", sans-serif;
           font-size: 14px;
           font-weight: 400;
+          box-shadow: none;
+          gap: 4px;
+
+          &:hover {
+            background: #f0f1f6;
+            border-color: transparent;
+          }
+        }
+
+        .ant-btn-icon {
+          display: flex;
+          align-items: center;
         }
       }
 
@@ -1029,6 +1454,14 @@
           font-family: "Heebo", sans-serif;
           font-size: 14px;
           font-weight: 400;
+          box-shadow: none;
+        }
+
+        &:hover {
+          .ant-btn {
+            border-style: solid;
+            border-color: #3560FB;
+          }
         }
       }
     }
@@ -1056,23 +1489,32 @@
           align-items: center;
           justify-content: center;
           width: 100%;
-          color: #727377;
-          font-size: 16px;
-          font-weight: 500;
+          color: #151720;
+          font-size: 14px;
+          font-weight: 400;
           padding: 12px;
+          border-color: #d5d7db;
 
           .ant-radio-button-label {
             text-wrap: nowrap;
           }
 
+          &:first-child {
+            border-radius: 6px 0 0 6px;
+          }
+
+          &:last-child {
+            border-radius: 0 6px 6px 0;
+          }
+
           &:hover {
-            color: #727377 !important;
+            color: #151720 !important;
           }
         }
 
         .ant-radio-button-wrapper-checked {
-          border: 1px solid #3560fb;
-          background: #eef1ff;
+          border-color: #3560fb;
+          background: rgba(53, 96, 251, 0.06);
           color: #3560fb;
         }
       }
@@ -1318,53 +1760,82 @@
   }
 
   .switch-card-wrapper {
-    border-radius: 5px;
+    border-radius: 6px;
     background: #f3f4f9;
-    height: 40px;
-    padding-left: 15px;
+    padding: 7px 9px;
     display: flex;
     align-items: center;
-    gap: 10px;
+
+    .switch-card-inner {
+
+      display: inline-flex;
+      width: -webkit-fit-content;
+      width: fit-content;
+      align-items: center;
+      gap: 9px;
+      padding: 5px 6px;
+      border-radius: 5px;
+      cursor: pointer;
+      line-height: 1;
+      transition: background 0.2s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.7);
+      }
+
+
+    }
 
     .card-title-container {
       color: #151720;
       font-family: "Heebo", sans-serif;
       font-size: 14px;
       font-weight: 500;
+      cursor: pointer;
     }
   }
 
   .scheduler-main-wrapper {
-    .ant-collapse {
-      border-radius: 5px;
+    .scheduler-header-box {
+      border-radius: 6px;
       background: #f3f4f9;
-      border: 1px solid #e8e8e9;
+      padding: 7px 9px;
+      display: flex;
+    }
 
-      .ant-collapse-header {
-        padding: 10px;
-        border-radius: 0 0 5px 5px;
+    .schedular-switch-wrapper {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      gap: 9px;
+      padding: 5px 6px;
+      border-radius: 5px;
+      cursor: pointer;
+      line-height: 1;
+      transition: background 0.2s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.7);
       }
 
-      .schedular-switch-wrapper {
-        display: flex;
-        align-items: center;
-        gap: 8px;
+      .panel-text {
+        color: #151720;
+        font-family: "Heebo", sans-serif;
+        font-size: 15px;
+        font-weight: 500;
+        cursor: pointer;
+      }
 
-        .panel-text {
-          color: #151720;
-          font-family: "Heebo", sans-serif;
-          font-size: 15px;
-          font-weight: 500;
+      .ant-switch {
+        &:hover:not(.ant-switch-checked) {
+          background: rgba(0, 0, 0, 0.25);
         }
       }
+    }
 
-      .ant-collapse-content {
-        border-radius: 0 0 5px 5px;
-
-        .ant-collapse-content-box {
-          padding: 12px;
-        }
-      }
+    .scheduler-content-box {
+      margin-top: 12px;
+      padding: 12px;
     }
   }
 
@@ -1487,6 +1958,7 @@
           font-family: "Heebo", sans-serif;
           font-size: 16px;
           font-weight: 500;
+          box-shadow: none;
         }
 
         // .ant-btn:last-child {
@@ -1809,7 +2281,7 @@
       }
 
       .breadcrumb-text {
-        font-size:14px;
+        font-size: 14px;
         font-weight: 500;
         color: #151720;
         opacity: 0;
@@ -1891,7 +2363,7 @@
             }
 
             &:hover {
-              background: #f9fafb;
+              background: #F3F4F9;
 
               .ant-dropdown-menu-item-icon {
                 color: #151720 !important;
@@ -2034,7 +2506,6 @@
       border-radius: 0 0 6px 6px;
 
       .ant-table-cell {
-        box-shadow: 0 1px 1px 0 rgba(223, 223, 223, 0.25);
         height: 48px;
         background: #fff;
         color: #151720;
@@ -2416,6 +2887,7 @@
         font-weight: 500;
         color: #151720;
         border: 1px solid #d8d8db;
+        box-shadow: none;
         transition: all 0.3s ease;
         height: 28px;
         padding: 5px 9px !important;
@@ -2447,13 +2919,14 @@
       justify-content: center;
 
       .pagination-items {
+
         // display:flex;
         // justify-content: center;
         // align-items: center;
         //margin-top: 4px;
-          li {
-          height:28px;
-          width:28px;
+        li {
+          height: 28px;
+          width: 28px;
           min-width: 28px !important;
           display: flex;
           justify-content: center;
@@ -2804,6 +3277,7 @@
     font-size: 14px;
     font-weight: 500;
     padding: 10px 15px;
+    box-shadow: none;
   }
 
   .custom-delete-modal button.ant-btn-color-dangerous {
@@ -2820,6 +3294,7 @@
     font-family: "Heebo", sans-serif;
     font-size: 14px;
     padding: 10px 15px;
+    box-shadow: none;
   }
 
   .custom-delete-modal .ant-modal-confirm-body .anticon {
@@ -2858,9 +3333,9 @@
       // 6 items (52px each) + item gaps (2px) + list padding (4px top/bottom)
       // fixed (not max) so the dropdown keeps this height even with 0-5 items
       height: 332px;
-      @include custom-scrollbar($width: 6px,
+      @include custom-scrollbar($width: 4px,
         // Scrollbar width
-        $height: 6px,
+        $height: 4px,
         // Scrollbar height (for horizontal)
         $track-color: #f1f1f1,
         // Background color of track
@@ -3063,7 +3538,7 @@
               justify-content: center;
             }
 
-            &:hover:not(.ant-picker-cell-range-start):not(.ant-picker-cell-range-end) {
+            &:hover:not(.ant-picker-cell-range-start):not(.ant-picker-cell-range-end):not(.ant-picker-cell-selected) {
               .ant-picker-cell-inner {
                 background-color: #f3f4f9;
                 color: #151720;
@@ -3166,7 +3641,7 @@
     font-size: 14px;
     font-weight: 600;
     margin-top: 2px;
-    display:flex;
+    display: flex;
     color: #E18308;
     line-height: 1.2;
     white-space: nowrap;
@@ -3240,7 +3715,7 @@
     transition: all 0.2s ease;
     white-space: nowrap;
 
-    div{
+    div {
       display: flex;
       align-items: center;
       gap: 4px;
@@ -3334,12 +3809,10 @@
     gap: 12px;
     padding: 24px;
     text-align: center;
-    background: radial-gradient(
-      circle at center,
-      rgba(255, 255, 255, 0.92) 0%,
-      rgba(255, 255, 255, 0.78) 45%,
-      rgba(255, 255, 255, 0.45) 100%
-    );
+    background: radial-gradient(circle at center,
+        rgba(255, 255, 255, 0.92) 0%,
+        rgba(255, 255, 255, 0.78) 45%,
+        rgba(255, 255, 255, 0.45) 100%);
   }
 
   .pro-locked__badge {
@@ -3382,7 +3855,7 @@
   }
 
   .pro-locked__btn {
-    width:143px;
+    width: 143px;
     height: 36px;
     padding: 12px;
     border: none;
@@ -3417,7 +3890,7 @@
     transition: all 0.2s ease;
     white-space: nowrap;
 
-    div{
+    div {
       display: flex;
       align-items: center;
       gap: 4px;
@@ -3432,6 +3905,7 @@
 
 /* Pro Features Modal — hover state only; all layout is inline in the component */
 .pro-features-modal__btn {
+
   &:hover,
   &:focus {
     background: #ffe482 !important;

@@ -1,0 +1,57 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "rox-appointment-booking/login-form",
+	"title": "Rox Appointment Login Form",
+	"category": "widgets",
+	"icon": "unlock",
+	"description": "Standalone customer login form (login, forgot password, reset password).",
+	"textdomain": "rox-appointment-booking",
+	"keywords": ["login", "customer", "account", "rox"],
+	"supports": {
+		"html": false
+	},
+	"attributes": {
+		"redirectUrl": { "type": "string", "default": "" },
+		"loginLabel": { "type": "string", "default": "Login" },
+
+		"formWidth": { "type": "string", "default": "" },
+		"formAlign": { "type": "string", "default": "left" },
+		"formMargin": { "type": "object", "default": {} },
+		"formPadding": { "type": "object", "default": {} },
+		"bgColor": { "type": "string", "default": "" },
+		"borderWidth": { "type": "string", "default": "" },
+		"borderStyle": { "type": "string", "default": "solid" },
+		"borderColor": { "type": "string", "default": "" },
+		"borderRadius": { "type": "string", "default": "" },
+
+		"labelColor": { "type": "string", "default": "" },
+		"inputColor": { "type": "string", "default": "" },
+		"inputBg": { "type": "string", "default": "" },
+		"inputBorder": { "type": "string", "default": "" },
+		"inputFocusBorder": { "type": "string", "default": "" },
+		"inputRadius": { "type": "string", "default": "" },
+
+		"btnBg": { "type": "string", "default": "" },
+		"btnColor": { "type": "string", "default": "" },
+		"btnHoverBg": { "type": "string", "default": "" },
+		"btnHoverColor": { "type": "string", "default": "" },
+		"btnRadius": { "type": "string", "default": "" },
+		"btnMargin": { "type": "object", "default": {} },
+		"btnPadding": { "type": "object", "default": {} },
+
+		"linkColor": { "type": "string", "default": "" },
+		"linkHoverColor": { "type": "string", "default": "" },
+
+		"showGoogle": { "type": "boolean", "default": true },
+
+		"errorColor": { "type": "string", "default": "" },
+		"errorBg": { "type": "string", "default": "" },
+		"successColor": { "type": "string", "default": "" },
+		"successBg": { "type": "string", "default": "" }
+	},
+	"editorScript": "rox-appointment-booking-login-form-editor",
+	"editorStyle": "rox-appointment-booking-login-form-editor-style",
+	"viewScript": "rox-appointment-booking-login-form-view",
+	"viewStyle": "rox-appointment-booking-login-form-view-style"
+}

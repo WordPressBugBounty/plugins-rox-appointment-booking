@@ -25,6 +25,7 @@ class Boot
 		}
 
         new Modules\Core\Provider();
+        new Modules\CustomerPanel\Provider();
         new Modules\Agent\Provider();
         new Modules\Appointment\Provider();
         new Modules\Calendar\Provider();
@@ -41,6 +42,7 @@ class Boot
         new Modules\Notification\Provider();
         new Modules\Dashboard\Provider();
         new Modules\Blocks\Provider();
+        new Modules\CustomerLogin\Provider();
 
         // Booking panel Elementor widget — only when Elementor (>= 3.5, register() API) is active.
         if (defined('ELEMENTOR_VERSION') && version_compare(ELEMENTOR_VERSION, '3.5.0', '>=')) {

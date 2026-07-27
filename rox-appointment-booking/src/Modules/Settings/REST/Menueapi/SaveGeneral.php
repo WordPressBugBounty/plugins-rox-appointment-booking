@@ -87,7 +87,17 @@ class SaveGeneral extends AbstractREST
             if (isset($params['default_phone_country_code'])) {
                 $params['default_phone_country_iso'] = rox_appointment_booking_get_country_iso_by_phone_code($params['default_phone_country_code']);
             }
-            
+
+            // Currency lives on this form but is read/used everywhere via the
+            // Payments settings option (rox_appointment_booking_payment_settings()),
+            // so route it there instead of storing it on general_settings.
+            if (array_key_exists('payment_currency', $params)) {
+                $payments_settings = rox_appointment_booking_payment_settings() ?? [];
+                $payments_settings['payment_currency'] = $params['payment_currency'];
+                update_option('rox_appointment_booking_payments_settings', $payments_settings);
+                unset($params['payment_currency']);
+            }
+
             update_option('rox_appointment_booking_general_settings', $params);
             
             return rox_appointment_booking_rest_response(

@@ -75,25 +75,27 @@ class ServiceModel extends AbstractModel
     /**
      * Get formatted price with currency
      *
-     * @param string $currency
+     * @param string|null $currency Defaults to the Payments settings currency symbol.
      * @return string
      */
-    public function getFormattedPrice(string $currency = '$'): string
+    public function getFormattedPrice(?string $currency = null): string
     {
+        $currency = $currency ?? rox_appointment_booking__get_currency_symbol(rox_appointment_booking_payment_settings('payment_currency') ?? 'USD');
         return $currency . number_format($this->price, 2);
     }
 
     /**
      * Get formatted deposit amount with currency
      *
-     * @param string $currency
+     * @param string|null $currency Defaults to the Payments settings currency symbol.
      * @return string
      */
-    public function getFormattedDepositAmount(string $currency = '$'): string
+    public function getFormattedDepositAmount(?string $currency = null): string
     {
         if (!$this->deposit || !$this->deposit_amount) {
             return '';
         }
+        $currency = $currency ?? rox_appointment_booking__get_currency_symbol(rox_appointment_booking_payment_settings('payment_currency') ?? 'USD');
         return $currency . number_format($this->deposit_amount, 2);
     }
 

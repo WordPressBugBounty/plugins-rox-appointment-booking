@@ -1,6 +1,6 @@
 // Custom Scrollbar Mixin
-// Usage: @include custom-scrollbar($width: 6px, $height: 6px, $track-color: #f1f1f1, $thumb-color: #888);
-@mixin custom-scrollbar($width: 6px, $height: 6px, $track-color: #f1f1f1, $thumb-color: #888, $thumb-hover-color: #555) {
+// Usage: @include custom-scrollbar($width: 4px, $height: 4px, $track-color: #f1f1f1, $thumb-color: #888);
+@mixin custom-scrollbar($width: 4px, $height: 4px, $track-color: #f1f1f1, $thumb-color: #888, $thumb-hover-color: #555) {
   // Enable scrolling
   overflow-y: auto;
   overflow-x: hidden;
@@ -32,7 +32,7 @@
 }
 
 // Simplified scrollbar-func helper - accepts just width parameter
-@mixin scrollbar-func($width: 6px) {
+@mixin scrollbar-func($width: 4px) {
   @include custom-scrollbar(
     $width: $width,
     $height: $width,
@@ -43,7 +43,7 @@
 }
 
 // Variant: Only apply scrollbar styling without forcing overflow
-@mixin scrollbar-style-only($width: 6px, $track-color: #f1f1f1, $thumb-color: #888, $thumb-hover-color: #555) {
+@mixin scrollbar-style-only($width: 4px, $track-color: #f1f1f1, $thumb-color: #888, $thumb-hover-color: #555) {
   &::-webkit-scrollbar {
     width: $width;
     height: $width;
@@ -72,9 +72,9 @@
 // usage example:
 
 //     @include custom-scrollbar(
-//       $width: 6px,
+//       $width: 4px,
 //       // Scrollbar width
-//       $height: 6px,
+//       $height: 4px,
 //       // Scrollbar height (for horizontal)
 //       $track-color: #f1f1f1,
 //       // Background color of track

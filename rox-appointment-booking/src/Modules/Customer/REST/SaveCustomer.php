@@ -7,6 +7,7 @@ use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
 use RoxAppointmentBooking\Modules\Customer\Data\CustomerModel;
+use RoxAppointmentBooking\Modules\Agent\Data\AgentModel;
 
 /**
  * Class SaveCustomer
@@ -128,6 +129,19 @@ class SaveCustomer extends AbstractREST
             );
         }
 
+        // An email already used by an agent cannot be reused for a customer.
+        $existing_agent = AgentModel::query()
+            ->where('email', $params['email'])
+            ->first();
+        if ($existing_agent) {
+            return rox_appointment_booking_rest_response(
+                data : null,
+                code : 400,
+                message : esc_html__('An agent with this email already exists', 'rox-appointment-booking'),
+                headers : ['status' => 400]
+            );
+        }
+
         try {
             if ($id) {
                 $customer = CustomerModel::find($id);
@@ -236,8 +250,9 @@ class SaveCustomer extends AbstractREST
                     // Link to existing WordPress user
                     $customer->wp_user_id = $existing_wp_user->ID;
                     $customer->save();
-                } else if (!$id) {
-                    // Create new WordPress user only for new customers
+                } else if (!$customer->wp_user_id) {
+                    // Create WordPress user for customers not yet linked to one
+                    // (new customers, or existing customers enabling login later).
                     $password = !empty($params['password']) ? $params['password'] : null;
                     $wp_user_result = $this->createWordPressUser($customer, $params, $password);
 

@@ -81,27 +81,34 @@ class UserMenu extends AbstractREST
      */
     private function getUserMenuStructure(): array
     {
-        return apply_filters('rox_appointment_booking_user_menu_structure', [
-            "items" => [
-                [
-                    "key" => "profile",
-                    "label" => "Setting",
-                    "icon" => "setting",
-                    "action" => [
-                        "type" => "navigate",
-                        "route" => "/global-settings"
-                    ]
-                ],
-                [
-                    "key" => "logout",
-                    "label" => "Logout",
-                    "icon" => "logout",
-                    "action" => [
-                        "type" => "logout",
-                        "url" => html_entity_decode(wp_logout_url())
-                    ]
+        $items = [];
+
+        // The "Setting" item links to the admin-only global settings page, so
+        // only surface it for users who can manage bookings (admin/manager).
+        if (Security::canManageBookings()) {
+            $items[] = [
+                "key" => "profile",
+                "label" => "Setting",
+                "icon" => "setting",
+                "action" => [
+                    "type" => "navigate",
+                    "route" => "/global-settings"
                 ]
+            ];
+        }
+
+        $items[] = [
+            "key" => "logout",
+            "label" => "Logout",
+            "icon" => "logout",
+            "action" => [
+                "type" => "logout",
+                "url" => html_entity_decode(wp_logout_url())
             ]
+        ];
+
+        return apply_filters('rox_appointment_booking_user_menu_structure', [
+            "items" => $items
         ]);
     }
 }

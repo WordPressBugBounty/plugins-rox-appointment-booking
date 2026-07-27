@@ -58,14 +58,7 @@ class CalendarService
             $query = AppointmentModel::query();
 
             if (!Security::canManageBookings()) {
-                if (AppointmentService::isCustomerUser()) {
-                    $currentCustomerId = AppointmentService::getCurrentCustomerId();
-                    if ($currentCustomerId) {
-                        $query->where('customer_id', $currentCustomerId);
-                    } else {
-                        $query->where('id', 0);
-                    }
-                } elseif (AppointmentService::isAgentUser()) {
+                if (AppointmentService::isAgentUser()) {
                     $currentAgentId = AppointmentService::getCurrentAgentId();
                     if ($currentAgentId) {
                         $query->where('agent_id', $currentAgentId);
@@ -854,38 +847,7 @@ class CalendarService
         $agentModel = \RoxAppointmentBooking\Modules\Agent\Data\AgentModel::query();
 
         if (!Security::canManageBookings()) {
-            if (AppointmentService::isCustomerUser()) {
-                $currentCustomerId = AppointmentService::getCurrentCustomerId();
-                if (!$currentCustomerId) {
-                    return [];
-                }
-
-                $agentIdsQuery = AppointmentModel::query()
-                    ->where('customer_id', $currentCustomerId);
-
-                if (!empty($filters['start'])) {
-                    $agentIdsQuery->where('date', '>=', $filters['start']);
-                }
-
-                if (!empty($filters['end'])) {
-                    $agentIdsQuery->where('date', '<=', $filters['end']);
-                }
-
-                $agentIds = [];
-                $appointments = $agentIdsQuery->get();
-                foreach ($appointments as $appointment) {
-                    if (!empty($appointment->agent_id)) {
-                        $agentIds[] = (int) $appointment->agent_id;
-                    }
-                }
-
-                $agentIds = array_values(array_unique($agentIds));
-                if (empty($agentIds)) {
-                    return [];
-                }
-
-                $agentModel->whereIn('id', $agentIds);
-            } elseif (AppointmentService::isAgentUser()) {
+            if (AppointmentService::isAgentUser()) {
                 $currentAgentId = AppointmentService::getCurrentAgentId();
                 if (!$currentAgentId) {
                     return [];

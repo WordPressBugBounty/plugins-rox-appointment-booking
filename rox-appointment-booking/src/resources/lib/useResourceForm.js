@@ -13,6 +13,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { message } from "antd";
+import { __ } from '@wordpress/i18n';
 
 /**
  * @param {object}   options
@@ -26,7 +27,7 @@ export function useResourceForm({
   get,
   save,
   id,
-  successMessage = "Saved successfully",
+  successMessage = __("Saved successfully", "rox-appointment-booking"),
 }) {
   const [initialValues, setInitialValues] = useState(null);
   const [loading, setLoading] = useState(Boolean(id));
@@ -48,7 +49,7 @@ export function useResourceForm({
       })
       .catch((error) => {
         if (active) {
-          message.error(error.message || "Failed to load data");
+          message.error(error.message || __("Failed to load data", "rox-appointment-booking"));
         }
       })
       .finally(() => {
@@ -69,7 +70,7 @@ export function useResourceForm({
         message.success(successMessage);
         return record;
       } catch (error) {
-        message.error(error.message || "Failed to save");
+        message.error(error.message || __("Failed to save", "rox-appointment-booking"));
         throw error;
       } finally {
         setSubmitting(false);

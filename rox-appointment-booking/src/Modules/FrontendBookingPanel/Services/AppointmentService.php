@@ -96,6 +96,27 @@ class AppointmentService
             $full_start_time = $appointmentData['date'] . ' ' . $appointmentData['start_time'];
             $full_end_time = $appointmentData['date'] . ' ' . $calculated_end_time;
 
+            // CUSTOMER DOUBLE-BOOKING CHECK:
+            // The same customer cannot hold two appointments that overlap in time,
+            // regardless of service or agent (a person can't be in two places at once).
+            $customer_conflict = AppointmentModel::query()
+                ->where('customer_id', $customerId)
+                ->where('date', $appointmentData['date'])
+                ->where('status', '!=', 'cancelled')
+                ->where(function($query) use ($full_start_time, $full_end_time) {
+                    $query->where('start_time', '<', $full_end_time)
+                          ->where('end_time', '>', $full_start_time);
+                })
+                ->first();
+
+            if ($customer_conflict) {
+                return new WP_Error(
+                    'customer_time_conflict',
+                    esc_html__('You already have an appointment at this time. If you want to add or change a service, please edit or reschedule this appointment.', 'rox-appointment-booking'),
+                    ['status' => 409]
+                );
+            }
+
             if ($allow_without_agent) {
                 // CAPACITY CONFLICT CHECK (agent-less):
                 // Slots are shared across all agents for this service. Reject when the
@@ -237,7 +258,11 @@ class AppointmentService
         $order->coupon_code    = $coupon_code;
         $order->total_amount   = $total_amount;
         $order->currency       = 'USD';
-        $order->payment_method = $params['payment_type'] === 'later' ? 'pay_later' : 'stripe';
+        $order->payment_method = match ($params['payment_type'] ?? 'credit') {
+            'later' => 'pay_later',
+            'credit' => 'stripe',
+            default => $params['payment_type'],
+        };
         $order->payment_status = rox_appointment_booking_payment_settings('default_payment_status', 'unpaid');
         $order->order_status   = rox_appointment_booking_general_settings('default_order_status') ?? 'pending_payment';
         $order->order_date     = current_time('mysql');

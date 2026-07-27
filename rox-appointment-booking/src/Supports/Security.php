@@ -50,16 +50,18 @@ class Security
     }
 
     /**
-     * Checks whether the current user can access the booking panel at all
-     * (admin, manager, agent, or customer).
+     * Checks whether the current user can access the admin booking panel
+     * (admin, manager, or agent). Customers are intentionally excluded: they get
+     * the separate Customer Panel and must never reach the admin REST endpoints
+     * that guard on this — their own data is served by the customer-scoped
+     * /customer-panel/* endpoints instead.
      *
      * @return bool
      */
     public static function canAccessPanel(): bool
     {
         return self::canManageBookings()
-            || current_user_can('rox_appointment_booking_agent_capability')
-            || current_user_can('rox_appointment_booking_customer_capability');
+            || current_user_can('rox_appointment_booking_agent_capability');
     }
 
     /**

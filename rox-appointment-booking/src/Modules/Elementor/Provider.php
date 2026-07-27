@@ -22,6 +22,8 @@
 namespace RoxAppointmentBooking\Modules\Elementor;
 
 use RoxAppointmentBooking\Modules\Elementor\Widgets\BookingPanelWidget;
+use RoxAppointmentBooking\Modules\Elementor\Widgets\LoginFormWidget;
+use RoxAppointmentBooking\Modules\CustomerLogin\Services\LoginFormShortcode;
 use RoxAppointmentBooking\Supports\Assets;
 
 if (! defined('ABSPATH')) exit; // Exit if accessed directly
@@ -44,6 +46,13 @@ class Provider
      * the panel on widgets injected after the bundle has run.
      */
     public const HANDLER_HANDLE = 'rox-appointment-booking-elementor-handler';
+
+    /**
+     * Handle for the login-form equivalent of the handler above. Kept separate so
+     * it depends on the login-form bundle alone — a page with only the login form
+     * never loads the booking panel's frontend bundle.
+     */
+    public const LOGIN_FORM_HANDLER_HANDLE = 'rox-appointment-booking-elementor-login-form-handler';
 
     /**
      * Constructor.
@@ -77,7 +86,7 @@ class Provider
     }
 
     /**
-     * Registers the booking panel widget with Elementor.
+     * Registers the plugin's widgets with Elementor.
      *
      * @param \Elementor\Widgets_Manager $widgets_manager
      * @return void
@@ -85,6 +94,7 @@ class Provider
     public function registerWidgets($widgets_manager): void
     {
         $widgets_manager->register(new BookingPanelWidget());
+        $widgets_manager->register(new LoginFormWidget());
     }
 
     /**
@@ -101,6 +111,7 @@ class Provider
     public function registerAssets(): void
     {
         $this->registerHandlerScript();
+        $this->registerLoginFormAssets();
 
         // Shared with FrontendApp / the block; register only if nobody else has.
         if (!wp_script_is(self::VIEW_HANDLE, 'registered')) {
@@ -127,6 +138,12 @@ class Provider
                 [$shared['script']],
                 $view_asset['version'] ?? ROX_APPOINTMENT_BOOKING_VERSION,
                 true
+            );
+
+            wp_set_script_translations(
+                self::VIEW_HANDLE,
+                'rox-appointment-booking',
+                ROX_APPOINTMENT_BOOKING_PATH . 'languages'
             );
 
             wp_register_style(
@@ -198,6 +215,64 @@ class Provider
             file_exists($file) ? (string) filemtime($file) : ROX_APPOINTMENT_BOOKING_VERSION,
             true
         );
+    }
+
+    /**
+     * Registers the login-form view bundle (shared with the shortcode and the
+     * Gutenberg block, so it loads once per page) plus the login-form Elementor
+     * handler. Idempotent — `wp_register_script()` ignores an already-registered
+     * handle, so whichever surface runs first wins.
+     *
+     * @return void
+     */
+    protected function registerLoginFormAssets(): void
+    {
+        $build_path = ROX_APPOINTMENT_BOOKING_PATH . 'public/build/';
+        $build_url  = ROX_APPOINTMENT_BOOKING_PUBLIC_URL . 'build/';
+
+        $view_asset_file = $build_path . 'blocks/login-form/view.asset.php';
+        if (!file_exists($view_asset_file)) {
+            return;
+        }
+
+        if (!wp_script_is(LoginFormShortcode::VIEW_HANDLE, 'registered')) {
+            $view_asset = require $view_asset_file;
+
+            $shared = Assets::enqueueSharedChunks(
+                $build_url,
+                $build_path,
+                $view_asset['dependencies'] ?? [],
+                $view_asset['version'] ?? ROX_APPOINTMENT_BOOKING_VERSION
+            );
+
+            wp_register_script(
+                LoginFormShortcode::VIEW_HANDLE,
+                $build_url . 'blocks/login-form/view.js',
+                [$shared['script']],
+                $view_asset['version'] ?? ROX_APPOINTMENT_BOOKING_VERSION,
+                true
+            );
+
+            wp_register_style(
+                LoginFormShortcode::VIEW_STYLE_HANDLE,
+                $build_url . 'blocks/login-form/view.css',
+                array_filter([$shared['style']]),
+                $view_asset['version'] ?? ROX_APPOINTMENT_BOOKING_VERSION
+            );
+        }
+
+        if (!wp_script_is(self::LOGIN_FORM_HANDLER_HANDLE, 'registered')) {
+            $relative = 'src/Modules/Elementor/assets/login-form-handler.js';
+            $file     = ROX_APPOINTMENT_BOOKING_PATH . $relative;
+
+            wp_register_script(
+                self::LOGIN_FORM_HANDLER_HANDLE,
+                ROX_APPOINTMENT_BOOKING_URL . $relative,
+                ['elementor-frontend', LoginFormShortcode::VIEW_HANDLE],
+                file_exists($file) ? (string) filemtime($file) : ROX_APPOINTMENT_BOOKING_VERSION,
+                true
+            );
+        }
     }
 
     /**

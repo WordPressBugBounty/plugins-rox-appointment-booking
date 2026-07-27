@@ -77,6 +77,7 @@ const themeConfig = {
       colorPrimary: "rgb(53,96,251)",
       colorPrimaryHover: "rgb(53,96,251)",
       colorPrimaryBorder: "rgb(34, 113, 177)",
+      colorText: "rgb(53,96,251)"
     },
      Message: {
       zIndexPopup: 999999

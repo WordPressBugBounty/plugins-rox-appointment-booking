@@ -7,10 +7,7 @@ use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
 use RoxAppointmentBooking\Modules\Payment\Data\PaymentModel;
-use RoxAppointmentBooking\Modules\Order\Data\OrderModel;
-use RoxAppointmentBooking\Modules\Appointment\Data\AppointmentModel;
-use RoxAppointmentBooking\Modules\Notification\Services\NotificationService;
-use RoxAppointmentBooking\Modules\Customer\Data\CustomerModel;
+use RoxAppointmentBooking\Modules\Payment\Services\PaymentStatusSyncService;
 
 defined('ABSPATH') || exit;
 
@@ -95,7 +92,7 @@ class PaymentStatus extends AbstractREST
             );
         }
 
-        $payment = PaymentModel::find($id);
+        $payment = PaymentStatusSyncService::applyStatus($id, $status);
 
         if (!$payment) {
             return new WP_Error(
@@ -103,39 +100,6 @@ class PaymentStatus extends AbstractREST
                 esc_html__('Payment not found', 'rox-appointment-booking'),
                 ['status' => 404]
             );
-        }
-
-        $oldStatus = $payment->status;
-        $payment->update(['status' => $status]);
-        if ($oldStatus !== $status) {
-            // Create Payment Notification
-            $customerName = __('Customer', 'rox-appointment-booking');
-            if ($payment->customer_id) {
-                $customer = CustomerModel::find($payment->customer_id);
-                if ($customer && (!empty($customer->full_name) || !empty($customer->first_name))) {
-                    $customerName = $customer->full_name ?? trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
-                }
-            }
-            NotificationService::createPaymentNotification([
-                'admin_user_id' => get_current_user_id() ?: null,
-                'customer_name' => $customerName,
-                'amount' => $payment->amount,
-                'payment_id' => $payment->id,
-                'status' => $status
-            ]);
-        }
-
-        if ($payment->order_id) {
-            $order = OrderModel::find($payment->order_id);
-            if ($order) {
-                $order->update(['payment_status' => $status]);
-
-                $bookingIds = $order->getBookingIds();
-                if (!empty($bookingIds)) {
-                    AppointmentModel::whereIn('id', $bookingIds)
-                        ->update(['payment_status' => $status]);
-                }
-            }
         }
 
         return rox_appointment_booking_rest_response(

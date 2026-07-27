@@ -66,7 +66,7 @@ class GetOrder extends AbstractREST
      */
     protected function getOrderData(OrderModel $order): array
     {
-        $currencyCode = $order->currency ?: (rox_appointment_booking_payment_settings('payment_currency') ?? 'USD');
+        $currencyCode = rox_appointment_booking_payment_settings('payment_currency') ?: ($order->currency ?: 'USD');
         $currencySymbol = rox_appointment_booking__get_currency_symbol($currencyCode);
 
         // Get customer details
@@ -157,7 +157,7 @@ class GetOrder extends AbstractREST
      */
     protected function getSingleOrderData(OrderModel $order): array
     {
-        $currencyCode = $order->currency ?: (rox_appointment_booking_payment_settings('payment_currency') ?? 'USD');
+        $currencyCode = rox_appointment_booking_payment_settings('payment_currency') ?: ($order->currency ?: 'USD');
         $currencySymbol = rox_appointment_booking__get_currency_symbol($currencyCode);
         $bookingIds = $order->getBookingIds();
         $appointment = null;
@@ -183,6 +183,17 @@ class GetOrder extends AbstractREST
                 ? "https://dashboard.stripe.com/payments/{$transactionId}"
                 : "https://dashboard.stripe.com/test/payments/{$transactionId}";
         }
+
+        // Let Pro (or any add-on) supply a dashboard/detail URL for its own
+        // payment method (e.g. WooCommerce's order edit screen). The frontend
+        // reads this same field regardless of which gateway populated it.
+        $stripeDashboardUrl = apply_filters(
+            'rox_appointment_booking_payment_dashboard_url',
+            $stripeDashboardUrl,
+            $order->payment_method,
+            $transactionId,
+            $order->getID()
+        );
 
         // Build order information
         $orderInfo = [];

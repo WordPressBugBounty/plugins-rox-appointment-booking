@@ -4,7 +4,6 @@ namespace RoxAppointmentBooking\Modules\Appointment\Services;
 
 use RoxAppointmentBooking\Modules\Appointment\Data\AppointmentModel;
 use RoxAppointmentBooking\Modules\Agent\Data\AgentModel;
-use RoxAppointmentBooking\Modules\Customer\Data\CustomerModel;
 use RoxAppointmentBooking\Modules\Customer\Services\CustomerService;
 use RoxAppointmentBooking\Modules\Notification\Services\NotificationService;
 use RoxAppointmentBooking\Modules\Service\Data\ServiceModel;
@@ -23,41 +22,6 @@ class AppointmentService
      * @var bool
      */
     public static $loadable = true;
-
-    /**
-     * Resolve the current logged-in customer ID if available.
-     *
-     * @return int|null
-     */
-    public static function getCurrentCustomerId(): ?int
-    {
-        $user = wp_get_current_user();
-        if (!$user || !$user->exists()) {
-            return null;
-        }
-
-        $customer = CustomerModel::query()
-            ->where('wp_user_id', $user->ID)
-            ->orWhere('email', $user->user_email)
-            ->first();
-
-        return $customer ? (int) $customer->getID() : null;
-    }
-
-    /**
-     * Determine whether the current user has the customer role.
-     *
-     * @return bool
-     */
-    public static function isCustomerUser(): bool
-    {
-        $user = wp_get_current_user();
-        if (!$user || !$user->exists()) {
-            return false;
-        }
-
-        return in_array('rox_appointment_booking_customer', (array) $user->roles, true);
-    }
 
     /**
      * Determine whether the current user has the agent role.

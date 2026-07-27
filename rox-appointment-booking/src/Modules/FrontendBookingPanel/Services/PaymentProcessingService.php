@@ -28,7 +28,21 @@ class PaymentProcessingService
         }
 
         $paymentType = strtolower($params['payment_type'] ?? 'credit');
-        
+
+        // Let Pro (or any add-on) handle a custom payment_type, e.g. 'woocommerce'.
+        // Returning non-null here short-circuits the built-in later/Stripe handling.
+        $customResult = apply_filters(
+            'rox_appointment_booking_process_payment',
+            null,
+            $paymentType,
+            $params,
+            $customerId,
+            $orderId
+        );
+        if ($customResult !== null) {
+            return $customResult;
+        }
+
         if ($paymentType === 'later') {
             return $this->handlePayLater($params['amount'], $customerId, $orderId);
         }

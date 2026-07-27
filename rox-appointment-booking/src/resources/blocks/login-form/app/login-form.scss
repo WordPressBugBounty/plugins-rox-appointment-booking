@@ -1,0 +1,289 @@
+// Standalone customer login form styles.
+//
+// Self-contained: this stylesheet imports nothing from `bookingstyle.scss`. The
+// login/reset rules are copied in from the booking panel (`bookingstyle.scss`
+// `.form-wrapper` block) and scoped under the form's own root class so nothing
+// leaks into the theme.
+//
+// Every value a Phase-2 block / Phase-3 widget control will drive is read as
+// `var(--rlf-…, <booking-panel default>)`, so an unset control keeps the exact
+// booking-panel look.
+//
+// NOTE: no `:root {}` blocks here — the webpack CSSReplacementPlugin rewrites
+// `:root` to `:host`. Control defaults are supplied as `var(--rlf-…, default)`
+// fallbacks instead.
+
+@import url("https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap");
+
+.rox-appointment-booking-login-form-root {
+  .form-wrapper {
+    width: var(--rlf-width, 372px);
+    max-width: 100%;
+    margin: var(--rlf-margin, 0);
+    padding: var(--rlf-padding, 0);
+    background: var(--rlf-bg, transparent);
+    border: var(--rlf-border-width, 0) var(--rlf-border-style, solid)
+      var(--rlf-border-color, transparent);
+    border-radius: var(--rlf-radius, 0);
+    box-sizing: border-box;
+  }
+
+  // Shown instead of the form when a WordPress session is already active.
+  .logged-in-banner {
+    font-size: 14px;
+    font-family: "Heebo", sans-serif;
+    color: #646970;
+    line-height: 1.4;
+
+    .logout-link {
+      cursor: pointer;
+      font-weight: 500;
+      color: var(--rlf-link, #3560fb);
+      text-decoration: none;
+
+      &:hover {
+        color: var(--rlf-link-hover, #3560fb);
+        text-decoration: underline;
+      }
+    }
+  }
+
+  // "Sign in with Google" (Pro only) + its OR divider.
+  .google-login {
+    margin-bottom: 4px;
+
+    &__button {
+      display: flex;
+      justify-content: center;
+      min-height: 40px;
+    }
+
+    &__status {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #666;
+      text-align: center;
+    }
+
+    &__error {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #ef7471;
+      text-align: center;
+    }
+  }
+
+  .google-login-divider {
+    display: flex;
+    align-items: center;
+    margin: 16px 0;
+    color: #9aa0a6;
+    font-family: "Heebo", sans-serif;
+    font-size: 13px;
+    text-transform: uppercase;
+
+    &::before,
+    &::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: #e0e0e0;
+    }
+
+    span {
+      padding: 0 12px;
+    }
+  }
+
+  // Inline message box — same look as the booking panel's login error, which
+  // carries these values as inline styles on the element.
+  .rlf-message {
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 4px;
+    font-family: "Heebo", sans-serif;
+    font-size: 14px;
+  }
+
+  .rlf-message-error {
+    color: var(--rlf-error-color, #ef7471);
+    background-color: var(--rlf-error-bg, #fee);
+  }
+
+  .rlf-message-success {
+    color: var(--rlf-success-color, #2e7d32);
+    background-color: var(--rlf-success-bg, #edf7ed);
+  }
+
+  // Forgot / reset password panel.
+  .reset-container {
+    max-width: 400px;
+    padding: 24px;
+    border-radius: 6px;
+    background: #f7f7fb;
+    position: relative;
+    font-family: "Heebo", sans-serif;
+
+    .cancel-button {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      border: none;
+      color: #ef7471;
+      font-family: "Heebo", sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      line-height: 1;
+      transition: all 0.3s ease;
+    }
+
+    .cancel-button:hover {
+      color: #eb4b47;
+      text-decoration-line: underline;
+    }
+
+    .cancel-button svg {
+      transition: all 0.3s ease;
+    }
+
+    .cancel-button:hover svg path {
+      stroke: #eb4b47;
+      transition: all 0.3s ease;
+    }
+
+    .title {
+      color: #151720;
+      font-family: "Heebo", sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .description {
+      color: #494a4c;
+      font-family: "Heebo", sans-serif;
+      font-size: 14px;
+      font-weight: 400;
+      margin-bottom: 20px;
+    }
+
+    .account-form-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .input-field {
+      width: 100%;
+      padding: 10px;
+      font-size: 14px;
+      border-radius: var(--rlf-input-radius, 6px);
+      border: 1px solid var(--rlf-input-border, #dddfe6);
+      background: #fff;
+      color: var(--rlf-input-color, #151720);
+      font-family: "Heebo", sans-serif;
+      font-weight: 400;
+      outline: none;
+      box-sizing: border-box;
+    }
+
+    .input-field:hover,
+    .input-field:focus {
+      border-color: var(--rlf-input-focus-border, #3560fb);
+    }
+
+    .input-field::placeholder {
+      color: #98999d;
+    }
+  }
+
+  .form-fields .form-group {
+    margin-bottom: 20px;
+    line-height: 1;
+  }
+
+  .form-group label {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 14px;
+    font-family: "Heebo", sans-serif;
+    color: var(--rlf-label, #151720);
+    font-weight: 500;
+  }
+
+  .form-group input {
+    width: 100%;
+    height: 44px;
+    padding: 10px;
+    font-size: 14px;
+    font-family: "Heebo", sans-serif;
+    border-radius: var(--rlf-input-radius, 6px);
+    border: 1px solid var(--rlf-input-border, #dddfe6);
+    background: var(--rlf-input-bg, #f7f7fb);
+    color: var(--rlf-input-color, #151720);
+    box-sizing: border-box;
+
+    &:focus {
+      border-radius: var(--rlf-input-radius, 6px);
+      outline: 2px solid var(--rlf-input-focus-border, #3560fb); // To remove shaking issue.
+      outline-offset: -1px;
+      background: #fff;
+    }
+  }
+
+  .form-group input::placeholder {
+    font-size: 14px;
+    font-family: "Heebo", sans-serif;
+    color: #98999d;
+    font-weight: 400;
+  }
+
+  .footer-btn-container {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .primary-submit-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    margin: var(--rlf-btn-margin, 0);
+    padding: var(--rlf-btn-padding, 12px 15px);
+    background-color: var(--rlf-btn-bg, #3560fb);
+    border-radius: var(--rlf-btn-radius, 6px);
+    color: var(--rlf-btn-color, #fff);
+    font-family: "Heebo", sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    line-height: 1;
+    transition: background-color 0.3s ease;
+
+    &:hover {
+      background-color: var(--rlf-btn-hover-bg, #5a7eff);
+      color: var(--rlf-btn-hover-color, #fff);
+    }
+  }
+
+  .forgot-password-link {
+    cursor: pointer;
+    color: var(--rlf-link, #3560fb);
+    font-family: "Heebo", sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: text-decoration 0.3s ease;
+  }
+
+  .forgot-password-link:hover {
+    color: var(--rlf-link-hover, #3560fb);
+    text-decoration: underline;
+  }
+}

@@ -107,6 +107,12 @@ class ServiceListBlock
                 true
             );
 
+            wp_set_script_translations(
+                self::EDITOR_HANDLE,
+                'rox-appointment-booking',
+                ROX_APPOINTMENT_BOOKING_PATH . 'languages'
+            );
+
             wp_register_style(
                 self::EDITOR_STYLE_HANDLE,
                 $build_url . 'blocks/service-list/index.css',
@@ -134,6 +140,12 @@ class ServiceListBlock
                 [$shared['script']],
                 $view_asset['version'] ?? ROX_APPOINTMENT_BOOKING_VERSION,
                 true
+            );
+
+            wp_set_script_translations(
+                self::VIEW_HANDLE,
+                'rox-appointment-booking',
+                ROX_APPOINTMENT_BOOKING_PATH . 'languages'
             );
 
             wp_register_style(

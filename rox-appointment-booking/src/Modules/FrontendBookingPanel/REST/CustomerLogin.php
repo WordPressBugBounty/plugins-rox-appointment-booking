@@ -127,6 +127,13 @@ class CustomerLogin extends AbstractREST
                 ], 401);
             }
 
+            // Establish a real WordPress session so the login carries over to
+            // wp-admin and the rest of the site (auth cookie is emitted in this
+            // REST response and stored by the browser).
+            wp_set_current_user($wp_user->ID);
+            wp_set_auth_cookie($wp_user->ID, true);
+            do_action('wp_login', $wp_user->user_login, $wp_user);
+
             return new WP_REST_Response([
                 'success' => true,
                 'code' => 200,
@@ -139,7 +146,10 @@ class CustomerLogin extends AbstractREST
                     'phone' => $customer->phone ?? null,
                     'wp_user_id' => $customer->wp_user_id,
                     'created_at' => $customer->created_at,
-                    'updated_at' => $customer->updated_at
+                    'updated_at' => $customer->updated_at,
+                    // Fresh logout URL generated for the now-logged-in user so
+                    // the panel's Logout link ends the WP session in one click.
+                    'logout_url' => html_entity_decode(wp_logout_url())
                 ]
             ], 200);
         } catch (\Exception $e) {

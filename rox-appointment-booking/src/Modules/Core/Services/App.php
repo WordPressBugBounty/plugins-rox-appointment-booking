@@ -105,7 +105,6 @@ class App
             'adminUrl' => esc_url_raw(admin_url()),
             'userRoles' => $user_roles,
             'isProUser' => rox_appointment_booking_is_pro_user(),
-            'isCustomer' => !in_array('administrator', $user_roles) && !in_array('rox_appointment_booking_agent', $user_roles),
             // Whether the Locations module should appear in the UI. Previously
             // computed inside AppConfig::getLocationMenuItem(); now surfaced as a
             // single boolean for the static JS sidebar config (config/sidebar.js).
@@ -140,7 +139,7 @@ class App
             // surfaced so the static JS config doesn't duplicate the ~280-entry
             // list.
             'durationOptions' => ServiceService::getDurationOptions(),
-            'currencySymbol' => rox_appointment_booking__get_currency_symbol(rox_appointment_booking_payment_settings('payment_currency')),
+            'currencySymbol' => rox_appointment_booking__get_currency_symbol(rox_appointment_booking_payment_settings('payment_currency') ?? 'USD'),
         ];
 
         /**
@@ -244,6 +243,12 @@ class App
             return;
         }
 
+        // Customers get their own separate UI (the CustomerPanel module handles
+        // their enqueue). Never load the admin or onboarding bundle for them.
+        if (rox_appointment_booking_is_customer()) {
+            return;
+        }
+
         if (!$this->isOnboarded()) {
             $onboarding_asset_file = ROX_APPOINTMENT_BOOKING_PUBLIC_PATH . 'build/onboarding/app.asset.php';
             $onboarding_asset = file_exists($onboarding_asset_file) ? require($onboarding_asset_file) : [
@@ -273,6 +278,12 @@ class App
                 [$onboarding_shared['script']],
                 $onboarding_asset['version'],
                 true,
+            );
+
+            wp_set_script_translations(
+                'rox-appointment-booking-onboarding',
+                'rox-appointment-booking',
+                ROX_APPOINTMENT_BOOKING_PATH . 'languages'
             );
 
             wp_add_inline_script(
@@ -321,6 +332,12 @@ class App
             [$shared['script']],
             $asset['version'],
             true,
+        );
+
+        wp_set_script_translations(
+            'rox-appointment-booking-admin',
+            'rox-appointment-booking',
+            ROX_APPOINTMENT_BOOKING_PATH . 'languages'
         );
 
         wp_add_inline_script(

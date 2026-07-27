@@ -68,14 +68,7 @@ class GetAppointmentsGrouped extends AbstractREST
             $query = AppointmentModel::query();
 
             if (!Security::canManageBookings()) {
-                if (AppointmentService::isCustomerUser()) {
-                    $currentCustomerId = AppointmentService::getCurrentCustomerId();
-                    if ($currentCustomerId) {
-                        $query->where('customer_id', $currentCustomerId);
-                    } else {
-                        $query->where('id', 0);
-                    }
-                } elseif (AppointmentService::isAgentUser()) {
+                if (AppointmentService::isAgentUser()) {
                     $currentAgentId = AppointmentService::getCurrentAgentId();
                     if ($currentAgentId) {
                         $query->where('agent_id', $currentAgentId);

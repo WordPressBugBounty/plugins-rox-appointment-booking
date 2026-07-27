@@ -95,6 +95,11 @@ class PaymentFormStructure extends AbstractREST
             $structure['stripe_key'] = $publishableKey;
         }
 
+        // Let Pro (or any add-on) extend the payment form with its own
+        // redirect-based method (e.g. WooCommerce). With Pro inactive this
+        // is a no-op and $structure is unchanged.
+        $structure = apply_filters('rox_appointment_booking_payment_form_structure', $structure);
+
         return rox_appointment_booking_rest_response(
             data: $structure,
             message: esc_html__('Form structure retrieved successfully', 'rox-appointment-booking')

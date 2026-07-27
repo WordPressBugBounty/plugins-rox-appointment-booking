@@ -7,6 +7,7 @@ use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
 use RoxAppointmentBooking\Modules\Agent\Data\AgentModel;
+use RoxAppointmentBooking\Modules\Customer\Data\CustomerModel;
 use RoxAppointmentBooking\Modules\Service\Services\ServiceService;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceAgentRelationModel;
 
@@ -147,6 +148,18 @@ class SaveAgent extends AbstractREST
                 headers : ['status' => 400]
             );
         }
+        // An email already used by a customer cannot be reused for an agent.
+        $existing_customer = CustomerModel::query()
+            ->where('email', $params['email'])
+            ->first();
+        if ($existing_customer) {
+            return rox_appointment_booking_rest_response(
+                data : null,
+                code : 400,
+                message : esc_html__('A customer with this email already exists', 'rox-appointment-booking'),
+                headers : ['status' => 400]
+            );
+        }
         try {
             if ($id) {
                 $agent = AgentModel::find($id);
@@ -194,6 +207,10 @@ class SaveAgent extends AbstractREST
 
             if(isset($params['holiday']) && is_array($params['holiday'])) {
                 $params['holiday'] = json_encode($params['holiday']);
+            }
+
+            if(isset($params['social_profiles']) && is_array($params['social_profiles'])) {
+                $params['social_profiles'] = json_encode($params['social_profiles']);
             }
 
            // Handle allow_to_login checkbox field properly - if not present, set to 0
@@ -300,9 +317,8 @@ class SaveAgent extends AbstractREST
                     'thumbnail_id' => $agent->thumbnail_id ?? null,
                     'experience_years' => $agent->experience_years ?? null,
                     'certifications' => $agent->certifications ?? null,
-                    'linkedin' => $agent->linkedin ?? null,
-                    'twitter' => $agent->twitter ?? null,
                     'bio' => $agent->bio ?? null,
+                    'social_profiles' => json_decode($agent->social_profiles ?? '[]', true),
                     'services' => $this->getAgentServices($agent),
                 ],
                 message : $id 

@@ -56,7 +56,7 @@ class GetAgent extends AbstractREST
      */
     protected function getSearchableFields(): array
     {
-        return ['id', 'first_name', 'last_name', 'email', 'phone', 'title','linkedin','twitter','bio'];
+        return ['id', 'first_name', 'last_name', 'email', 'phone', 'title','bio'];
     }
 
     /**
@@ -120,6 +120,7 @@ class GetAgent extends AbstractREST
                 'full_name' => $agent->getFullName(),
                 'title' => $agent->title ?? null,
                 'location_id' => $agent->location_id ?? null,
+                'location_option' => $this->getLocationOption($agent->location_id ?? null), // {value,label} so the form's Location select shows a label even without the Pro list endpoint
                 'service_ids' => ServiceAgentRelationModel::query()
                     ->where('agent_id', $agent->getID())
                     ->pluck('service_id')
@@ -134,12 +135,42 @@ class GetAgent extends AbstractREST
                 'existing_user' => !empty($agent->wp_user_id) ? (($user = get_userdata($agent->wp_user_id)) ? $user->user_login : null) : null,
                 'experience_years' => $agent->experience_years ?? null,
                 'certifications' => $agent->certifications ?? null,
-                'linkedin' => $agent->linkedin ?? null,
-                'twitter' => $agent->twitter ?? null,
                 'bio' => $agent->bio ?? null,
+                'social_profiles' => json_decode($agent->social_profiles ?? '[]', true),
             ]);
         }
         return $data;
+    }
+
+    /**
+     * Get a {value,label} pair for a location ID.
+     *
+     * Reads the `rox_appointment_location` table directly (created by core on
+     * activation) instead of going through the Pro-only Location REST endpoint,
+     * so the label resolves even when the Pro plugin isn't active.
+     *
+     * @param int|null $locationId
+     * @return array|null
+     */
+    private function getLocationOption($locationId): ?array
+    {
+        if (empty($locationId)) {
+            return null;
+        }
+
+        global $wpdb;
+        $table = ROX_APPOINTMENT_BOOKING_DB_PREFIX . ROX_APPOINTMENT_BOOKING_PREFIX . '_location';
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- No core Location model exists; table is created by core regardless of Pro.
+        $title = $wpdb->get_var($wpdb->prepare("SELECT title FROM $table WHERE id = %d", $locationId));
+
+        if ($title === null) {
+            return null;
+        }
+
+        return [
+            'value' => (int) $locationId,
+            'label' => $title,
+        ];
     }
 
 	/**

@@ -37,7 +37,19 @@ const loadStateFromSession = () => {
 // Initial state with defaults
 const getInitialState = () => {
   const sessionState = loadStateFromSession();
-  
+
+  // Reconcile the persisted login against the real WordPress session. The panel
+  // login now establishes a WP session, so if the persisted state says logged in
+  // but WordPress no longer has a session (e.g. the user logged out from the
+  // customer panel or elsewhere), drop the stale login instead of showing them
+  // as logged in.
+  const appConfig = window.rox_appointment_booking?.config?.app;
+  if (sessionState && sessionState.isLoggedIn && appConfig && !appConfig.is_user_logged_in) {
+    sessionState.isLoggedIn = false;
+    sessionState.loggedInUser = null;
+    sessionState.customerInfo = null;
+  }
+
   return {
     // Location & Category
     locations: [],

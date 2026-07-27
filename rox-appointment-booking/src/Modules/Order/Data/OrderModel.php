@@ -159,16 +159,8 @@ class OrderModel extends AbstractModel
      */
     private function getCurrencySymbol(): string
     {
-        $symbols = [
-            'USD' => '$',
-            'EUR' => '€',
-            'GBP' => '£',
-            'JPY' => '¥',
-            'CAD' => 'C$',
-            'AUD' => 'A$',
-        ];
-
-        return $symbols[$this->currency] ?? $this->currency;
+        $currencyCode = rox_appointment_booking_payment_settings('payment_currency') ?: ($this->currency ?: 'USD');
+        return rox_appointment_booking__get_currency_symbol($currencyCode);
     }
 
     /**

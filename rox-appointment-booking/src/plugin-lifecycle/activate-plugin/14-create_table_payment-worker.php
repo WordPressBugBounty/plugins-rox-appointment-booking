@@ -11,7 +11,7 @@ $rox_appointment_booking_sql_payment = "CREATE TABLE IF NOT EXISTS $rox_appointm
     customer_id INT UNSIGNED NOT NULL,
     order_id INT UNSIGNED DEFAULT NULL,
     amount DECIMAL(10, 2) NOT NULL,
-    status VARCHAR(50) DEFAULT 'pending',
+    status VARCHAR(50) DEFAULT 'processing',
     payment_method VARCHAR(100) DEFAULT NULL,
     transaction_id VARCHAR(255) DEFAULT NULL,
     payment_time DATETIME DEFAULT NULL,

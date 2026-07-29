@@ -769,15 +769,18 @@
   }
 
   .clear-filters-popconfirm {
+    width: 250px !important;
+
     .ant-popover-inner {
-      width: 250px;
-      padding: 12px;
+      //width: 250px !important;
+      max-height: 76px;
+      padding: 9px 10px 10px;
     }
 
     .ant-popconfirm-message {
       align-items: center;
       gap: 8px;
-      margin-bottom: 14px;
+      //margin-bottom: 14px;
     }
 
     .ant-popconfirm-message-icon {
@@ -812,6 +815,19 @@
         font-size: 14px;
         font-weight: 500;
         box-shadow: none;
+        transition: background-color 0.3s ease, border-color 0.3s ease;
+      }
+
+      // Yes
+      .ant-btn-primary:hover {
+        background: #5175F8 !important;
+      }
+
+      // No — same "border goes transparent on hover" treatment as .filter-apply-btn
+      .ant-btn-default:hover {
+        background: #D1D9FF;
+        border-color: transparent;
+        color: #151720;
       }
     }
   }
@@ -2506,7 +2522,10 @@
       border-radius: 0 0 6px 6px;
 
       .ant-table-cell {
-        height: 48px;
+        height: 48px !important;
+        padding-top: 8px !important;
+        padding-bottom: 8px !important;
+        line-height: 1;
         background: #fff;
         color: #151720;
         font-size: 12px;
@@ -2569,6 +2588,7 @@
           color: #494a4c !important;
           font-size: 14px;
           font-weight: 400;
+          height: 44px;
           padding-top: 12px;
           padding-bottom: 12px;
         }
@@ -2582,6 +2602,17 @@
 
       .grouped-content {
         background-color: #fff;
+
+        // Scoped to real data rows only (not .group-header/.group-spacer,
+        // which also carry the base .ant-table-row class antd always adds).
+        // Padding is pinned low enough that the 40px avatar + padding stays
+        // under 68px, so this explicit height remains the binding value
+        // instead of losing to content again.
+        .ant-table-cell {
+          height: 68px !important;
+          padding-top: 10px !important;
+          padding-bottom: 10px !important;
+        }
 
         // &:hover{
         //   background-color: rgba(255,255,255,0.7);
@@ -3240,14 +3271,14 @@
     width: 420px;
     height: 160px;
     border-radius: 10px;
-    padding: 20px;
+    padding: 20px 10px 10px 20px;
   }
 
   .custom-delete-modal.ant-modal-confirm .ant-modal-confirm-title {
     font-family: "Heebo", sans-serif;
     font-weight: 600;
     font-size: 20px !important;
-    line-height: 1.5;
+    line-height: 1.2;
     letter-spacing: 0;
     color: #1f1f1f;
   }
@@ -3270,6 +3301,10 @@
     padding: 0;
   }
 
+  .custom-delete-modal .ant-modal-confirm-body-wrapper {
+    padding-bottom: 10px;
+  }
+
   .custom-delete-modal .ant-btn-dangerous {
     background: transparent;
     border-radius: 6px;
@@ -3283,6 +3318,12 @@
   .custom-delete-modal button.ant-btn-color-dangerous {
     border-color: #f52c40 !important;
     color: #f52c40 !important;
+    transition: background-color 0.3s ease, color 0.3s ease !important;
+
+    &:hover {
+      background: #f52c40 !important;
+      color: #fff !important;
+    }
   }
 
   .custom-delete-modal .ant-btn-default {
@@ -3293,17 +3334,39 @@
     background: transparent;
     font-family: "Heebo", sans-serif;
     font-size: 14px;
-    padding: 10px 15px;
+    padding: 10px 13px 10px 12px;
     box-shadow: none;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+
+    &:hover {
+      background: #d1d9ff !important;
+      border-color: transparent !important;
+      color: #151720 !important;
+    }
   }
 
   .custom-delete-modal .ant-modal-confirm-body .anticon {
     font-size: 24px;
+    // antd's own spacing here is the icon's margin-inline-end (there is no
+    // flex gap on .ant-modal-confirm-body at all in antd's source) — a
+    // separately-added gap was stacking on top of this margin, giving
+    // 22px instead of 10px. Drive the spacing through this margin alone.
+    margin-inline-end: 10px !important;
   }
 
   .custom-delete-modal .ant-modal-confirm-body {
+    display: flex !important;
+  }
+
+  .custom-delete-modal .ant-modal-confirm-paragraph {
+    row-gap: 5px !important;
+  }
+
+  .custom-delete-modal .ant-modal-confirm-btns {
     display: flex;
-    gap: 12px;
+    justify-content: flex-end;
+    gap: 0;
+    margin-top: 20px;
   }
 
   /* // notification css  */

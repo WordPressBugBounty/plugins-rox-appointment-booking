@@ -74,8 +74,8 @@ class AppointmentModel extends AbstractModel
     public static function getDefaults(): array
     {
         return [
-            'status' => 'active',
-            'payment_status' => 'pending',
+            'status' => 'pending',
+            'payment_status' => 'unpaid',
             'total_attendees' => 0,
             'created_at' => gmdate('Y-m-d H:i:s'),
             'updated_at' => gmdate('Y-m-d H:i:s'),

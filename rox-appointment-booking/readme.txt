@@ -4,7 +4,7 @@ Tags: booking, reservation, appointments, calendar
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.0.9
+Stable tag: 1.2.0
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -218,6 +218,14 @@ After activation, you can configure the plugin settings from the WordPress admin
 
 
 == Changelog ==
+Version: 1.2.0 // 2026-07-29
+* Improved: Admin settings security.
+* Improved: Order and appointment status selection flow.
+* Improved: Calendar view UI/UX.
+* Improved: Settings are now grouped under their related menus.
+* Improved: Confirmation modal UI when deleting data from the admin dashboard.
+* Improved: Full translation and internationalization support across the admin dashboard and booking panel.
+
 Version: 1.0.9 // 2026-07-27
 * Added: Standalone customer login form via the `[rox_appointment_login]` shortcode — login, password reset and optional "Sign in with Google".
 * Added: "Rox Appointment Login Form" Gutenberg block with full style controls, post-login redirect and a custom button label.

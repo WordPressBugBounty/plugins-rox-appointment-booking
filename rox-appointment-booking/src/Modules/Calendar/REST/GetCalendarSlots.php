@@ -414,7 +414,9 @@ class GetCalendarSlots extends AbstractREST
     {
         $slots = [];
 
-        $query = \RoxAppointmentBooking\Modules\Appointment\Data\AppointmentModel::query()->where('date', $date);
+        $query = \RoxAppointmentBooking\Modules\Appointment\Data\AppointmentModel::query()
+            ->where('date', $date)
+            ->whereNotIn('status', ['cancelled', 'canceled', 'rejected']);
         if ($agentId) {
             $query->where('agent_id', $agentId);
         }

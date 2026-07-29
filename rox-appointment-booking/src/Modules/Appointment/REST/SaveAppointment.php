@@ -395,7 +395,7 @@ class SaveAppointment extends AbstractREST
         if (!empty($data['customer_id'])) {
             $customer_conflict = AppointmentModel::where('customer_id', $data['customer_id'])
                 ->where('date', $data['date'])
-                ->where('status', '!=', 'cancelled')
+                ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
                 ->where(function($query) use ($data) {
                     $query->where('start_time', '<', $data['end_time'])
                           ->where('end_time', '>', $data['start_time']);
@@ -425,7 +425,7 @@ class SaveAppointment extends AbstractREST
 
             $overlapping_count = AppointmentModel::where('service_id', $data['service_id'])
                 ->where('date', $data['date'])
-                ->where('status', '!=', 'cancelled')
+                ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
                 ->where(function($query) use ($data) {
                     $query->where('start_time', '<', $data['end_time'])
                           ->where('end_time', '>', $data['start_time']);
@@ -450,7 +450,7 @@ class SaveAppointment extends AbstractREST
         // we must reject the booking here to prevent the agent from being double-booked.
         $existing = AppointmentModel::where('agent_id', $data['agent_id'])
             ->where('date', $data['date'])
-            ->where('status', '!=', 'cancelled')
+            ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
             ->where(function($query) use ($data) {
                 $query->where(function($q) use ($data) {
                     $q->where('start_time', '<', $data['end_time'])

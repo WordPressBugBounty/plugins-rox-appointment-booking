@@ -109,7 +109,7 @@ class CheckCustomerAvailability extends AbstractREST
             $conflict = AppointmentModel::query()
                 ->where('customer_id', $customerId)
                 ->where('date', $date)
-                ->where('status', '!=', 'cancelled')
+                ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
                 ->where(function ($query) use ($full_start_time, $full_end_time) {
                     $query->where('start_time', '<', $full_end_time)
                           ->where('end_time', '>', $full_start_time);

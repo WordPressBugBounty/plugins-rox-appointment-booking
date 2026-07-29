@@ -122,6 +122,12 @@ class LoginFormBlock
             true
         );
 
+        wp_set_script_translations(
+            self::EDITOR_HANDLE,
+            'rox-appointment-booking',
+            ROX_APPOINTMENT_BOOKING_PATH . 'languages'
+        );
+
         wp_register_style(
             self::EDITOR_STYLE_HANDLE,
             $build_url . 'blocks/login-form/index.css',

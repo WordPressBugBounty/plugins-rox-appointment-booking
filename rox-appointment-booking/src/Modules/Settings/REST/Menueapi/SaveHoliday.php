@@ -52,8 +52,15 @@ class SaveHoliday extends AbstractREST
      */
     public function permissionCheck(WP_REST_Request $request): bool
     {
-        // Check if user has appropriate capabilities
-        return  true;
+        if (!wp_verify_nonce($request->get_header('X-WP-Nonce'), 'wp_rest')) {
+            return false;
+        }
+
+        if (!is_user_logged_in() || !current_user_can('manage_options')) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

@@ -102,7 +102,7 @@ class AppointmentService
             $customer_conflict = AppointmentModel::query()
                 ->where('customer_id', $customerId)
                 ->where('date', $appointmentData['date'])
-                ->where('status', '!=', 'cancelled')
+                ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
                 ->where(function($query) use ($full_start_time, $full_end_time) {
                     $query->where('start_time', '<', $full_end_time)
                           ->where('end_time', '>', $full_start_time);
@@ -130,7 +130,7 @@ class AppointmentService
                 $overlapping_count = AppointmentModel::query()
                     ->where('service_id', intval($appointmentData['service_id']))
                     ->where('date', $appointmentData['date'])
-                    ->where('status', '!=', 'cancelled')
+                    ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
                     ->where(function($query) use ($full_start_time, $full_end_time) {
                         $query->where('start_time', '<', $full_end_time)
                               ->where('end_time', '>', $full_start_time);
@@ -153,7 +153,7 @@ class AppointmentService
                 $existing = AppointmentModel::query()
                     ->where('agent_id', $agent_id)
                     ->where('date', $appointmentData['date'])
-                    ->where('status', '!=', 'cancelled')
+                    ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
                     ->where(function($query) use ($full_start_time, $full_end_time) {
                         $query->where(function($q) use ($full_start_time, $full_end_time) {
                             $q->where('start_time', '<', $full_end_time)
@@ -226,6 +226,44 @@ class AppointmentService
     }
 
     /**
+     * Compute the real order subtotal from the saved appointments' service +
+     * extra-service prices, looked up fresh from the DB. This is the
+     * authoritative source for what a booking costs — client-submitted
+     * amounts are never trusted for billing.
+     *
+     * @param array $appointmentIds Appointment IDs.
+     * @return float
+     */
+    private function calculateServerSubtotal(array $appointmentIds): float
+    {
+        $subtotal = 0.0;
+
+        foreach ($appointmentIds as $appointmentId) {
+            $appointment = AppointmentModel::find($appointmentId);
+            if (!$appointment) {
+                continue;
+            }
+
+            $service = ServiceModel::find($appointment->service_id);
+            if ($service) {
+                $subtotal += (float) $service->price;
+            }
+
+            $extraServiceIds = $appointment->extra_services ?? [];
+            if (!empty($extraServiceIds) && is_array($extraServiceIds) && class_exists('\\RoxAppointmentBookingPro\\Modules\\ExtraService\\Data\\ExtraServiceModel')) {
+                foreach ($extraServiceIds as $extraId) {
+                    $extraService = \RoxAppointmentBookingPro\Modules\ExtraService\Data\ExtraServiceModel::find(intval($extraId));
+                    if ($extraService) {
+                        $subtotal += (float) $extraService->price;
+                    }
+                }
+            }
+        }
+
+        return round($subtotal, 2);
+    }
+
+    /**
      * Save an order for frontend booking appointments.
      *
      * @param int $customerId Customer ID.
@@ -235,8 +273,11 @@ class AppointmentService
      */
     public function saveOrder(int $customerId, array $appointmentIds, array $params): array|WP_Error
     {
-        $subtotal     = floatval($params['original_amount'] ?? $params['amount'] ?? 0);
-        $total_amount = floatval($params['amount'] ?? 0);
+        // Server-computed from the just-created appointments' actual service/extra-service
+        // prices — never trust the client's original_amount/amount for this. A tampered
+        // client value here would otherwise become the authoritative order total charged
+        // to Stripe/PayPal.
+        $subtotal = $this->calculateServerSubtotal($appointmentIds);
 
         // Coupon application is handled by the Pro plugin via this filter.
         $coupon_result = apply_filters('rox_appointment_booking_apply_coupon', [
@@ -248,6 +289,8 @@ class AppointmentService
         $discount_amount = (float) ($coupon_result['discount_amount'] ?? 0);
         $coupon_id       = $coupon_result['coupon_id'] ?? null;
         $coupon_code     = $coupon_result['coupon_code'] ?? null;
+
+        $total_amount = max(0, round($subtotal - $discount_amount, 2));
 
         $order = new OrderModel();
         $order->customer_id    = $customerId;

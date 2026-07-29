@@ -149,7 +149,7 @@ class RescheduleBooking extends AbstractREST
             ->where('agent_id', $agentId)
             ->where('date', $date)
             ->where('id', '!=', $excludeId)
-            ->where('status', '!=', 'cancelled')
+            ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
             ->where('start_time', '<', $endDateTime)
             ->where('end_time', '>', $startDateTime)
             ->exists();

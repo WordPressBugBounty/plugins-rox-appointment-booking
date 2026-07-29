@@ -4,6 +4,7 @@ namespace RoxAppointmentBooking\Modules\FrontendBookingPanel\Services;
 use WP_Error;
 use RoxAppointmentBooking\Modules\Payment\Services\StripePaymentService;
 use RoxAppointmentBooking\Modules\Payment\Data\PaymentModel;
+use RoxAppointmentBooking\Modules\Order\Data\OrderModel;
 
 /**
  * Class PaymentProcessingService
@@ -23,7 +24,17 @@ class PaymentProcessingService
      */
     public function processPayment(array $params, int $customerId, int $orderId): array|WP_Error
     {
-        if (!isset($params['amount']) || (float)$params['amount'] <= 0) {
+        // The order's total_amount is server-computed at order-creation time
+        // (AppointmentService::saveOrder) from the actual service/extra-service
+        // prices — this is what's actually charged, never the client-submitted
+        // amount, which can be tampered with.
+        $order = OrderModel::find($orderId);
+        if (!$order) {
+            return new WP_Error('order_not_found', esc_html__('Order not found', 'rox-appointment-booking'), ['status' => 404]);
+        }
+
+        $amount = (float) $order->total_amount;
+        if ($amount <= 0) {
             return new WP_Error('invalid_amount', esc_html__('Invalid amount', 'rox-appointment-booking'), ['status' => 400]);
         }
 
@@ -44,10 +55,10 @@ class PaymentProcessingService
         }
 
         if ($paymentType === 'later') {
-            return $this->handlePayLater($params['amount'], $customerId, $orderId);
+            return $this->handlePayLater($amount, $customerId, $orderId);
         }
 
-        return $this->handleStripePayment($params, $customerId, $orderId);
+        return $this->handleStripePayment($params, $amount, $customerId, $orderId);
     }
 
     /**
@@ -79,11 +90,12 @@ class PaymentProcessingService
      * Handle Stripe payment flow.
      *
      * @param array $params Payment request parameters.
+     * @param float $amount Server-computed amount to charge.
      * @param int $customerId Customer ID.
      * @param int $orderId Order ID.
      * @return array|WP_Error
      */
-    private function handleStripePayment(array $params, int $customerId, int $orderId): array|WP_Error
+    private function handleStripePayment(array $params, float $amount, int $customerId, int $orderId): array|WP_Error
     {
         if (empty($params['payment_method'])) {
             return new WP_Error('missing_payment_method', esc_html__('Payment method is required', 'rox-appointment-booking'), ['status' => 400]);
@@ -95,7 +107,7 @@ class PaymentProcessingService
         }
 
         $result = $service->createAndConfirmPayment(
-            (float)$params['amount'],
+            $amount,
             $params['payment_method'],
             array_merge($params['metadata'] ?? [], ['customer_id' => $customerId, 'order_id' => $orderId]),
             $params['idempotency_key'] ?? wp_generate_uuid4()

@@ -18,7 +18,7 @@ $rox_appointment_booking_sql_booking = "CREATE TABLE IF NOT EXISTS $rox_appointm
     end_time DATETIME DEFAULT NULL,
     coupon_id INT DEFAULT NULL,
     purchase_details JSON DEFAULT NULL,
-    status VARCHAR(255) DEFAULT 'active',
+    status VARCHAR(255) DEFAULT 'pending',
     payment_status VARCHAR(255) DEFAULT 'pending',
     total_attendees INT DEFAULT 0,
     send_notification TINYINT(1) DEFAULT 0,

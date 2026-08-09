@@ -98,7 +98,12 @@ function Panel() {
       />
       <main className="container">
         {view === "bookings" ? (
-          <BookingsView currentUser={config.currentUser} onNavigate={navigate} />
+          <BookingsView
+            currentUser={config.currentUser}
+            canReschedule={!!config.canReschedule}
+            canCancel={!!config.canCancel}
+            onNavigate={navigate}
+          />
         ) : view === "book-new" ? (
           <BookNewView onNavigate={navigate} prefill={routeData} />
         ) : view === "payments" ? (

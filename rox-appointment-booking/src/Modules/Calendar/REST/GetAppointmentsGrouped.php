@@ -67,15 +67,24 @@ class GetAppointmentsGrouped extends AbstractREST
         try {
             $query = AppointmentModel::query();
 
+            // Non-managers only ever see their own agent's appointments. A panel
+            // user who is not an agent (or whose login has no agent record) must
+            // NOT fall through to an unfiltered query — deny instead.
             if (!Security::canManageBookings()) {
-                if (AppointmentService::isAgentUser()) {
-                    $currentAgentId = AppointmentService::getCurrentAgentId();
-                    if ($currentAgentId) {
-                        $query->where('agent_id', $currentAgentId);
-                    } else {
-                        $query->where('id', 0);
-                    }
+                $currentAgentId = AppointmentService::isAgentUser()
+                    ? AppointmentService::getCurrentAgentId()
+                    : null;
+
+                if (!$currentAgentId) {
+                    return rox_appointment_booking_rest_response(
+                        data: null,
+                        code: 403,
+                        message: esc_html__('Agent account not found for this user.', 'rox-appointment-booking'),
+                        headers: ['status' => 403]
+                    );
                 }
+
+                $query->where('agent_id', $currentAgentId);
             }
 
             if (!empty($start)) {

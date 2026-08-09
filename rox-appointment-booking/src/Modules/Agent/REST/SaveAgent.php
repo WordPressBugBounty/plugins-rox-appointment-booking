@@ -115,8 +115,11 @@ class SaveAgent extends AbstractREST
 
         $required_fields = self::getRequiredFields();
 
+        // Required for new agents. For updates (e.g. the Agents list status
+        // toggle only sends `{ status }`), only validate a field if it was
+        // actually submitted — matches SaveService's create-vs-update pattern.
         foreach ($required_fields as $field) {
-            if (empty($params[$field])) {
+            if ((!$id || isset($params[$field])) && empty($params[$field])) {
                 return rox_appointment_booking_rest_response(
                     data : null,
                     code : 400,
@@ -126,7 +129,7 @@ class SaveAgent extends AbstractREST
                 );
             }
         }
-        if (!is_email($params['email'])) {
+        if (isset($params['email']) && !is_email($params['email'])) {
             return rox_appointment_booking_rest_response(
                 data : null,
                 code : 400,
@@ -134,31 +137,56 @@ class SaveAgent extends AbstractREST
                 headers : ['status' => 400]
             );
         }
-        $existing = AgentModel::query()
-            ->where('email', $params['email'])
-            ->when($id, function($q) use ($id) {
-                $q->where('id', '!=', $id);
-            })
-            ->first();
-        if ($existing) {
+        if (!empty($params['status']) && !in_array($params['status'], ['active', 'inactive'])) {
             return rox_appointment_booking_rest_response(
                 data : null,
                 code : 400,
-                message : esc_html__('An agent with this email already exists', 'rox-appointment-booking'),
+                message : esc_html__('Status must be either active or inactive', 'rox-appointment-booking'),
                 headers : ['status' => 400]
             );
         }
-        // An email already used by a customer cannot be reused for an agent.
-        $existing_customer = CustomerModel::query()
-            ->where('email', $params['email'])
-            ->first();
-        if ($existing_customer) {
-            return rox_appointment_booking_rest_response(
-                data : null,
-                code : 400,
-                message : esc_html__('A customer with this email already exists', 'rox-appointment-booking'),
-                headers : ['status' => 400]
+        if (isset($params['email'])) {
+            $existing = AgentModel::query()
+                ->where('email', $params['email'])
+                ->when($id, function($q) use ($id) {
+                    $q->where('id', '!=', $id);
+                })
+                ->first();
+            if ($existing) {
+                return rox_appointment_booking_rest_response(
+                    data : null,
+                    code : 400,
+                    message : esc_html__('An agent with this email already exists', 'rox-appointment-booking'),
+                    headers : ['status' => 400]
+                );
+            }
+            // An email already used by a customer cannot be reused for an agent —
+            // unless that customer row IS this agent. An agent who books through the
+            // frontend panel with their own email keeps their agent row and
+            // additionally gets a customer row on the same email and wp_user_id
+            // (FrontendBookingPanel\Services\CustomerService::handleAutoUserCreation),
+            // which is what the panel's "My Bookings" page lists. Matched the way
+            // AppointmentService::getCurrentCustomerId() does it — wp_user_id, with
+            // the agent's own current email as the fallback — because without this
+            // exclusion the check finds that row on every subsequent save and the
+            // agent can never be edited again.
+            $existing_customer = CustomerModel::query()
+                ->where('email', $params['email'])
+                ->first();
+            $current_agent = $id ? AgentModel::find($id) : null;
+            $is_same_person = $existing_customer && $current_agent && (
+                $params['email'] === $current_agent->email
+                || (!empty($current_agent->wp_user_id)
+                    && (int) $existing_customer->wp_user_id === (int) $current_agent->wp_user_id)
             );
+            if ($existing_customer && !$is_same_person) {
+                return rox_appointment_booking_rest_response(
+                    data : null,
+                    code : 400,
+                    message : esc_html__('A customer with this email already exists', 'rox-appointment-booking'),
+                    headers : ['status' => 400]
+                );
+            }
         }
         try {
             if ($id) {
@@ -213,9 +241,14 @@ class SaveAgent extends AbstractREST
                 $params['social_profiles'] = json_encode($params['social_profiles']);
             }
 
-           // Handle allow_to_login checkbox field properly - if not present, set to 0
+           // Handle allow_to_login checkbox field properly - if not present, default
+           // to 0 for new agents only. For updates (e.g. the Agents list status
+           // toggle only sends `{ status }`), leave the agent's existing value
+           // untouched instead of silently unlinking their WordPress login below.
            if (!isset($params['allow_to_login'])) {
-               $params['allow_to_login'] = 0;
+               if (!$id) {
+                   $params['allow_to_login'] = 0;
+               }
            } else {
                // Handle array format from frontend (e.g., ["1"] or [])
                if (is_array($params['allow_to_login'])) {
@@ -225,6 +258,13 @@ class SaveAgent extends AbstractREST
                    $params['allow_to_login'] = filter_var($params['allow_to_login'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
                }
            }
+
+            // Set default status only for new agents — the edit form doesn't
+            // submit a status field, so defaulting unconditionally here would
+            // silently re-activate an agent the Agents list toggled inactive.
+            if (!$id && empty($params['status'])) {
+                $params['status'] = 'active';
+            }
 
             // Remove relationship arrays from params before saving to agent table
             $relationship_fields = ['service_ids'];
@@ -265,8 +305,10 @@ class SaveAgent extends AbstractREST
                 }
             }
 
-            // Create or link WordPress user if allow_to_login is enabled
-            if ($params['allow_to_login']) {
+            // Create or link WordPress user if allow_to_login is enabled. Skipped
+            // entirely when the field wasn't submitted (partial update) so an
+            // existing agent's login link isn't touched.
+            if (isset($params['allow_to_login']) && $params['allow_to_login']) {
                 // Check if WordPress user already exists with this email
                 $existing_wp_user = get_user_by('email', $agent->email);
                 
@@ -290,7 +332,7 @@ class SaveAgent extends AbstractREST
                         $agent->save();
                     }
                 }
-            } else {
+            } elseif (isset($params['allow_to_login'])) {
                 // If allow_to_login is disabled, remove the wp_user_id link
                 if ($agent->wp_user_id) {
                     $agent->wp_user_id = null;
@@ -302,8 +344,14 @@ class SaveAgent extends AbstractREST
                 $params['service_ids'] = $params['service_id'];
             }
 
-            // Handle service relationships
-            $this->handleServiceRelationships($agent, $params);
+            // Handle service relationships — only when the request actually
+            // submitted this field. It unconditionally deletes + rebuilds the
+            // relationship rows, so running it on a partial update (e.g. the
+            // Agents list status toggle sends just `{ status }`) would wipe the
+            // agent's assigned services.
+            if (isset($params['service_ids']) || isset($params['service_id'])) {
+                $this->handleServiceRelationships($agent, $params);
+            }
             return rox_appointment_booking_rest_response(
                 data : [
                     'id' => $agent->getID(),

@@ -79,13 +79,17 @@ class GetGeneral extends AbstractREST
                 // pass usa
                 'default_phone_country_code' => rox_appointment_booking_general_settings('default_phone_country_code'),
                 'default_appointment_status' => 'pending',
-                // Stored on the Payments settings option (read/used everywhere via
-                // rox_appointment_booking_payment_settings()), surfaced here since
-                // the Currency field now lives on the General settings form.
-                'payment_currency' => rox_appointment_booking_payment_settings('payment_currency') ?? 'USD',
             ];
-            
+
             $general_settings = wp_parse_args($general_settings, $defaults);
+
+            // Stored on the Payments settings option (read/used everywhere via
+            // rox_appointment_booking_payment_settings()), surfaced here since
+            // the Currency field now lives on the General settings form.
+            // Assigned after wp_parse_args (not as a default) because a stale
+            // copy left on general_settings — from when this form persisted the
+            // field itself — would otherwise shadow the real stored value.
+            $general_settings['payment_currency'] = rox_appointment_booking_payment_settings('payment_currency') ?? 'USD';
 
             return rox_appointment_booking_rest_response(
                 data: $general_settings,

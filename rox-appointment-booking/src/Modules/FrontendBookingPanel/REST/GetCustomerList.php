@@ -7,17 +7,23 @@ use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
 use RoxAppointmentBooking\Modules\Customer\Data\CustomerModel;
-use RoxAppointmentBooking\Modules\Appointment\Services\AppointmentService;
+use RoxAppointmentBooking\Supports\Security;
 
 /**
  * Class GetCustomerList
  *
  * @package RoxAppointmentBooking\Modules\FrontendBookingPanel\REST
- * @description Customer options for the admin booking form's Customer select when
- * the current user is an agent (the admin `/customer?mode=list` endpoint needs
- * `manage_options`). Returns each customer's contact fields so an agent booking
- * can be routed through the public booking endpoint (which identifies the
- * customer by email). Gated to logged-in admins and agents only.
+ * @description Customer options for the admin booking form's Customer select,
+ * carrying each customer's contact fields (name, email, phone).
+ *
+ * Originally opened up to agents as well, so an agent's booking could be routed
+ * through the public booking endpoint (which identifies the customer by email).
+ * Agents can no longer create bookings, so that reason is gone — and this returns
+ * the ENTIRE customer list with email + phone, which a read-only agent has no
+ * business enumerating. Back to booking managers only.
+ *
+ * Note the misleading `/public/` prefix: despite the route it is NOT public and
+ * never was — it always required a logged-in user.
  */
 class GetCustomerList extends AbstractREST
 {
@@ -70,7 +76,7 @@ class GetCustomerList extends AbstractREST
             return false;
         }
 
-        return current_user_can('manage_options') || AppointmentService::isAgentUser();
+        return Security::canManageBookings();
     }
 
     /**

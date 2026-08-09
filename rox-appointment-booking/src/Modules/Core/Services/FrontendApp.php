@@ -62,6 +62,7 @@ class FrontendApp
             'is_user_logged_in' => is_user_logged_in(),
             // Real WP session can only be ended server-side; used by the panel's logout link.
             'logout_url' => html_entity_decode(wp_logout_url()),
+            'dashboardUrl' => rox_appointment_booking_dashboard_url(),
         ];
     }
 

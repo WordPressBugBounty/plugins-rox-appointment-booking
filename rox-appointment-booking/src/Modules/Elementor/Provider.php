@@ -23,7 +23,7 @@ namespace RoxAppointmentBooking\Modules\Elementor;
 
 use RoxAppointmentBooking\Modules\Elementor\Widgets\BookingPanelWidget;
 use RoxAppointmentBooking\Modules\Elementor\Widgets\LoginFormWidget;
-use RoxAppointmentBooking\Modules\CustomerLogin\Services\LoginFormShortcode;
+use RoxAppointmentBooking\Modules\LoginForm\Services\LoginFormShortcode;
 use RoxAppointmentBooking\Supports\Assets;
 
 if (! defined('ABSPATH')) exit; // Exit if accessed directly
@@ -253,6 +253,12 @@ class Provider
                 true
             );
 
+            wp_set_script_translations(
+                LoginFormShortcode::VIEW_HANDLE,
+                'rox-appointment-booking',
+                ROX_APPOINTMENT_BOOKING_PATH . 'languages'
+            );
+
             wp_register_style(
                 LoginFormShortcode::VIEW_STYLE_HANDLE,
                 $build_url . 'blocks/login-form/view.css',
@@ -298,6 +304,7 @@ class Provider
             'siteUrl'           => esc_url_raw(site_url()),
             'is_user_logged_in' => is_user_logged_in(),
             'logout_url'        => html_entity_decode(wp_logout_url()),
+            'dashboardUrl'      => rox_appointment_booking_dashboard_url(),
         ];
     }
 }

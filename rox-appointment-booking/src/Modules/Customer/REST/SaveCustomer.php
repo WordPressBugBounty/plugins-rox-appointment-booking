@@ -129,11 +129,21 @@ class SaveCustomer extends AbstractREST
             );
         }
 
-        // An email already used by an agent cannot be reused for a customer.
+        // An email already used by an agent cannot be reused for a customer —
+        // unless that agent row IS this customer. The mirror of the exclusion in
+        // SaveAgent: an agent who books through the frontend panel gets a customer
+        // row on the same email and wp_user_id, and without this the auto-created
+        // row could never be edited afterwards.
         $existing_agent = AgentModel::query()
             ->where('email', $params['email'])
             ->first();
-        if ($existing_agent) {
+        $current_customer = $id ? CustomerModel::find($id) : null;
+        $is_same_person = $existing_agent && $current_customer && (
+            $params['email'] === $current_customer->email
+            || (!empty($current_customer->wp_user_id)
+                && (int) $existing_agent->wp_user_id === (int) $current_customer->wp_user_id)
+        );
+        if ($existing_agent && !$is_same_person) {
             return rox_appointment_booking_rest_response(
                 data : null,
                 code : 400,
@@ -192,10 +202,10 @@ class SaveCustomer extends AbstractREST
                 }
             }
 
-            // Handle send_notifications checkbox field properly
-            if (!isset($params['send_notifications'])) {
-                $params['send_notifications'] = false;
-            } else {
+            // Handle send_notifications checkbox field properly. The customer
+            // form no longer edits this, so an absent field means "leave the
+            // stored value alone" rather than "switch it off".
+            if (isset($params['send_notifications'])) {
                 // Handle array format from frontend (e.g., ["1"] or [])
                 if (is_array($params['send_notifications'])) {
                     $params['send_notifications'] = in_array("1", $params['send_notifications']);

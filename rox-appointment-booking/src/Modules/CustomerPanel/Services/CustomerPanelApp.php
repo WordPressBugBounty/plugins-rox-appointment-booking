@@ -3,7 +3,6 @@
 namespace RoxAppointmentBooking\Modules\CustomerPanel\Services;
 
 use RoxAppointmentBooking\Supports\Assets;
-use RoxAppointmentBooking\Modules\UserManagement\Util\UserInfo;
 
 if (! defined('ABSPATH')) exit; // Exit if accessed directly
 
@@ -11,6 +10,9 @@ if (! defined('ABSPATH')) exit; // Exit if accessed directly
  * Enqueues the separate Customer Panel bundle for customer users on the plugin
  * dashboard page. The admin App.php bails out for customers (guard), so only
  * this bundle mounts into #rox-appointment-booking-customer-panel-root for them.
+ *
+ * Also keeps customers pointed at the frontend dashboard page: out of wp-admin,
+ * no admin toolbar, and back to that page on logout.
  */
 class CustomerPanelApp
 {
@@ -28,21 +30,60 @@ class CustomerPanelApp
     public function __construct()
     {
         add_action('admin_enqueue_scripts', [$this, 'enqueueAssets'], 100);
-        add_action('admin_init', [$this, 'redirectCustomersToPanel']);
+        // Ahead of WooCommerce, which hooks its own "get out of wp-admin"
+        // redirect on `admin_init` at the default 10 and would otherwise send a
+        // booking customer to its My Account page before this ever runs. A
+        // priority — rather than relying on which plugin registered first —
+        // makes the order deterministic.
+        add_action('admin_init', [$this, 'redirectCustomersToPanel'], 5);
+        add_filter('show_admin_bar', [$this, 'hideAdminBarForCustomers']);
+        add_filter('logout_redirect', [$this, 'logoutRedirect'], 10, 3);
     }
 
     /**
      * Customers get ONLY the Customer Panel — never the wp-admin UI. Any customer
-     * who lands on any wp-admin screen other than the panel's own dashboard page
-     * is redirected to it, so they never see the WordPress admin menu/toolbar.
-     * AJAX is left alone so background requests keep working.
+     * who lands on a wp-admin screen is sent to the frontend dashboard page, so
+     * they never see the WordPress admin menu/toolbar. AJAX is left alone so
+     * background requests keep working.
+     *
+     * Without that page (never created, or the site owner deleted it) the old
+     * behaviour stands in: bounce them to the panel's own wp-admin page, which
+     * still mounts the same bundle. Better a stripped-down admin screen than a
+     * customer locked out of their bookings.
      *
      * @return void
      */
     public function redirectCustomersToPanel(): void
     {
-        if (wp_doing_ajax() || !rox_appointment_booking_is_customer()) {
+        // Matched on the plugin's own customer role, NOT the broader
+        // rox_appointment_booking_is_customer() helper this used to ask. That
+        // helper means "not an administrator and not a booking agent", which is
+        // equally true of editors, authors, contributors, subscribers and
+        // WooCommerce shop managers — none of whom this plugin has any business
+        // throwing out of wp-admin. Booking customers hold this role (assigned by
+        // SaveCustomer and the frontend panel's CustomerService), and a logged-out
+        // request has no roles at all, so admin-post.php's `admin_init` is left
+        // alone too.
+        //
+        // The role narrows this to booking customers; rox_appointment_booking_is_customer()
+        // then decides who WINS when one login carries more than one of our roles —
+        // an agent who also holds the customer role belongs in wp-admin, and the
+        // helper already answers that (it is false for administrators and agents).
+        // Without this second test such a user bounces here to the dashboard page,
+        // is sent straight back by CustomerPanelShortcode::redirectAgentsToAdmin(),
+        // and loops until the browser gives up.
+        if (
+            wp_doing_ajax()
+            || !in_array('rox_appointment_booking_customer', rox_appointment_booking_get_current_user_role(), true)
+            || !rox_appointment_booking_is_customer()
+        ) {
             return;
+        }
+
+        $dashboard_url = rox_appointment_booking_dashboard_url();
+        if ($dashboard_url) {
+            wp_safe_redirect($dashboard_url);
+            exit;
         }
 
         $page = isset($_GET['page']) ? sanitize_text_field(wp_unslash($_GET['page'])) : '';
@@ -52,6 +93,78 @@ class CustomerPanelApp
 
         wp_safe_redirect(admin_url('admin.php?page=' . $this->page_slug));
         exit;
+    }
+
+    /**
+     * The panel is a standalone app on an ordinary page — the WordPress toolbar
+     * across the top would only offer a customer links they cannot use, and the
+     * wp-admin surface used to hide it with CSS anyway.
+     *
+     * Matched on the plugin's own customer role, NOT the broader
+     * rox_appointment_booking_is_customer() helper. That helper means "not an
+     * administrator and not a booking agent", which is also true of editors,
+     * authors, contributors, subscribers and WooCommerce shop managers — taking
+     * the toolbar away from all of them, everywhere on the site, is not this
+     * plugin's call. Booking customers hold this role (SaveCustomer /
+     * FrontendBookingPanel CustomerService both assign it).
+     *
+     * @param bool $show Whether WordPress intends to show the admin bar.
+     * @return bool
+     */
+    public function hideAdminBarForCustomers($show)
+    {
+        // Paired with rox_appointment_booking_is_customer() for the same reason as
+        // redirectCustomersToPanel() above: an agent who also carries the customer
+        // role works in wp-admin and keeps the toolbar.
+        if (
+            in_array('rox_appointment_booking_customer', rox_appointment_booking_get_current_user_role(), true)
+            && rox_appointment_booking_is_customer()
+        ) {
+            return false;
+        }
+
+        return $show;
+    }
+
+    /**
+     * Sends a customer or an agent back to the dashboard page when they log out,
+     * where they are met by the login form rather than the bare wp-login.php
+     * screen. Both sign in through that page, so both come back to it.
+     *
+     * Only fills in a destination WordPress does not already have. A logout link
+     * that names where to go — the panel's own (which names this page anyway),
+     * WooCommerce's My Account link, a theme's — is left alone; overriding it
+     * would drag a shopper who happens to also be a booking customer out of the
+     * store and onto the booking dashboard. What is left is every logout with no
+     * destination at all: the agent's wp-admin avatar menu, the toolbar link, a
+     * bookmarked wp-login.php?action=logout. Those are the ones that used to end
+     * on the bare wp-login.php screen.
+     *
+     * Matched on the plugin's own roles rather than the broader
+     * rox_appointment_booking_is_customer() check, which also answers true for
+     * plain subscribers who have nothing to do with bookings — their logout is
+     * not ours to redirect.
+     *
+     * @param string  $redirect_to           Where WordPress means to send them.
+     * @param string  $requested_redirect_to Redirect requested on the logout url.
+     * @param \WP_User $user                 The user who just logged out.
+     * @return string
+     */
+    public function logoutRedirect($redirect_to, $requested_redirect_to, $user)
+    {
+        if ($requested_redirect_to !== '') {
+            return $redirect_to;
+        }
+
+        $panel_roles = ['rox_appointment_booking_customer', 'rox_appointment_booking_agent'];
+
+        if (!($user instanceof \WP_User) || !array_intersect($panel_roles, (array) $user->roles)) {
+            return $redirect_to;
+        }
+
+        $dashboard_url = rox_appointment_booking_dashboard_url();
+
+        return $dashboard_url ? $dashboard_url : $redirect_to;
     }
 
     public function enqueueAssets($hook): void
@@ -110,9 +223,7 @@ class CustomerPanelApp
 
         wp_add_inline_script(
             'rox-appointment-booking-customer-panel',
-            'window.rox_appointment_booking = window.rox_appointment_booking || {}; '
-                . 'window.rox_appointment_booking.config = window.rox_appointment_booking.config || {}; '
-                . 'window.rox_appointment_booking.config.customerPanel = ' . wp_json_encode($this->panelVars()) . ';',
+            CustomerPanelConfig::inlineScript(),
             'before'
         );
     }
@@ -135,41 +246,5 @@ class CustomerPanelApp
             #wpbody-content > .wrap { margin: 0 !important; }
             html, body.wp-admin { background: #f4f5f7 !important; }
         ';
-    }
-
-    /**
-     * Minimal window config for the Customer Panel bundle. Kept small on purpose;
-     * expand as the panel grows (it will read from window...config.customerPanel).
-     *
-     * @return array
-     */
-    private function panelVars(): array
-    {
-        $userInfo = new UserInfo();
-        // The photo set on the customer record in the admin wins over the WP
-        // user avatar, so the header matches the Profile view.
-        $customer = CustomerPanelService::currentCustomer();
-        $thumbnail = $customer && $customer->thumbnail_id
-            ? wp_get_attachment_url((int) $customer->thumbnail_id)
-            : '';
-
-        return [
-            'nonce'       => wp_create_nonce('wp_rest'),
-            'apiBaseUrl'  => esc_url_raw(rest_url('rox-appointment-booking/v1/')),
-            'restBaseUrl' => esc_url_raw(rest_url()),
-            // Nonce-signed WordPress logout URL; redirects to the login screen
-            // once the session ends. Used by the header avatar dropdown.
-            // wp_logout_url() HTML-escapes the ampersand (&#038;), which is right
-            // for an href but breaks when used as a raw JS redirect target
-            // (the _wpnonce param gets mangled and WP shows the "really log out?"
-            // confirmation). Decode the entities so window.location.href gets a
-            // clean `&`; wp_json_encode handles JS-context escaping.
-            'logoutUrl'   => html_entity_decode(wp_logout_url(), ENT_QUOTES),
-            'currentUser' => [
-                'name'  => $userInfo->getFullName(),
-                'email' => $userInfo->getEmail(),
-                'src'   => $thumbnail ?: $userInfo->getAvatarUrl(36),
-            ],
-        ];
     }
 }

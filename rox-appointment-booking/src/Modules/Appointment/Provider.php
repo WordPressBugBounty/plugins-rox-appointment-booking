@@ -27,3 +27,4 @@ class Provider extends AbstractLoader
         ]);
     }
 }
+

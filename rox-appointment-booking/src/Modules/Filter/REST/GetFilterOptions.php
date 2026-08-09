@@ -73,7 +73,20 @@ class GetFilterOptions extends AbstractREST
     public function handleRequest(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         $table = $request->get_param('type');
-        
+
+        // The customer and agent rosters are admin data — the only consumer is the
+        // admin Orders page's Customer filter. Agent filter bars use
+        // service/category/location only, so agents have no reason to enumerate
+        // every customer name or the whole staff list.
+        if (in_array($table, ['customer', 'agent'], true) && !Security::canManageBookings()) {
+            return rox_appointment_booking_rest_response(
+                data: null,
+                code: 403,
+                message: esc_html__('You are not allowed to view these options.', 'rox-appointment-booking'),
+                headers: ['status' => 403]
+            );
+        }
+
         $data = match($table) {
             'service' => $this->getServiceOptions(),
             'category' => $this->getCategoryOptions(),

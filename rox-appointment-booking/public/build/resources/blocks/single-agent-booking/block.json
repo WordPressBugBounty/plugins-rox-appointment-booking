@@ -1,0 +1,53 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "rox-appointment-booking/single-agent-booking",
+  "title": "Rox Appointment Single Agent Booking",
+  "category": "widgets",
+  "icon": "businessperson",
+  "description": "A booking panel pre-locked to one agent: the visitor picks that agent's service, then date/time, info and payment.",
+  "textdomain": "rox-appointment-booking",
+  "keywords": [
+    "booking",
+    "appointment",
+    "agent",
+    "rox"
+  ],
+  "supports": {
+    "html": false,
+    "spacing": {
+      "margin": true,
+      "padding": true
+    }
+  },
+  "attributes": {
+    "agentId": {
+      "type": "number",
+      "default": 0
+    },
+    "showBio": {
+      "type": "boolean",
+      "default": true
+    },
+    "showStats": {
+      "type": "boolean",
+      "default": true
+    },
+    "showSocials": {
+      "type": "boolean",
+      "default": true
+    },
+    "showWorkDays": {
+      "type": "boolean",
+      "default": true
+    },
+    "showContact": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "editorScript": "rox-appointment-booking-single-agent-booking-editor",
+  "editorStyle": "rox-appointment-booking-single-agent-booking-editor-style",
+  "viewScript": "rox-appointment-booking-single-agent-booking-view",
+  "viewStyle": "rox-appointment-booking-single-agent-booking-view-style"
+}

@@ -96,8 +96,7 @@ class GetPayment extends AbstractREST
         $formattedTotal = $currencySymbol . number_format($payment->amount, 2);
 
         $effectivePaymentStatus = $this->resolveEffectivePaymentStatus($payment, $order);
-        $isCompleted = $effectivePaymentStatus === PaymentModel::STATUS_PAID;
-        $dueAmount = $isCompleted ? 0 : $payment->amount;
+        $dueAmount = $this->resolveDueAmount($payment, $order, $effectivePaymentStatus);
         $formattedDue = $currencySymbol . number_format($dueAmount, 2);
         $order = $payment->order_id ? OrderModel::find($payment->order_id) : null;
 
@@ -230,7 +229,7 @@ class GetPayment extends AbstractREST
         }
 
         $effectivePaymentStatus = $this->resolveEffectivePaymentStatus($payment, $order);
-        $dueAmount = $effectivePaymentStatus === PaymentModel::STATUS_PAID ? 0 : (float) $payment->amount;
+        $dueAmount = $this->resolveDueAmount($payment, $order, $effectivePaymentStatus);
 
         $totalAmount = $order ? (float) ($order->total_amount ?? 0) : 0;
         $serviceChargeAmount = $order ? (float) ($order->subtotal ?? 0) : 0;
@@ -508,5 +507,33 @@ class GetPayment extends AbstractREST
         $effectiveStatus = $effectiveStatus ?: PaymentModel::STATUS_UNPAID;
 
         return (string) $effectiveStatus;
+    }
+
+    /**
+     * Resolve how much is still owed, matching what
+     * CustomerPanel\REST\PayBooking::outstandingAmount() would collect.
+     *
+     * - paid            → nothing left.
+     * - partially_paid   → the order's own amount_due_later (the balance left
+     *                       after a deposit), not this payment row's amount
+     *                       (which is just the deposit already collected).
+     * - anything else    → the full order total (nothing collected yet).
+     *
+     * @param PaymentModel $payment Payment model instance.
+     * @param OrderModel|null $order Order model instance.
+     * @param string $effectiveStatus Resolved via resolveEffectivePaymentStatus().
+     * @return float
+     */
+    private function resolveDueAmount(PaymentModel $payment, ?OrderModel $order, string $effectiveStatus): float
+    {
+        if ($effectiveStatus === PaymentModel::STATUS_PAID) {
+            return 0.0;
+        }
+
+        if ($effectiveStatus === PaymentModel::STATUS_PARTIALLY_PAID) {
+            return $order ? (float) ($order->amount_due_later ?? 0) : (float) $payment->amount;
+        }
+
+        return $order ? (float) ($order->total_amount ?? $payment->amount) : (float) $payment->amount;
     }
 }

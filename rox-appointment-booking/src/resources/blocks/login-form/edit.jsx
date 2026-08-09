@@ -154,7 +154,7 @@ const Edit = ({ attributes, setAttributes }) => {
 					<TextControl
 						label={__("Redirect after login (URL)", "rox-appointment-booking")}
 						help={__(
-							"Leave empty to send the customer to the WordPress admin.",
+							"Leave empty to send the user to the WordPress admin.",
 							"rox-appointment-booking",
 						)}
 						value={redirectUrl}
@@ -407,11 +407,11 @@ const Edit = ({ attributes, setAttributes }) => {
 							</div>
 							<div className="form-group">
 								<label>{__("Email", "rox-appointment-booking")}</label>
-								<input type="email" placeholder="Enter email" readOnly />
+								<input type="email" placeholder={__("Enter email", "rox-appointment-booking")} readOnly />
 							</div>
 							<div className="form-group">
 								<label>{__("Password", "rox-appointment-booking")}</label>
-								<input type="password" placeholder="Enter password" readOnly />
+								<input type="password" placeholder={__("Enter password", "rox-appointment-booking")} readOnly />
 							</div>
 						</div>
 						<div className="footer-btn-container">

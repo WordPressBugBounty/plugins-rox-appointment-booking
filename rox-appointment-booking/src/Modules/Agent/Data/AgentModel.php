@@ -44,6 +44,7 @@ class AgentModel extends AbstractModel
         'certifications',
         'bio',
         'social_profiles',
+        'status',
     ];
 
 	/**
@@ -82,11 +83,32 @@ class AgentModel extends AbstractModel
 
     /**
      * Get full_name attribute for backward compatibility
-     * 
+     *
      * @return string
      */
     public function getFullNameAttribute(): string
     {
         return $this->getFullName();
+    }
+
+    /**
+     * Check if agent is active
+     *
+     * @return bool
+     */
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
+    }
+
+    /**
+     * Scope to get only active agents
+     *
+     * @param $query
+     * @return mixed
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
     }
 }

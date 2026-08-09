@@ -479,9 +479,149 @@ class GetAppointmentSchedule extends AbstractREST
     }
 
     /**
+     * Booked timeslots for a group-capacity service.
+     *
+     * A slot is "full" when the SUM of total_attendees across overlapping
+     * non-cancelled bookings of THIS service reaches $max_capacity, instead of
+     * closing as soon as one booking exists — unlike getBookedTimeslots() (single
+     * occupancy) and getBookedTimeslotsByServiceCapacity() (counts bookings, not
+     * people; agent-less only). When $agent_id is given, capacity is scoped per
+     * agent (each agent's own session has its own attendee pool); when null, the
+     * capacity is shared across all bookings of the service (agent-less group).
+     *
+     * @param int $service_id Service ID
+     * @param int|null $agent_id Agent ID, or null for an agent-less group service
+     * @param int $service_duration Duration of the combined service
+     * @param int $max_capacity Max attendees per slot (min 1)
+     * @param array $weekly_schedule Valid slots for each day
+     * @param array $special_days Valid slots for special dates
+     * @return array Booked timeslots as array of objects
+     */
+    public function getBookedTimeslotsByGroupCapacity(
+        int $service_id,
+        ?int $agent_id,
+        int $service_duration,
+        int $max_capacity,
+        array $weekly_schedule = [],
+        array $special_days = []
+    ): array {
+        if ($max_capacity <= 0) {
+            $max_capacity = 1;
+        }
+
+        $booked_timeslots = [];
+
+        $query = AppointmentModel::query()
+            ->where('service_id', $service_id)
+            ->where('date', '>=', gmdate('Y-m-d'));
+        if ($agent_id !== null) {
+            $query->where('agent_id', $agent_id);
+        } else {
+            $query->whereNull('agent_id');
+        }
+        $appointments = $query->get();
+
+        if (!$appointments || $appointments->isEmpty()) {
+            return [];
+        }
+
+        $grouped_appointments = [];
+        foreach ($appointments as $appointment) {
+            $status = strtolower(trim((string) ($appointment->status ?? '')));
+            if (in_array($status, ['cancelled', 'canceled', 'rejected'], true)) {
+                continue;
+            }
+
+            $date = $appointment->date;
+            if (empty($date) || empty($appointment->start_time) || empty($appointment->end_time)) {
+                continue;
+            }
+            if (!isset($grouped_appointments[$date])) {
+                $grouped_appointments[$date] = [];
+            }
+
+            $appointment_start_time = $this->extractTimeFromStartTime((string) $appointment->start_time);
+            $appointment_end_time = $this->extractTimeFromStartTime((string) $appointment->end_time);
+
+            if (empty($appointment_start_time) || empty($appointment_end_time)) {
+                continue;
+            }
+
+            $attendees = (int) ($appointment->total_attendees ?? 1);
+            if ($attendees < 1) {
+                $attendees = 1;
+            }
+
+            $grouped_appointments[$date][] = [
+                'start' => \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$appointment_start_time}"),
+                'end' => \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$appointment_end_time}"),
+                'attendees' => $attendees,
+            ];
+        }
+
+        // Map special days by date for quick lookup
+        $special_days_map = [];
+        foreach ($special_days as $sd) {
+            $special_days_map[$sd['date']] = $sd['timeslots'] ?? [];
+        }
+
+        foreach ($grouped_appointments as $date => $day_appointments) {
+            // Figure out base available timeslots for this date
+            if (isset($special_days_map[$date])) {
+                $day_slots = $special_days_map[$date];
+            } else {
+                $day_index = (int) date('w', strtotime($date));
+                // PHP's 'w' (0=Sun, 6=Sat). Our array uses 0=Mon, 6=Sun. Adjust index:
+                $adjusted_index = ($day_index === 0) ? 6 : $day_index - 1;
+                $day_slots = $weekly_schedule[$adjusted_index]['timeslots'] ?? [];
+            }
+
+            if (empty($day_slots)) {
+                continue;
+            }
+
+            $blocked = [];
+            foreach ($day_slots as $slot_time_str) {
+                $slot_start = \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$slot_time_str}");
+                $slot_end = clone $slot_start;
+                $slot_end->modify("+{$service_duration} minutes");
+
+                // Sum attendees of bookings overlapping this slot
+                $attendee_sum = 0;
+                foreach ($day_appointments as $appt) {
+                    if (!$appt['start'] || !$appt['end']) continue;
+                    // Condition for overlap: slot_start < appt_end AND slot_end > appt_start
+                    if ($slot_start < $appt['end'] && $slot_end > $appt['start']) {
+                        $attendee_sum += $appt['attendees'];
+                    }
+                }
+
+                // Slot is full only when attendee count reaches the capacity limit
+                if ($attendee_sum >= $max_capacity) {
+                    $blocked[] = $slot_time_str;
+                }
+            }
+
+            if (!empty($blocked)) {
+                $booked_timeslots[] = [
+                    'date' => $date,
+                    'timeslots' => array_values(array_unique($blocked))
+                ];
+            }
+        }
+
+        // Sort by date
+        usort($booked_timeslots, function($a, $b) {
+            return strcmp($a['date'], $b['date']);
+        });
+
+        return $booked_timeslots;
+    }
+
+    /**
      * Extract time portion from start_time field
      * Handles formats: "HH:MM:SS", "YYYY-MM-DD HH:MM:SS", "HH:MM"
-     * 
+     *
      * @param string $start_time The start time value
      * @return string Time in HH:MM:SS format or empty string if invalid
      */
@@ -884,7 +1024,29 @@ class GetAppointmentSchedule extends AbstractREST
             // Merge holidays ($agent_holidays is [] for agent-less → global only)
             $final_holidays = $this->mergeHolidays($agent_holidays, $global_holidays);
 
-            if ($is_agent_less) {
+            // Group-capacity service: a slot stays open (shared across unrelated
+            // customers) until the sum of attendees reaches service.max_capacity,
+            // instead of closing after the first booking. Takes priority over the
+            // agent-less multi-booking model below when both happen to apply.
+            $is_group = defined('ROX_APPOINTMENT_BOOKING_PRO_VERSION') && ($service_exists->capacity === 'group');
+
+            if ($is_group) {
+                $special_days = $is_agent_less ? [] : $this->getProcessedSpecialDays((int)$agent_id, (int)$service_duration);
+
+                $max_capacity = (int) $service_exists->max_capacity;
+                if ($max_capacity <= 0) {
+                    $max_capacity = 1;
+                }
+
+                $booked_timeslots = $this->getBookedTimeslotsByGroupCapacity(
+                    (int)$service_id,
+                    $is_agent_less ? null : (int)$agent_id,
+                    (int)$service_duration,
+                    $max_capacity,
+                    $final_weekly_schedule,
+                    $special_days
+                );
+            } elseif ($is_agent_less) {
                 // No agent → no agent special days; block slots by service capacity.
                 $special_days = [];
 

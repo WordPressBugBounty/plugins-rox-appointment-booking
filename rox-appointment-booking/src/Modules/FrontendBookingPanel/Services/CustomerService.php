@@ -15,6 +15,15 @@ use RoxAppointmentBooking\Modules\Customer\Data\CustomerModel;
 class CustomerService
 {
     /**
+     * WordPress user id created for the customer during this request, when auto
+     * account creation produced a brand new account. Stays null for an existing
+     * customer, an already-linked WP user, or when the setting is disabled.
+     *
+     * @var int|null
+     */
+    private ?int $createdUserId = null;
+
+    /**
      * Save or return an existing customer from booking data.
      *
      * @param array $params Customer request parameters.
@@ -48,6 +57,15 @@ class CustomerService
 
         $existing = CustomerModel::query()->where('email', $params['email'])->first();
         if ($existing) {
+            // A customer who booked while account creation was switched off has
+            // no login yet, and the dedup above means they would never get one.
+            // Give them the account now, but never a session: the record already
+            // carries earlier bookings, so it is not this visitor's to open just
+            // by typing the address.
+            if (empty($existing->wp_user_id)) {
+                $this->handleAutoUserCreation($existing, false);
+            }
+
             return $this->formatCustomerData($existing);
         }
 
@@ -93,9 +111,12 @@ class CustomerService
      * Create or link a WordPress user when auto creation is enabled.
      *
      * @param CustomerModel $customer Customer model instance.
+     * @param bool $allowAutoLogin Whether the created account may be logged in
+     *                             by maybeAutoLogin(). False for customers that
+     *                             already existed before this booking.
      * @return void
      */
-    private function handleAutoUserCreation(CustomerModel $customer): void
+    private function handleAutoUserCreation(CustomerModel $customer, bool $allowAutoLogin = true): void
     {
         $settings = get_option('rox_appointment_booking_general_settings', []);
         $auto_create_user = isset($settings['customer_create_auto_enable']) && $settings['customer_create_auto_enable'];
@@ -107,14 +128,75 @@ class CustomerService
         $existing_wp_user = get_user_by('email', $customer->email);
         if ($existing_wp_user) {
             $customer->wp_user_id = $existing_wp_user->ID;
+            // The customer now has a login, so the admin form's "Allow to login"
+            // checkbox must reflect it — saving that form with the box unticked
+            // drops the wp_user_id link again.
+            $customer->allow_to_login = 1;
             $customer->save();
         } else {
             $wp_user_result = $this->createWordPressUser($customer);
             if (!is_wp_error($wp_user_result)) {
                 $customer->wp_user_id = $wp_user_result['user_id'];
+                $customer->allow_to_login = 1;
                 $customer->save();
+
+                if ($allowAutoLogin) {
+                    $this->createdUserId = (int) $wp_user_result['user_id'];
+                }
             }
         }
+    }
+
+    /**
+     * Log the customer in when both the account creation and the automatic
+     * login settings are enabled and a brand new account was created during
+     * this request.
+     *
+     * Only freshly created accounts are logged into: submitting the booking
+     * form proves the visitor typed an email address, not that they own it, so
+     * a pre-existing account is never handed a session this way.
+     *
+     * @return bool True when a WordPress session was established.
+     */
+    public function maybeAutoLogin(): bool
+    {
+        if (!$this->createdUserId || is_user_logged_in()) {
+            return false;
+        }
+
+        $settings = get_option('rox_appointment_booking_general_settings', []);
+        if (empty($settings['customer_create_auto_enable']) || empty($settings['customer_auto_login_enable'])) {
+            return false;
+        }
+
+        $user = get_user_by('id', $this->createdUserId);
+        if (!$user) {
+            return false;
+        }
+
+        // Same session handshake as the panel's customer login endpoint, so the
+        // login carries over to the rest of the site.
+        wp_set_current_user($user->ID);
+
+        $loggedInCookie = null;
+        $capture = static function ($cookie) use (&$loggedInCookie) {
+            $loggedInCookie = $cookie;
+        };
+        add_action('set_logged_in_cookie', $capture);
+        wp_set_auth_cookie($user->ID, true);
+        remove_action('set_logged_in_cookie', $capture);
+
+        // wp_set_auth_cookie() only emits Set-Cookie headers, it does not touch
+        // $_COOKIE. Any nonce minted after this point would otherwise be bound
+        // to the logged-out request's (empty) session token and be rejected on
+        // the next call, when the browser sends the real one.
+        if ($loggedInCookie) {
+            $_COOKIE[LOGGED_IN_COOKIE] = $loggedInCookie;
+        }
+
+        do_action('wp_login', $user->user_login, $user);
+
+        return true;
     }
 
     /**
@@ -148,7 +230,7 @@ class CustomerService
             return $user_id;
         }
 
-        $this->sendCredentialsEmail($customer->email, $username, $password, $full_name);
+        $this->sendCredentialsEmail((int) $user_id, $customer->email, $full_name);
 
         return ['customer_id' => $customer->id, 'user_id' => $user_id];
     }
@@ -171,38 +253,66 @@ class CustomerService
     }
 
     /**
-     * Send WordPress login credentials to the customer.
+     * Send the customer their new account details.
      *
+     * The generated password is never emailed — the message carries a
+     * single-use WordPress reset key so the customer sets their own.
+     *
+     * @param int $user_id WordPress user ID.
      * @param string $email Customer email address.
-     * @param string $username WordPress username.
-     * @param string $password Generated password.
      * @param string $full_name Customer full name.
      * @return void
      */
-    private function sendCredentialsEmail(string $email, string $username, string $password, string $full_name): void
+    private function sendCredentialsEmail(int $user_id, string $email, string $full_name): void
     {
-        add_action('phpmailer_init', function($phpmailer) {
-            $phpmailer->isSMTP();
-            $phpmailer->Host = 'localhost';
-            $phpmailer->Port = 1025;
-            $phpmailer->SMTPAuth = false;
-            $phpmailer->SMTPSecure = '';
-            $phpmailer->ContentType = 'text/html';
-        });
+        $wp_user = get_user_by('id', $user_id);
+        if (!$wp_user) {
+            return;
+        }
 
-        $email_body = sprintf(
-            '<p>Hello <strong>%s</strong>,</p>' .
-            '<p>Your account has been created.</p>' .
-            '<p><strong>Username:</strong> %s<br>' .
-            '<strong>Password:</strong> %s</p>' .
-            '<p><a href="%s">Login here</a></p>',
-            $full_name,
-            $username,
-            $password,
-            wp_login_url()
+        $reset_key = get_password_reset_key($wp_user);
+        if (is_wp_error($reset_key)) {
+            return;
+        }
+
+        $set_password_url = network_site_url(
+            'wp-login.php?action=rp&key=' . rawurlencode($reset_key) . '&login=' . rawurlencode($wp_user->user_login),
+            'login'
         );
 
-        wp_mail($email, esc_html__('Booking Engine Login Credentials', 'rox-appointment-booking'), $email_body);
+        $emailSettings = get_option('rox_appointment_booking_email_settings', []);
+        if (empty($emailSettings)) {
+            $emailSettings = get_option('rox_appointment_booking_notification_settings', []);
+        }
+        $senderEmail = sanitize_email($emailSettings['sender_email'] ?? '');
+        $senderName = sanitize_text_field($emailSettings['sender_name'] ?? '');
+        $headers = ['Content-Type: text/html; charset=UTF-8'];
+        if (!empty($senderEmail)) {
+            $headers[] = empty($senderName)
+                ? sprintf('From: %1$s', $senderEmail)
+                : sprintf('From: %1$s <%2$s>', $senderName, $senderEmail);
+        }
+
+        $email_body = sprintf(
+            '<p>%1$s <strong>%2$s</strong>,</p>' .
+            '<p>%3$s</p>' .
+            '<p><strong>%4$s</strong> %5$s</p>' .
+            '<p><a href="%6$s">%7$s</a></p>',
+            esc_html__('Hello', 'rox-appointment-booking'),
+            esc_html($full_name),
+            esc_html__('Your account has been created.', 'rox-appointment-booking'),
+            esc_html__('Username:', 'rox-appointment-booking'),
+            esc_html($wp_user->user_login),
+            esc_url($set_password_url),
+            esc_html__('Set your password', 'rox-appointment-booking')
+        );
+
+        wp_mail(
+            $email,
+            esc_html__('Booking Engine Login Credentials', 'rox-appointment-booking'),
+            $email_body,
+            $headers
+        );
     }
 
     /**

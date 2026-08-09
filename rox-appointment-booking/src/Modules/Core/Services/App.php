@@ -114,6 +114,13 @@ class App
             // exists. Kept separate from the flag above so the Locations menu and
             // settings stay reachable even when there are zero locations.
             'locationsExist' => $this->hasLocations(),
+            // Settings > Booking > "Allow Agent To Re-Schedule Their
+            // Appointment". Only shapes the agent UI — an administrator is not
+            // governed by it (see config/env.js agentCanReschedule()).
+            'agentCanReschedule' => rox_appointment_booking_agent_can_reschedule(),
+            // Settings > Booking > "Allow Agent To Cancel Their Appointment",
+            // same rules as the reschedule flag above.
+            'agentCanCancel' => rox_appointment_booking_agent_can_cancel(),
             // Current-user display data for the topbar avatar, previously built
             // server-side in AppConfig::getAppConfigStructure().
             'currentUser' => [
@@ -250,6 +257,12 @@ class App
         }
 
         if (!$this->isOnboarded()) {
+            // Onboarding is admin-only; everyone else gets the setup-incomplete
+            // notice view, which needs no bundle at all.
+            if (!current_user_can('manage_options')) {
+                return;
+            }
+
             $onboarding_asset_file = ROX_APPOINTMENT_BOOKING_PUBLIC_PATH . 'build/onboarding/app.asset.php';
             $onboarding_asset = file_exists($onboarding_asset_file) ? require($onboarding_asset_file) : [
                 'dependencies' => ['react', 'react-dom'],
@@ -386,7 +399,12 @@ class App
     public function renderDashboard(): void
     {
         if (!$this->isOnboarded()) {
-            $view_file = dirname(__DIR__) . '/views/onboard.php';
+            // Onboarding is admin-only (Onboarding\Complete requires
+            // manage_options), so anyone else gets a notice instead of a wizard
+            // they cannot finish.
+            $view_file = current_user_can('manage_options')
+                ? dirname(__DIR__) . '/views/onboard.php'
+                : dirname(__DIR__) . '/views/setup-incomplete.php';
         } else {
             $view_file = dirname(__DIR__) . '/views/dashboard.php';
         }

@@ -57,15 +57,19 @@ class CalendarService
         try {
             $query = AppointmentModel::query();
 
+            // Non-managers only ever see their own agent's events. A panel user who
+            // is not an agent (or whose login has no agent record) must NOT fall
+            // through to an unfiltered query — return nothing instead.
             if (!Security::canManageBookings()) {
-                if (AppointmentService::isAgentUser()) {
-                    $currentAgentId = AppointmentService::getCurrentAgentId();
-                    if ($currentAgentId) {
-                        $query->where('agent_id', $currentAgentId);
-                    } else {
-                        $query->where('id', 0);
-                    }
+                $currentAgentId = AppointmentService::isAgentUser()
+                    ? AppointmentService::getCurrentAgentId()
+                    : null;
+
+                if (!$currentAgentId) {
+                    return [];
                 }
+
+                $query->where('agent_id', $currentAgentId);
             }
 
             // Apply date range filter
@@ -846,14 +850,19 @@ class CalendarService
     {
         $agentModel = \RoxAppointmentBooking\Modules\Agent\Data\AgentModel::query();
 
+        // Same rule as the events query: a non-manager sees only their own agent
+        // row, and a non-agent panel user sees no roster at all (rather than the
+        // full agent list).
         if (!Security::canManageBookings()) {
-            if (AppointmentService::isAgentUser()) {
-                $currentAgentId = AppointmentService::getCurrentAgentId();
-                if (!$currentAgentId) {
-                    return [];
-                }
-                $agentModel->where('id', $currentAgentId);
+            $currentAgentId = AppointmentService::isAgentUser()
+                ? AppointmentService::getCurrentAgentId()
+                : null;
+
+            if (!$currentAgentId) {
+                return [];
             }
+
+            $agentModel->where('id', $currentAgentId);
         }
         
         // Apply filter if agent_id is provided

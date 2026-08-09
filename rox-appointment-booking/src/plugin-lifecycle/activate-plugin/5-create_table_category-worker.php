@@ -7,7 +7,7 @@ $rox_appointment_booking_category_table = $wpdb->prefix . ROX_APPOINTMENT_BOOKIN
 $rox_appointment_booking_sql_category = "CREATE TABLE IF NOT EXISTS $rox_appointment_booking_category_table (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY NOT NULL,
     title VARCHAR(255) NOT NULL,
-    slug VARCHAR(255) DEFAULT NULL UNIQUE,
+    slug VARCHAR(191) DEFAULT NULL UNIQUE,
     description TEXT DEFAULT NULL,
     thumbnail_id INT DEFAULT NULL,
     sort_order INT DEFAULT 0,

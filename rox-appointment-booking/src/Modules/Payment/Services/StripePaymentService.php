@@ -43,7 +43,7 @@ class StripePaymentService
         $this->secretKey = $settings['stripe_secret_key'] ?? '';
         $this->publishableKey = $settings['stripe_publishable_key'] ?? '';
         $this->connectionStatus = $settings['stripe_connection_status'] ?? '';
-        $currency = strtolower($settings['stripe_currency'] ?? 'usd');
+        $currency = strtolower($settings['payment_currency'] ?? 'usd');
         if (!in_array($currency, rox_appointment_booking_stripe_supported_currencies())) {
             $currency = 'usd';
         }

@@ -176,7 +176,13 @@ class GetAgentServices extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !Security::canAccessPanel()) {
+        // Manager-only: this endpoint takes an arbitrary `agent_id` (so an agent
+        // could ask for another agent's services) and, with `fallback_to_all`,
+        // returns the entire service catalogue when the agent has none assigned.
+        // An agent's own list comes from `agent/my-services`, which takes no id and
+        // never falls back. Note: nothing in the UI calls this route any more — it
+        // is a deletion candidate, kept for now in case an integration uses it.
+        if (!is_user_logged_in() || !Security::canManageBookings()) {
             return false;
         }
 

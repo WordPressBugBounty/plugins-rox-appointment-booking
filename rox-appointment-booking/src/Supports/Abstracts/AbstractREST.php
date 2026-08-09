@@ -98,8 +98,13 @@ abstract class AbstractREST
         //     );
         // }
 
-        // Rate limiting
-        $rate_limit_key = get_current_user_id() . '_' . static::$route;
+        // Rate limiting. Logged-out callers all report user id 0, so keying on
+        // that alone drops every anonymous visitor into one shared bucket — a
+        // single caller could then lock the public endpoints for the whole
+        // site. Bucket them by client IP instead.
+        $user_id = get_current_user_id();
+        $rate_limit_identity = $user_id > 0 ? (string) $user_id : 'ip_' . self::getRateLimitClientIp();
+        $rate_limit_key = $rate_limit_identity . '_' . static::$route;
         if (!Security::rateLimitCheck($rate_limit_key, 100, 60)) {
             return new WP_Error(
                 'rate_limit_exceeded',
@@ -109,6 +114,26 @@ abstract class AbstractREST
         }
 
         return $this->handleRequest($request);
+    }
+
+    /**
+     * Get the client IP address, used to bucket anonymous callers for rate
+     * limiting.
+     *
+     * Deliberately not named getClientIp(): PaymentProcess (a subclass) already
+     * declares a private non-static getClientIp(), and a same-named private
+     * static here would differ in staticness across the hierarchy.
+     *
+     * @return string
+     */
+    private static function getRateLimitClientIp(): string
+    {
+        $ip = isset($_SERVER['REMOTE_ADDR']) ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])) : '';
+        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $ips = explode(',', sanitize_text_field(wp_unslash($_SERVER['HTTP_X_FORWARDED_FOR'])));
+            $ip = trim($ips[0]);
+        }
+        return filter_var($ip, FILTER_VALIDATE_IP) ? $ip : '0.0.0.0';
     }
 
     /**

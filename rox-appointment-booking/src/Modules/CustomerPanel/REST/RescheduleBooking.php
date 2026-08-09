@@ -36,11 +36,42 @@ class RescheduleBooking extends AbstractREST
             return false;
         }
 
-        return CustomerPanelService::isCurrentUserCustomer();
+        if (CustomerPanelService::isCurrentUserCustomer()) {
+            return true;
+        }
+
+        // The agent panel's "My Bookings" page reschedules through here too. An
+        // agent who booked with their own email holds a customer row alongside
+        // their agent row, so they fail the customer-role test above but are a
+        // customer on that booking — and handleRequest() scopes the request to
+        // that row, rejecting any id that is not theirs. A caller with no
+        // customer row at all still gets nothing.
+        return CustomerPanelService::currentCustomerId() !== null;
     }
 
     public function handleRequest(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
+        // Admin switches (Settings > Booking). Hiding the Reschedule buttons is
+        // not enough — a direct call must be refused too. Customers and agents
+        // answer to their own switch; an administrator reaching this endpoint
+        // for a booking of their own is governed by neither.
+        if (CustomerPanelService::isCurrentUserCustomer()) {
+            $allowed = rox_appointment_booking_customer_can_reschedule();
+        } elseif (!current_user_can('manage_options') && current_user_can('rox_appointment_booking_agent')) {
+            $allowed = rox_appointment_booking_agent_can_reschedule();
+        } else {
+            $allowed = true;
+        }
+
+        if (!$allowed) {
+            return rox_appointment_booking_rest_response(
+                data: null,
+                code: 403,
+                message: esc_html__('Rescheduling is currently disabled.', 'rox-appointment-booking'),
+                headers: ['status' => 403]
+            );
+        }
+
         $customerId = CustomerPanelService::currentCustomerId();
         if (!$customerId) {
             return rox_appointment_booking_rest_response(

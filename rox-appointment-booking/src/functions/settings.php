@@ -48,6 +48,83 @@ if (!function_exists('rox_appointment_booking_payment_settings')) {
 	}
 }
 
+if (!function_exists('rox_appointment_booking_customer_can_reschedule')) {
+	/**
+	 * Whether customers may re-schedule their own appointments — the
+	 * "Allow Customer To Re-Schedule Their Appointment" switch under
+	 * Settings > Booking. Off by default.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return bool
+	 */
+	function rox_appointment_booking_customer_can_reschedule()
+	{
+		return filter_var(
+			rox_appointment_booking_general_settings('customer_reschedule_enable', false),
+			FILTER_VALIDATE_BOOLEAN
+		);
+	}
+}
+
+if (!function_exists('rox_appointment_booking_customer_can_cancel')) {
+	/**
+	 * Whether customers may cancel their own appointments — the
+	 * "Allow Customer To Cancel Their Appointment" switch under
+	 * Settings > Booking. Off by default.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return bool
+	 */
+	function rox_appointment_booking_customer_can_cancel()
+	{
+		return filter_var(
+			rox_appointment_booking_general_settings('customer_cancel_enable', false),
+			FILTER_VALIDATE_BOOLEAN
+		);
+	}
+}
+
+if (!function_exists('rox_appointment_booking_agent_can_reschedule')) {
+	/**
+	 * Whether agents may re-schedule their appointments — the
+	 * "Allow Agent To Re-Schedule Their Appointment" switch under
+	 * Settings > Booking. Off by default. Administrators are not governed by
+	 * this switch.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return bool
+	 */
+	function rox_appointment_booking_agent_can_reschedule()
+	{
+		return filter_var(
+			rox_appointment_booking_general_settings('agent_reschedule_enable', false),
+			FILTER_VALIDATE_BOOLEAN
+		);
+	}
+}
+
+if (!function_exists('rox_appointment_booking_agent_can_cancel')) {
+	/**
+	 * Whether agents may cancel their appointments — the
+	 * "Allow Agent To Cancel Their Appointment" switch under Settings > Booking.
+	 * Off by default. Administrators are not governed by this switch.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return bool
+	 */
+	function rox_appointment_booking_agent_can_cancel()
+	{
+		return filter_var(
+			rox_appointment_booking_general_settings('agent_cancel_enable', false),
+			FILTER_VALIDATE_BOOLEAN
+		);
+	}
+}
+
 if (!function_exists('rox_appointment_booking_default_system_fields')) {
 	/**
 	 * Canonical defaults for the customer-information system (built-in) fields.

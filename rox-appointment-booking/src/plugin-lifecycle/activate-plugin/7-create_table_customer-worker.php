@@ -9,7 +9,7 @@ $rox_appointment_booking_sql_customer = "CREATE TABLE IF NOT EXISTS $rox_appoint
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY NOT NULL,
     first_name VARCHAR(255) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
+    email VARCHAR(191) NOT NULL UNIQUE,
     phone VARCHAR(20) DEFAULT NULL,
     thumbnail_id INT DEFAULT NULL,
     gender VARCHAR(255) DEFAULT NULL,

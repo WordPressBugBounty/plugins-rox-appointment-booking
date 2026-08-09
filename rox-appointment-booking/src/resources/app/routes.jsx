@@ -16,16 +16,20 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
 import { applyConfigFilters, HOOKS } from "../config/hooks.js";
-import { userRoles } from "../config/env.js";
+import { userRoles, uiRole } from "../config/env.js";
 import DashboardPage from "../pages/dashboard/DashboardPage.jsx";
 import CustomersPage from "../pages/customers/CustomersPage.jsx";
 import AgentsPage from "../pages/agents/AgentsPage.jsx";
 import ServicesPage from "../pages/services/ServicesPage.jsx";
+import AgentServicesPage from "../pages/services/agent/AgentServicesPage.jsx";
 import AppointmentsPage from "../pages/appointments/AppointmentsPage.jsx";
+import MyBookingsPage from "../pages/appointments/mybookings/MyBookingsPage.jsx";
 import CalendarPage from "../pages/calendar/CalendarPage.jsx";
 import OrdersPage from "../pages/orders/OrdersPage.jsx";
 import ProfilePage from "../pages/profile/ProfilePage.jsx";
 import SettingsPage from "../pages/settings/SettingsPage.jsx";
+import FormFieldsPage from "../pages/settings/FormFieldsPage.jsx";
+import IntegrationsPage from "../pages/settings/IntegrationsPage.jsx";
 import LocationsPage from "../pages/locations/LocationsPage.jsx";
 import CouponsPage from "../pages/coupons/CouponsPage.jsx";
 
@@ -47,11 +51,16 @@ function canAccessAdminRoutes() {
 /**
  * The only page paths agents and customers may open. Every other route (admin
  * pages, Pro pages) is redirected away for them, even via a direct URL hash.
+ *
+ * `/services` is on the list, but agents do NOT get the admin Services page —
+ * `baseRoutes()` swaps in the read-only `AgentServicesPage` for them.
  */
 const RESTRICTED_USER_PATHS = [
   "/appointment",
   "/appointment/:id",
+  "/my-bookings",
   "/calendar",
+  "/services",
   "/profile",
 ];
 
@@ -66,11 +75,22 @@ function baseRoutes() {
     { path: "/", element: <DashboardPage /> },
     { path: "/customers", element: <CustomersPage /> },
     { path: "/agents", element: <AgentsPage /> },
-    { path: "/services", element: <ServicesPage /> },
+    // Two different pages behind one path: admins get the category/service editor,
+    // agents get a read-only list of the services assigned to them.
+    {
+      path: "/services",
+      element: uiRole() === "agent" ? <AgentServicesPage /> : <ServicesPage />,
+    },
     { path: "/appointment", element: <AppointmentsPage /> },
     // Deep-link target for notifications ("/appointment/{id}"): the same page,
     // which reads the :id param and opens the read-only view drawer on mount.
     { path: "/appointment/:id", element: <AppointmentsPage /> },
+    // The flip side of "/appointment" for a panel user: the same grouped table
+    // scoped to what they booked as a CUSTOMER rather than what they serve as an
+    // agent. Menu item is agent-only (sidebar.js) — admins see every booking on
+    // "/appointment" already — but the route stays open to them, where it simply
+    // lists their own bookings, if any.
+    { path: "/my-bookings", element: <MyBookingsPage /> },
     { path: "/calendar", element: <CalendarPage /> },
     { path: "/orders", element: <OrdersPage /> },
     // Deep-link target for payment/order notifications ("/orders/{id}").
@@ -84,6 +104,8 @@ function baseRoutes() {
     { path: "/coupons", element: <CouponsPage /> },
     { path: "/profile", element: <ProfilePage /> },
     { path: "/global-settings", element: <SettingsPage /> },
+    { path: "/form-fields", element: <FormFieldsPage /> },
+    { path: "/integrations", element: <IntegrationsPage /> },
   ];
 }
 

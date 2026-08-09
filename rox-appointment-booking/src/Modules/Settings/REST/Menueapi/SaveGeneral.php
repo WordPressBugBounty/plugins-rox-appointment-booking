@@ -98,8 +98,22 @@ class SaveGeneral extends AbstractREST
                 unset($params['payment_currency']);
             }
 
-            update_option('rox_appointment_booking_general_settings', $params);
-            
+            // The Booking settings menu (SaveBooking) persists its toggles on
+            // this same option, so merge instead of replacing — a General save
+            // must not wipe keys this form does not render.
+            $general_settings = get_option('rox_appointment_booking_general_settings', []);
+
+            if (!is_array($general_settings)) {
+                $general_settings = [];
+            }
+
+            // Drop any stale currency copy this option picked up back when the
+            // field persisted here, so it can no longer shadow the Payments
+            // option value on read (see GetGeneral).
+            unset($general_settings['payment_currency']);
+
+            update_option('rox_appointment_booking_general_settings', array_merge($general_settings, $params));
+
             return rox_appointment_booking_rest_response(
                 data: $params,
                 code: 200,

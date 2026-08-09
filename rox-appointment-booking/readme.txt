@@ -4,7 +4,7 @@ Tags: booking, reservation, appointments, calendar
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -218,6 +218,27 @@ After activation, you can configure the plugin settings from the WordPress admin
 
 
 == Changelog ==
+Version: 1.2.1 // 2026-08-09
+* Added: Customer dashboard page — created automatically, or place it anywhere with the `[rox_appointment_dashboard]` shortcode.
+* Added: Settings to let customers and agents reschedule or cancel their own appointments.
+* Added: New admin setting to log customers in automatically as soon as they book.
+* Added: "My Bookings" page in the agent dashboard, where an agent can see, reschedule and cancel the bookings they made for themselves.
+* Added: "Services" page for agents, showing only the services assigned to them.
+* Added: New "Integrations" page in the admin menu.
+* Added: Agents can now sign in through the login form as well.
+* Improved: Redesigned Settings — payment gateways are now shown as clear cards, and Working Hours is now "Work Schedule".
+* Improved: Agent dashboard, calendar and the appointment details view.
+* Improved: Customer Panel layout, booking details, payment history and payment form.
+* Improved: Login and logout now send customers and agents back to the right page.
+* Improved: New customers now receive their login details by email more reliably.
+* Improved: Payment step and footer of the booking panel.
+* Improved: More reliable database setup when the plugin is activated or updated.
+* Improved: Security hardening across the admin dashboard and the backend.
+* Improved: Frontend booking panel design.
+* Fixed: Currency selection was not saving in Settings.
+* Fixed: Order total was wrong for pay-later bookings that included extra service charges.
+* Fixed: Service capacity was not saved when updating a service.
+
 Version: 1.2.0 // 2026-07-29
 * Improved: Admin settings security.
 * Improved: Order and appointment status selection flow.

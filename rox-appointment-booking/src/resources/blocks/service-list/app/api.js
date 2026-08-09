@@ -35,9 +35,24 @@ export async function fetchStructure() {
 }
 
 export async function submitBooking(payload) {
-  return apiFetch({
+  const res = await apiFetch({
     url: `${apiBase()}public/booking`,
     method: "POST",
     data: payload,
   });
+
+  // The response may have logged the customer in (auto login setting). The page
+  // still holds the logged-out nonce, which WordPress rejects once the auth
+  // cookie is present, so swap in the fresh one before any further call.
+  const autoLogin = res?.data?.auto_login;
+  if (autoLogin?.logged_in && autoLogin?.nonce) {
+    if (apiFetch.nonceMiddleware) {
+      apiFetch.nonceMiddleware.nonce = autoLogin.nonce;
+    }
+    if (window.wpApiSettings) {
+      window.wpApiSettings.nonce = autoLogin.nonce;
+    }
+  }
+
+  return res;
 }

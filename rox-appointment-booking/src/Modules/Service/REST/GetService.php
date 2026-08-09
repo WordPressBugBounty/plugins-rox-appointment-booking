@@ -90,6 +90,7 @@ class GetService extends AbstractREST
             'category_ids' => $categoryIds,
             'sort_order' => $service->sort_order,
             'icon' => $service->thumbnail_id ? wp_get_attachment_image_url($service->thumbnail_id, 'medium') : null,
+            'status' => $service->status,
         ];
 
         if ($detailed) {
@@ -101,6 +102,9 @@ class GetService extends AbstractREST
                 'location' => $this->getLocationIdsByServiceId($service->getID()),
                 'location_options' => $this->getLocationOptionsByServiceId($service->getID()), // {value,label} pairs so the form's Location select shows labels even without the Pro list endpoint
                 'agent' => $this->getAgentIdsByServiceId($service->getID()),
+                // The admin edit form shows the real stored value (even 'group'
+                // without Pro) so the admin can see what's configured and choose to
+                // switch it back to 'alone'; enforcement happens at save/booking time.
                 'capacity' => $service->capacity,
                 'max_capacity' => $service->max_capacity,
                 'description' => $service->description,
@@ -142,6 +146,23 @@ class GetService extends AbstractREST
     public function handleRequest(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         $id = $request->get_param('id');
+
+        // Agents reach this endpoint (the calendar's Services filter reads
+        // `?mode=list`), but only that option-list shape is theirs to see: the
+        // single-record and default payloads carry admin-only fields
+        // (internal_notes, agent_ids, created_by/updated_by, weekly_schedule).
+        // Their own assigned-service list is served by `agent/my-services`.
+        if (!Security::canManageBookings()) {
+            $requestedMode = $request->get_param('mode') ?? 'default';
+            if ($id || $requestedMode !== 'list') {
+                return rox_appointment_booking_rest_response(
+                    data: null,
+                    code: 403,
+                    message: esc_html__('You are not allowed to view this service.', 'rox-appointment-booking'),
+                    headers: ['status' => 403]
+                );
+            }
+        }
 
         if ($id) {
             $service = ServiceModel::find($id);

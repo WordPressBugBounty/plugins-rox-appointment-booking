@@ -97,33 +97,23 @@ class ResetPasswordRequest extends AbstractREST
         try {
             $wp_user = get_user_by('email', $email);
 
-            if (!$wp_user) {
-                return new WP_REST_Response([
-                    'success' => false,
-                    'code' => 404,
-                    'message' => esc_html__('No account found with this email address', 'rox-appointment-booking'),
-                    'data' => null
-                ], 404);
+            // An unknown address gets the same answer as a known one: telling
+            // the caller which is which lets anyone probe the site for the
+            // email addresses that have accounts.
+            if ($wp_user) {
+                $reset_key = get_password_reset_key($wp_user);
+
+                if (!is_wp_error($reset_key)) {
+                    $reset_page_url = $this->resolveResetPageUrl($params['reset_page_url'] ?? '');
+
+                    $this->sendResetEmail($wp_user, $reset_key, $reset_page_url);
+                }
             }
-
-            $reset_key = get_password_reset_key($wp_user);
-            if (is_wp_error($reset_key)) {
-                return new WP_REST_Response([
-                    'success' => false,
-                    'code' => 500,
-                    'message' => $reset_key->get_error_message(),
-                    'data' => null
-                ], 500);
-            }
-
-            $reset_page_url = $this->resolveResetPageUrl($params['reset_page_url'] ?? '');
-
-            $this->sendResetEmail($wp_user, $reset_key, $reset_page_url);
 
             return new WP_REST_Response([
                 'success' => true,
                 'code' => 200,
-                'message' => esc_html__('We have sent a password reset link to your email address.', 'rox-appointment-booking'),
+                'message' => esc_html__('If an account exists for that email address, we have sent it a password reset link.', 'rox-appointment-booking'),
                 'data' => null
             ], 200);
         } catch (\Exception $e) {

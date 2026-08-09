@@ -11,15 +11,15 @@
  * thin wrapper: it reuses the standalone login form's frontend bundle
  * (`blocks/login-form/view.js` / `view.css`, built in Phase 1) unchanged and
  * only adds an editor bundle for the static preview. The mount config comes
- * from `CustomerLogin\Services\LoginFormConfig`, the single home for that logic,
+ * from `LoginForm\Services\LoginFormConfig`, the single home for that logic,
  * shared with the shortcode and the Elementor widget.
  */
 
 namespace RoxAppointmentBooking\Modules\Blocks\Services;
 
 use RoxAppointmentBooking\Supports\Assets;
-use RoxAppointmentBooking\Modules\CustomerLogin\Services\LoginFormConfig;
-use RoxAppointmentBooking\Modules\CustomerLogin\Services\LoginFormShortcode;
+use RoxAppointmentBooking\Modules\LoginForm\Services\LoginFormConfig;
+use RoxAppointmentBooking\Modules\LoginForm\Services\LoginFormShortcode;
 
 if (! defined('ABSPATH')) exit; // Exit if accessed directly
 
@@ -171,6 +171,12 @@ class LoginFormBlock
             [$shared['script']],
             $view_asset['version'] ?? ROX_APPOINTMENT_BOOKING_VERSION,
             true
+        );
+
+        wp_set_script_translations(
+            LoginFormShortcode::VIEW_HANDLE,
+            'rox-appointment-booking',
+            ROX_APPOINTMENT_BOOKING_PATH . 'languages'
         );
 
         wp_register_style(

@@ -18,7 +18,12 @@ const EMPTY_GROUPS = { upcoming: [], past: [], cancelled: [] };
 // My Bookings view (D1): hero + tabs + booking cards, plus the detail/reschedule
 // drawers and cancel modal. Data is the logged-in customer's real bookings,
 // fetched from GET /customer-panel/bookings.
-export default function BookingsView({ currentUser = {}, onNavigate }) {
+export default function BookingsView({
+  currentUser = {},
+  canReschedule = false,
+  canCancel = false,
+  onNavigate,
+}) {
   const [tab, setTab] = useState("upcoming");
   const [selected, setSelected] = useState(null);
   const [activeDrawer, setActiveDrawer] = useState(null); // null | "detail" | "reschedule"
@@ -80,7 +85,14 @@ export default function BookingsView({ currentUser = {}, onNavigate }) {
         if (booking.order_id) {
           setPayOrder({
             orderId: booking.order_id,
-            amount: booking.price,
+            // This appointment's own payment row (see
+            // PaymentProcessingService::savePayment()) — Pay Now settles just
+            // this service, not the other appointments sharing the order.
+            bookingId: booking.id,
+            // The remaining balance (may be less than the full price if a
+            // deposit was already paid) — matches what the server actually
+            // charges (PayBooking's booking_id/order_id paths).
+            amount: booking.due_amount_formatted || booking.price,
             title: booking.title,
           });
         } else {
@@ -110,9 +122,11 @@ export default function BookingsView({ currentUser = {}, onNavigate }) {
         });
         break;
       case "reschedule":
+        if (!canReschedule) break;
         openReschedule(booking);
         break;
       case "cancel":
+        if (!canCancel) break;
         openCancel(booking);
         break;
       case "directions":
@@ -241,6 +255,8 @@ export default function BookingsView({ currentUser = {}, onNavigate }) {
               onClose={closeDrawers}
               onReschedule={() => setActiveDrawer("reschedule")}
               onCancel={() => openCancel(selected)}
+              canReschedule={canReschedule}
+              canCancel={canCancel}
             />
 
             <RescheduleDrawer

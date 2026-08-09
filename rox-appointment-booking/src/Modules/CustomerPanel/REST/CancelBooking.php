@@ -35,11 +35,42 @@ class CancelBooking extends AbstractREST
             return false;
         }
 
-        return CustomerPanelService::isCurrentUserCustomer();
+        if (CustomerPanelService::isCurrentUserCustomer()) {
+            return true;
+        }
+
+        // The agent panel's "My Bookings" page cancels through here too, exactly
+        // as it reschedules (see RescheduleBooking): an agent who booked with
+        // their own email holds a customer row alongside their agent row, so
+        // they fail the customer-role test above but are the customer on that
+        // booking — and handleRequest() scopes the request to that row. A caller
+        // with no customer row at all still gets nothing.
+        return CustomerPanelService::currentCustomerId() !== null;
     }
 
     public function handleRequest(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
+        // Admin switches (Settings > Booking). Hiding the Cancel buttons is not
+        // enough — a direct call must be refused too. Customers and agents
+        // answer to their own switch; an administrator cancelling a booking of
+        // their own is governed by neither.
+        if (CustomerPanelService::isCurrentUserCustomer()) {
+            $allowed = rox_appointment_booking_customer_can_cancel();
+        } elseif (!current_user_can('manage_options') && current_user_can('rox_appointment_booking_agent')) {
+            $allowed = rox_appointment_booking_agent_can_cancel();
+        } else {
+            $allowed = true;
+        }
+
+        if (!$allowed) {
+            return rox_appointment_booking_rest_response(
+                data: null,
+                code: 403,
+                message: esc_html__('Cancelling is currently disabled.', 'rox-appointment-booking'),
+                headers: ['status' => 403]
+            );
+        }
+
         $customerId = CustomerPanelService::currentCustomerId();
         if (!$customerId) {
             return rox_appointment_booking_rest_response(

@@ -38,7 +38,14 @@ export default function PaymentsView() {
 
   const handlePayNow = (tx) => {
     if (tx && tx.order_id) {
-      setPayTx({ orderId: tx.order_id, amount: tx.amount, title: tx.title });
+      setPayTx({
+        orderId: tx.order_id,
+        // When set, settles just this transaction's own appointment instead
+        // of the whole order (see PayBooking's booking_id path).
+        bookingId: tx.booking_id,
+        amount: tx.amount,
+        title: tx.title,
+      });
     } else {
       showToast("error", "Can't take payment", "This charge has no order to pay.");
     }

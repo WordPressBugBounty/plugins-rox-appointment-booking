@@ -6,6 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\Security;
 use RoxAppointmentBooking\Modules\UserManagement\Util\UserInfo;
 
 /**
@@ -50,7 +51,10 @@ class GetUserInfo extends AbstractREST
         if (!wp_verify_nonce($request->get_header('X-WP-Nonce'), 'wp_rest')) {
             return false;
         }
-        if (!is_user_logged_in() || !current_user_can('manage_options')) {
+        // Agents have their own /profile page in the panel, so this is gated on
+        // panel access rather than manage_options. The data returned is always the
+        // CURRENT user's own profile — there is no id parameter.
+        if (!is_user_logged_in() || !Security::canAccessPanel()) {
             return false;
         }
         return true;

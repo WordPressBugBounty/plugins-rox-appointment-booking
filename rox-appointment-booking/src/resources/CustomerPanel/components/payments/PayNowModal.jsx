@@ -12,11 +12,14 @@ import { apiPost } from "../../data/api.js";
 // server-side from the order — never sent by the client).
 //
 // Rendered only while `order` is set (conditional mount keeps the Stripe element
-// lifecycle simple). `order` = { orderId, amount, title }. Calls onPaid() after a
-// successful charge (the parent reloads + toasts) and onClose() to dismiss.
+// lifecycle simple). `order` = { orderId, bookingId?, amount, title }. When
+// bookingId is set, this settles just that one appointment; otherwise the
+// whole order. Calls onPaid() after a successful charge (the parent reloads
+// + toasts) and onClose() to dismiss.
 export default function PayNowModal({ order, onClose, onPaid }) {
   const [loading, setLoading] = useState(true); // loading config / Stripe.js
   const [available, setAvailable] = useState(true); // Stripe enabled + configured
+  const [publishableKey, setPublishableKey] = useState("");
   const [cardReady, setCardReady] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
@@ -25,7 +28,11 @@ export default function PayNowModal({ order, onClose, onPaid }) {
   const stripeRef = useRef(null);
   const cardElementRef = useRef(null);
 
-  // Load Stripe.js, fetch the publishable key, then mount a card element.
+  // Load Stripe.js and fetch the publishable key. The card element is NOT
+  // mounted here: the form markup is only rendered once we know Stripe is
+  // available, so mounting waits for the effect below. Rendering the form
+  // optimistically while loading made it flash on sites with no payment method
+  // enabled (form → "not available" swap on the next tick).
   useEffect(() => {
     let cancelled = false;
 
@@ -36,23 +43,6 @@ export default function PayNowModal({ order, onClose, onPaid }) {
       {};
     const apiBase = cfg.apiBaseUrl || "/wp-json/rox-appointment-booking/v1/";
 
-    const mountCard = (publishableKey) => {
-      if (cancelled || !cardRef.current || !window.Stripe) return;
-      try {
-        stripeRef.current = window.Stripe(publishableKey);
-        const elements = stripeRef.current.elements();
-        cardElementRef.current = elements.create("card", { hidePostalCode: false });
-        cardElementRef.current.mount(cardRef.current);
-        cardElementRef.current.on("ready", () => !cancelled && setCardReady(true));
-        cardElementRef.current.on("change", (event) => {
-          if (cancelled) return;
-          setError(event.error ? event.error.message : "");
-        });
-      } catch (e) {
-        if (!cancelled) setError("Failed to initialize the payment form.");
-      }
-    };
-
     const loadConfig = () => {
       fetch(`${apiBase}public/structure/payment-form`)
         .then((r) => r.json())
@@ -60,8 +50,8 @@ export default function PayNowModal({ order, onClose, onPaid }) {
           if (cancelled) return;
           const data = (res && res.data) || {};
           if (data.stripeEnable && data.stripe_key) {
+            setPublishableKey(data.stripe_key);
             setLoading(false);
-            mountCard(data.stripe_key);
           } else {
             setAvailable(false);
             setLoading(false);
@@ -102,6 +92,31 @@ export default function PayNowModal({ order, onClose, onPaid }) {
 
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  // Mount the card element once the form markup is actually in the DOM (i.e.
+  // after the render that follows setPublishableKey/setLoading(false)).
+  useEffect(() => {
+    if (!publishableKey || !cardRef.current || !window.Stripe) return undefined;
+
+    let cancelled = false;
+    try {
+      stripeRef.current = window.Stripe(publishableKey);
+      const elements = stripeRef.current.elements();
+      cardElementRef.current = elements.create("card", { hidePostalCode: false });
+      cardElementRef.current.mount(cardRef.current);
+      cardElementRef.current.on("ready", () => !cancelled && setCardReady(true));
+      cardElementRef.current.on("change", (event) => {
+        if (cancelled) return;
+        setError(event.error ? event.error.message : "");
+      });
+    } catch (e) {
+      setError("Failed to initialize the payment form.");
+    }
+
+    return () => {
+      cancelled = true;
       if (cardElementRef.current) {
         try {
           cardElementRef.current.unmount();
@@ -111,7 +126,7 @@ export default function PayNowModal({ order, onClose, onPaid }) {
         cardElementRef.current = null;
       }
     };
-  }, []);
+  }, [publishableKey]);
 
   const handlePay = async () => {
     if (!cardReady || processing) return;
@@ -131,6 +146,10 @@ export default function PayNowModal({ order, onClose, onPaid }) {
       }
 
       await apiPost("customer-panel/pay", {
+        // When set, this settles just this one appointment's own payment
+        // row instead of the whole order (server falls back to order_id
+        // when there's no per-booking row to pay — e.g. legacy/deposit rows).
+        booking_id: order.bookingId,
         order_id: order.orderId,
         payment_method: paymentMethod.id,
       });
@@ -156,7 +175,18 @@ export default function PayNowModal({ order, onClose, onPaid }) {
             </p>
           )}
 
-          {!available ? (
+          {loading ? (
+            <>
+              <div className="paynow-card-loading">
+                Loading secure payment form…
+              </div>
+              <div className="modal-actions">
+                <Button variant="secondary" onClick={onClose}>
+                  Cancel
+                </Button>
+              </div>
+            </>
+          ) : !available ? (
             <>
               <p className="modal-msg">
                 Online payment isn't available right now. Please contact us to
@@ -172,18 +202,12 @@ export default function PayNowModal({ order, onClose, onPaid }) {
             <>
               <div className="paynow-field">
                 <label className="paynow-label">Card details</label>
-                {loading && (
-                  <div className="paynow-card-loading">
-                    Loading secure payment form…
-                  </div>
-                )}
                 {/* Stripe injects an iframe here — this node must stay a childless
                     React leaf, or React's reconciler/unmount crashes with
-                    removeChild ("node to be removed is not a child"). Keep the
-                    loading text as a SIBLING above, never inside this div. It must
-                    also stay VISIBLE (no display:none): Stripe mounts into it before
-                    the loading re-render lands, and mounting into a hidden node
-                    produces a zero-size, non-interactive card field. */}
+                    removeChild ("node to be removed is not a child"). Never put the
+                    loading text inside this div. It must also stay VISIBLE (no
+                    display:none): mounting into a hidden node produces a zero-size,
+                    non-interactive card field. */}
                 <div className="paynow-card" ref={cardRef} />
               </div>
 

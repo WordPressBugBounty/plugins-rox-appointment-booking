@@ -90,23 +90,49 @@ class GetAppointment extends AbstractREST
             }
             $appointmentData = $appointment->toArray();
 
-            if (!Security::canManageBookings()) {
-                if ($isAgentUser && !$currentAgentId) {
-                    return rox_appointment_booking_rest_response(
-                        data: null,
-                        code: 403,
-                        message: esc_html__('Agent account not found for this user.', 'rox-appointment-booking'),
-                        headers: ['status' => 403]
-                    );
-                }
+            // A booking the caller placed as a CUSTOMER is theirs to read even
+            // though they are not the serving agent — this is what the panel's
+            // "My Bookings" page opens. The customer id is resolved from the
+            // login, never from a request parameter, so this cannot be aimed
+            // at anyone else's record. Resolved up here because it decides both
+            // access below and how much of the response survives the strip.
+            $currentCustomerId = AppointmentService::getCurrentCustomerId();
+            $isOwnBooking = $currentCustomerId
+                && (int) ($appointmentData['customer_id'] ?? 0) === $currentCustomerId;
 
-                if ($isAgentUser && $currentAgentId && (int) ($appointmentData['agent_id'] ?? 0) !== $currentAgentId) {
-                    return rox_appointment_booking_rest_response(
-                        data: null,
-                        code: 403,
-                        message: esc_html__('You are not allowed to view this appointment.', 'rox-appointment-booking'),
-                        headers: ['status' => 403]
-                    );
+            if (!Security::canManageBookings()) {
+                // Otherwise only an agent may read a single record, and only their
+                // own. Note the checks are NOT conditional on $isAgentUser: a panel
+                // user who is not an agent must be denied, not waved through to a
+                // full record (which carries the customer's name/email and the
+                // order totals).
+                if (!$isOwnBooking) {
+                    if (!$isAgentUser) {
+                        return rox_appointment_booking_rest_response(
+                            data: null,
+                            code: 403,
+                            message: esc_html__('You are not allowed to view this appointment.', 'rox-appointment-booking'),
+                            headers: ['status' => 403]
+                        );
+                    }
+
+                    if (!$currentAgentId) {
+                        return rox_appointment_booking_rest_response(
+                            data: null,
+                            code: 403,
+                            message: esc_html__('Agent account not found for this user.', 'rox-appointment-booking'),
+                            headers: ['status' => 403]
+                        );
+                    }
+
+                    if ((int) ($appointmentData['agent_id'] ?? 0) !== $currentAgentId) {
+                        return rox_appointment_booking_rest_response(
+                            data: null,
+                            code: 403,
+                            message: esc_html__('You are not allowed to view this appointment.', 'rox-appointment-booking'),
+                            headers: ['status' => 403]
+                        );
+                    }
                 }
             }
 
@@ -117,6 +143,14 @@ class GetAppointment extends AbstractREST
             $extraServiceIds = $this->getFormattedExtraServices($appointmentData['extra_services'] ?? []);
             $extraServiceDetails = $this->buildExtraServiceDetails($extraServiceIds);
             $extraServiceMinutes = $this->getExtraServiceMinutes($extraServiceDetails);
+
+            // This appointment's OWN price (service + its own extras) — not the
+            // order's total, which can include other appointments when the
+            // order groups several bookings (CLAUDE.md §12.10). The Price
+            // Breakdown card only ever lists this one appointment's line
+            // items, so its "Total" must match, not the whole order's sum.
+            $appointmentOwnTotal = ($service ? (float) ($service->price ?? 0) : 0)
+                + array_sum(array_column($extraServiceDetails, 'price'));
             $serviceDurationMinutes = $service ? (int) ($service->duration ?? 0) : 0;
             $appointmentDurationMinutes = $this->getAppointmentDurationMinutes($appointmentData, $serviceDurationMinutes, $extraServiceMinutes);
 
@@ -159,20 +193,81 @@ class GetAppointment extends AbstractREST
                 'order_number' => $order ? $order->getOrderNumber() : '',
                 'customer_name' => $customer ? $customer->full_name : '',
                 'customer_email' => $customer ? $customer->email : '',
+                // Agents get a Customer Details card instead of Order Details, so
+                // they need a way to contact the customer for this appointment.
+                'customer_phone' => $customer ? ($customer->phone ?? '') : '',
                 'order_date' => $order ? gmdate('F j, Y', strtotime($order->created_at)) : '',
                 'payment_method' => $order ? $this->formatPaymentMethodLabel($order->payment_method ?? '') : '',
                 'order_status' => $orderStatus,
-                'subtotal' => $order ? (float) ($order->subtotal ?? 0) : 0,
+                'subtotal' => $appointmentOwnTotal,
                 'service_price' => $service ? (float) ($service->price ?? 0) : 0,
                 'discount_amount' => $order ? (float) ($order->discount_amount ?? 0) : 0,
                 'coupon_code' => $order ? ($order->coupon_code ?? '') : '',
                 'tax_amount' => $order ? (float) ($order->tax_amount ?? 0) : 0,
-                'total_amount' => $order ? (float) ($order->total_amount ?? 0) : 0,
+                // Net the (still order-wide, not per-line) discount out of this
+                // appointment's own price so the card's own numbers stay
+                // internally consistent — line items minus the Discount row
+                // shown above actually equals this Total.
+                'total_amount' => max(0, $appointmentOwnTotal - ($order ? (float) ($order->discount_amount ?? 0) : 0)),
+                'payment_status_label' => rox_appointment_booking_get_payment_status_label($appointmentData['payment_status'] ?? ''),
+                'deposit_amount' => $order ? (float) ($order->deposit_amount ?? 0) : 0,
+                'amount_due_later' => $order ? (float) ($order->amount_due_later ?? 0) : 0,
                 'agent_name' => $agent ? $agent->full_name : '',
+                // Lets the panel tell its two cases apart: a booking the caller
+                // made as a customer (My Bookings — prices shown, reschedule
+                // offered) versus one they are assigned to serve.
+                'is_own_booking' => $isOwnBooking,
                 // Answered by Pro's Google Calendar integration, if connected and
                 // this appointment synced with a Meet link; empty otherwise.
                 'meet_link' => apply_filters('rox_appointment_booking_meet_link', '', $appointmentData['id'] ?? 0),
             ];
+
+            // A panel user never sees the ORDER: the Order Details card and the
+            // "Edit Order" action behind it are admin territory either way.
+            //
+            // The MONEY is a separate question. On a booking the caller placed as
+            // a customer it is their own spend, so it stays — that is what the
+            // panel's "My Bookings" page opens. On an appointment they are merely
+            // assigned to serve, an agent's view is the appointment plus the
+            // customer to contact, never what was charged. Stripped here rather
+            // than only hidden in the UI, so the data never reaches them.
+            if (!Security::canManageBookings()) {
+                $stripFields = [
+                    'order_id',
+                    'order_number',
+                    'order_date',
+                    'order_status',
+                    'payment_method',
+                ];
+
+                if (!$isOwnBooking) {
+                    $stripFields = array_merge($stripFields, [
+                        'payment_status',
+                        'payment_status_label',
+                        'subtotal',
+                        'service_price',
+                        'discount_amount',
+                        'coupon_code',
+                        'tax_amount',
+                        'total_amount',
+                        'deposit_amount',
+                        'amount_due_later',
+                    ]);
+
+                    // Extra services stay (their duration is part of the appointment),
+                    // but without their prices.
+                    $response['extra_service_details'] = array_map(
+                        function ($extraService) {
+                            unset($extraService['price']);
+                            return $extraService;
+                        },
+                        $response['extra_service_details']
+                    );
+                }
+
+                $response = array_diff_key($response, array_flip($stripFields));
+            }
+
             return rox_appointment_booking_rest_response(
                 data: $response,
                 message: esc_html__('Appointment retrieved successfully', 'rox-appointment-booking')
@@ -186,15 +281,52 @@ class GetAppointment extends AbstractREST
             $order = 'DESC';
         }
         
+        // Opt-in "My Bookings" scope: what the caller booked AS A CUSTOMER, not
+        // what they are assigned to serve. Only the scope is client-supplied — the
+        // customer id itself comes from the login, so this cannot be pointed at
+        // another person's bookings.
+        $scope = sanitize_key((string) $request->get_param('scope'));
+
         $query = \RoxAppointmentBooking\Modules\Appointment\Data\AppointmentModel::query();
-        if (!Security::canManageBookings()) {
-            if ($isAgentUser) {
-                if ($currentAgentId) {
-                    $query->where('agent_id', $currentAgentId);
-                } else {
-                    $query->where('id', 0);
-                }
+        if ($scope === 'customer') {
+            $currentCustomerId = AppointmentService::getCurrentCustomerId();
+
+            // No customer row simply means they have never booked anything — an
+            // empty list is the correct answer, unlike the agent branch below where
+            // a missing agent record is a misconfiguration worth reporting.
+            if (!$currentCustomerId) {
+                return rox_appointment_booking_rest_response(
+                    data: [],
+                    message: esc_html__('Appointments retrieved successfully', 'rox-appointment-booking'),
+                    options: $this->buildPaginationMeta(0, $pagination['page'], $pagination['per_page'])
+                );
             }
+
+            $query->where('customer_id', $currentCustomerId);
+        } elseif (!Security::canManageBookings()) {
+            // Only an agent may see a scoped list. Anything else that gets past the
+            // panel permission check must not fall through to an UNFILTERED list.
+            if (!$isAgentUser) {
+                return rox_appointment_booking_rest_response(
+                    data: null,
+                    code: 403,
+                    message: esc_html__('You are not allowed to view appointments.', 'rox-appointment-booking'),
+                    headers: ['status' => 403]
+                );
+            }
+
+            // No agent record linked to this login: say so instead of returning an
+            // empty list, which reads as "you have no appointments".
+            if (!$currentAgentId) {
+                return rox_appointment_booking_rest_response(
+                    data: null,
+                    code: 403,
+                    message: esc_html__('Agent account not found for this user.', 'rox-appointment-booking'),
+                    headers: ['status' => 403]
+                );
+            }
+
+            $query->where('agent_id', $currentAgentId);
         }
         $query = $this->applyFilters($request, $query);
         

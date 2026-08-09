@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { login, requestReset, setNewPassword, errorMessage } from "./api";
 // Explicit extension: webpack's `resolve.extensions` omits `.jsx`.
 import GoogleButton from "./GoogleButton.jsx";
+import { __ } from '@wordpress/i18n';
 
 /**
  * Reads the reset-link params the reset email appends to this page's url. Same
@@ -66,9 +67,9 @@ const CancelButton = ({ onClick }) => (
 );
 
 /**
- * Bespoke standalone customer login form.
+ * Bespoke standalone login form (customers and agents).
  *
- * Three states — `login` (Step 1.3, `POST /public/customer/login`), `forgot`
+ * Three states — `login` (Step 1.3, `POST /public/login`), `forgot`
  * (Step 1.4, `POST /public/customer/reset-password-request`) and `reset`
  * (Step 1.5, `POST /public/customer/reset-password`, entered on mount when the
  * url carries the reset-link params). The markup is copied from the booking
@@ -101,13 +102,18 @@ export default function LoginFormApp({ config = {} }) {
   };
 
   /**
-   * Sends the visitor where the surface's redirect setting says. `redirectUrl`
-   * is filled server-side and defaults to the WordPress admin; the reload is
-   * only a fallback for a config that carries no url at all.
+   * Sends the visitor on after a successful login. The login response may carry
+   * its own `redirect_url` (e.g. agents land on the admin dashboard) which wins;
+   * otherwise the surface's `redirectUrl` setting applies (filled server-side,
+   * defaults to the WordPress admin). The reload is only a fallback for a config
+   * that carries no url at all.
+   *
+   * @param {object} [data] The login response `data` (password or Google flow).
    */
-  const redirectAfterLogin = () => {
-    if (config.redirectUrl) {
-      window.location.assign(config.redirectUrl);
+  const redirectAfterLogin = (data) => {
+    const target = (data && data.redirect_url) || config.redirectUrl;
+    if (target) {
+      window.location.assign(target);
       return;
     }
     window.location.reload();
@@ -140,7 +146,7 @@ export default function LoginFormApp({ config = {} }) {
       const response = await login(config, credentials);
 
       if (response.success) {
-        redirectAfterLogin();
+        redirectAfterLogin(response.data);
         // Keep the button disabled while the browser navigates away.
         return;
       }
@@ -395,7 +401,7 @@ export default function LoginFormApp({ config = {} }) {
             name="email"
             value={credentials.email}
             onChange={handleChange}
-            placeholder="Enter email"
+            placeholder={__("Enter email", "rox-appointment-booking")}
             required
           />
         </div>
@@ -406,7 +412,7 @@ export default function LoginFormApp({ config = {} }) {
             name="password"
             value={credentials.password}
             onChange={handleChange}
-            placeholder="Enter password"
+            placeholder={__("Enter password", "rox-appointment-booking")}
             required
           />
         </div>

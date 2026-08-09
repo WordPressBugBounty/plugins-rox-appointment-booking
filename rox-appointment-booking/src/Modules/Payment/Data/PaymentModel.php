@@ -30,6 +30,7 @@ class PaymentModel extends AbstractModel
     protected $fillable = [
         'customer_id',
         'order_id',
+        'booking_id',
         'amount',
         'status',
         'payment_method',
@@ -45,6 +46,7 @@ class PaymentModel extends AbstractModel
      */
     protected $casts = [
         'customer_id' => 'integer',
+        'booking_id' => 'integer',
         'amount' => 'decimal:2',
         'payment_time' => 'datetime',
         'created_at' => 'datetime',
@@ -53,6 +55,7 @@ class PaymentModel extends AbstractModel
 
     const STATUS_UNPAID = 'unpaid';
     const STATUS_PAID = 'paid';
+    const STATUS_PARTIALLY_PAID = 'partially_paid';
     const STATUS_FAILED = 'failed';
     const STATUS_REFUNDED = 'refunded';
 

@@ -111,7 +111,7 @@ class GetLocation extends AbstractREST
 
         if ($id) {
             $location = LocationModel::find($id);
-            if (!$location) {
+            if (!$location || !$location->isActive()) {
                 return rox_appointment_booking_rest_response(
                     data: null,
                     code: 404,
@@ -132,6 +132,7 @@ class GetLocation extends AbstractREST
         $service_id = $request->get_param('service_id') ?? null;
 
         $query = LocationModel::query();
+        $query->where('status', 'active');
 
         // Filter by service if service_id is provided
         if (!empty($service_id)) {

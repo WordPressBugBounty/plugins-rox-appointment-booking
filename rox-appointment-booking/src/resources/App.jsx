@@ -74,7 +74,7 @@ const themeConfig = {
     },
     Tabs: {
       inkBarColor: "rgb(7,131,190)",
-      itemSelectedColor: "rgb(7,131,190)",
+      itemSelectedColor: "rgb(53, 96, 251)",
       titleFontSize: 13,
       colorText: "rgb(102,112,133)",
       itemHoverColor: "rgb(29,41,57)",
@@ -95,7 +95,7 @@ const themeConfig = {
       fontSize: 16,
       itemBorderRadius: 6,
     },
-     Message: {
+    Message: {
       zIndexPopup: 999999
     },
     Radio: {

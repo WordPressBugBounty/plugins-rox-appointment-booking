@@ -29,7 +29,7 @@ class CustomerBookingsService
     public function __construct()
     {
         $this->agentService = new AgentService();
-        $code = rox_appointment_booking_payment_settings('stripe_currency', 'USD');
+        $code = rox_appointment_booking_payment_settings('payment_currency', 'USD');
         $this->currency = function_exists('rox_appointment_booking__get_currency_symbol')
             ? rox_appointment_booking__get_currency_symbol($code)
             : '$';
@@ -105,8 +105,29 @@ class CustomerBookingsService
         $durationMinutes = $this->durationMinutes($appt, $service);
         [$pillStatus, $statusLabel] = $this->statusMeta($status);
 
-        $amount = $order ? (float) ($order->total_amount ?? 0) : ($service ? (float) ($service->price ?? 0) : 0);
+        // This appointment's own service (+ extra services) price — an order
+        // covering multiple appointments must not put its combined total on
+        // every single card, or a 3-service order shows the same full amount
+        // three times over.
+        $amount = $this->appointmentLineTotal($appt, $service);
         $price = $this->money($amount);
+
+        // What "Pay Now" actually charges. Each appointment gets its own
+        // payment row now (see PaymentProcessingService::savePayment()), so
+        // paying this card only settles this appointment's own line total —
+        // it does NOT touch the other appointments sharing the same order.
+        // A deposit (Pro feature) is the one exception: it's collected once
+        // for the whole order and can't be attributed to a single line, so a
+        // partially-paid line still falls back to the order's own remaining
+        // balance (matches PayBooking's legacy order_id path).
+        $isPartiallyPaid = $paymentStatus === 'partially_paid';
+        if ($isPartiallyPaid && $order) {
+            $detailAmount = (float) ($order->total_amount ?? 0);
+            $dueAmount = (float) ($order->amount_due_later ?? $detailAmount);
+        } else {
+            $detailAmount = $amount;
+            $dueAmount = $amount;
+        }
 
         // "with {agent} · {location}" — drop whichever side is missing.
         $withParts = array_filter([
@@ -148,6 +169,13 @@ class CustomerBookingsService
             'meta' => $meta,
             'price' => $price,
             'priceStrikethrough' => $status === 'cancelled',
+            // What "Pay Now" actually charges — this appointment's own line
+            // total, or the order's remaining balance for a deposit-paid line.
+            'due_amount' => $dueAmount,
+            'due_amount_formatted' => $this->money($dueAmount),
+            // Only set when a deposit was already paid — the card shows the
+            // remaining balance as its headline number instead of the full price.
+            'balance_due_formatted' => $isPartiallyPaid ? $this->money($dueAmount) : null,
             'completed' => $status === 'completed',
             'actions' => $this->actionsFor($bucket, $status, $paymentStatus),
             'detail' => $this->buildDetail($appt, [
@@ -156,9 +184,11 @@ class CustomerBookingsService
                 'location' => $location,
                 'durationLabel' => $durationLabel,
                 'order' => $order,
-                'amount' => $amount,
+                'amount' => $detailAmount,
                 'price' => $price,
                 'paymentStatus' => $paymentStatus,
+                'dueAmount' => $dueAmount,
+                'isPartiallyPaid' => $isPartiallyPaid,
             ]),
         ];
     }
@@ -180,10 +210,9 @@ class CustomerBookingsService
 
         $payment = [];
         if ($order) {
-            $subtotal = (float) ($order->subtotal ?? 0);
             $tax = (float) ($order->tax_amount ?? 0);
             $discount = (float) ($order->discount_amount ?? 0);
-            $payment[] = ['label' => esc_html__('Service charge', 'rox-appointment-booking'), 'value' => $this->money($subtotal ?: $ctx['amount'])];
+            $payment[] = ['label' => esc_html__('Service charge', 'rox-appointment-booking'), 'value' => $this->money($ctx['amount'])];
             if ($tax > 0) {
                 $payment[] = ['label' => esc_html__('Tax', 'rox-appointment-booking'), 'value' => $this->money($tax)];
             }
@@ -194,10 +223,21 @@ class CustomerBookingsService
             $payment[] = ['label' => esc_html__('Service charge', 'rox-appointment-booking'), 'value' => $ctx['price']];
         }
 
+        // A deposit already paid — break out how much was paid vs. what's
+        // still owed, same as the Order/Appointment admin views.
+        if (!empty($ctx['isPartiallyPaid'])) {
+            $payment[] = ['label' => esc_html__('Deposit Paid', 'rox-appointment-booking'), 'value' => $this->money($ctx['amount'] - $ctx['dueAmount'])];
+            $payment[] = ['label' => esc_html__('Balance Due', 'rox-appointment-booking'), 'value' => $this->money($ctx['dueAmount'])];
+        }
+
+        // The headline "Total" row shows what's actually still owed once a
+        // deposit is paid, not the full price — matches the booking card.
+        $totalAmount = !empty($ctx['isPartiallyPaid']) ? $this->money($ctx['dueAmount']) : $ctx['price'];
+
         return [
             'info' => $info,
             'payment' => $payment,
-            'paymentTotal' => $ctx['price'] . ' · ' . $this->paymentWord($ctx['paymentStatus']),
+            'paymentTotal' => $totalAmount . ' · ' . $this->paymentWord($ctx['paymentStatus']),
             'paymentTotalColor' => $this->paymentColor($ctx['paymentStatus']),
             'notes' => $appt['internal_notes'] ?? '',
         ];
@@ -235,10 +275,17 @@ class CustomerBookingsService
             return [['type' => 'payNow', 'label' => esc_html__('Pay Now', 'rox-appointment-booking'), 'variant' => 'primary']];
         }
 
-        return [
-            ['type' => 'reschedule', 'label' => esc_html__('Reschedule', 'rox-appointment-booking'), 'variant' => 'secondary'],
-            ['type' => 'cancel', 'label' => esc_html__('Cancel', 'rox-appointment-booking'), 'variant' => 'secondary'],
-        ];
+        // The booking card's Reschedule/Cancel buttons follow the same admin
+        // switches as the detail drawer's (Settings > Booking). With both off
+        // the card keeps its price and stays clickable, just without actions.
+        return array_values(array_filter([
+            rox_appointment_booking_customer_can_reschedule()
+                ? ['type' => 'reschedule', 'label' => esc_html__('Reschedule', 'rox-appointment-booking'), 'variant' => 'secondary']
+                : null,
+            rox_appointment_booking_customer_can_cancel()
+                ? ['type' => 'cancel', 'label' => esc_html__('Cancel', 'rox-appointment-booking'), 'variant' => 'secondary']
+                : null,
+        ]));
     }
 
     /** @return array{0:string,1:string} [pillStatus, label] */
@@ -257,21 +304,23 @@ class CustomerBookingsService
     private function paymentWord(string $paymentStatus): string
     {
         switch ($paymentStatus) {
-            case 'paid':      return esc_html__('Fully Paid', 'rox-appointment-booking');
-            case 'refunded':  return esc_html__('Refunded', 'rox-appointment-booking');
-            case 'failed':    return esc_html__('Payment Failed', 'rox-appointment-booking');
-            case 'processing': return esc_html__('Processing', 'rox-appointment-booking');
-            default:          return esc_html__('Not Paid', 'rox-appointment-booking');
+            case 'paid':           return esc_html__('Fully Paid', 'rox-appointment-booking');
+            case 'partially_paid': return esc_html__('Partially Paid', 'rox-appointment-booking');
+            case 'refunded':       return esc_html__('Refunded', 'rox-appointment-booking');
+            case 'failed':         return esc_html__('Payment Failed', 'rox-appointment-booking');
+            case 'processing':     return esc_html__('Processing', 'rox-appointment-booking');
+            default:               return esc_html__('Not Paid', 'rox-appointment-booking');
         }
     }
 
     private function paymentColor(string $paymentStatus): string
     {
         switch ($paymentStatus) {
-            case 'paid':     return 'var(--green-text)';
-            case 'refunded': return 'var(--teal-text)';
-            case 'failed':   return 'var(--red-text)';
-            default:         return 'var(--yellow-text)';
+            case 'paid':           return 'var(--green-text)';
+            case 'partially_paid': return 'var(--yellow-text)';
+            case 'refunded':       return 'var(--teal-text)';
+            case 'failed':         return 'var(--red-text)';
+            default:               return 'var(--yellow-text)';
         }
     }
 
@@ -339,6 +388,29 @@ class CustomerBookingsService
             return ['title' => '', 'address' => ''];
         }
         return ['title' => $row['title'] ?? '', 'address' => $row['address'] ?? ''];
+    }
+
+    /**
+     * One appointment's own line total: its service price plus any Pro
+     * extra-service prices. Mirrors
+     * FrontendBookingPanel\Services\AppointmentService::calculateAppointmentLineTotal()
+     * so the price shown here matches what was actually charged for this line.
+     */
+    private function appointmentLineTotal(array $appt, ?ServiceModel $service): float
+    {
+        $lineTotal = $service ? (float) $service->price : 0.0;
+
+        $extraServiceIds = $appt['extra_services'] ?? [];
+        if (!empty($extraServiceIds) && is_array($extraServiceIds) && class_exists('\\RoxAppointmentBookingPro\\Modules\\ExtraService\\Data\\ExtraServiceModel')) {
+            foreach ($extraServiceIds as $extraId) {
+                $extraService = \RoxAppointmentBookingPro\Modules\ExtraService\Data\ExtraServiceModel::find(intval($extraId));
+                if ($extraService) {
+                    $lineTotal += (float) $extraService->price;
+                }
+            }
+        }
+
+        return $lineTotal;
     }
 
     private function getOrderForBooking(int $bookingId): ?OrderModel

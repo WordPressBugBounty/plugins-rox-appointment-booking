@@ -81,13 +81,26 @@ class UserMenu extends AbstractREST
      */
     private function getUserMenuStructure(): array
     {
-        $items = [];
+        // Own profile page — available to every panel user. Without this item an
+        // agent had no visible way to reach /profile at all (only the avatar
+        // header block navigated there).
+        $items = [
+            [
+                "key" => "profile",
+                "label" => "Profile",
+                "icon" => "avatar",
+                "action" => [
+                    "type" => "navigate",
+                    "route" => "/profile"
+                ]
+            ]
+        ];
 
         // The "Setting" item links to the admin-only global settings page, so
         // only surface it for users who can manage bookings (admin/manager).
         if (Security::canManageBookings()) {
             $items[] = [
-                "key" => "profile",
+                "key" => "settings",
                 "label" => "Setting",
                 "icon" => "setting",
                 "action" => [

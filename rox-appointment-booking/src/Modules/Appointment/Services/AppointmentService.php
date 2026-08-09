@@ -4,6 +4,7 @@ namespace RoxAppointmentBooking\Modules\Appointment\Services;
 
 use RoxAppointmentBooking\Modules\Appointment\Data\AppointmentModel;
 use RoxAppointmentBooking\Modules\Agent\Data\AgentModel;
+use RoxAppointmentBooking\Modules\Customer\Data\CustomerModel;
 use RoxAppointmentBooking\Modules\Customer\Services\CustomerService;
 use RoxAppointmentBooking\Modules\Notification\Services\NotificationService;
 use RoxAppointmentBooking\Modules\Service\Data\ServiceModel;
@@ -41,6 +42,11 @@ class AppointmentService
     /**
      * Resolve the current logged-in agent ID if available.
      *
+     * The linked `wp_user_id` is authoritative. Email is only a fallback, for
+     * agent rows created before the login link existed — and only when that row is
+     * not already linked to a different WordPress user, otherwise a matching email
+     * alone would hand one user another user's agent record.
+     *
      * @return int|null
      */
     public static function getCurrentAgentId(): ?int
@@ -52,10 +58,65 @@ class AppointmentService
 
         $agent = AgentModel::query()
             ->where('wp_user_id', $user->ID)
-            ->orWhere('email', $user->user_email)
             ->first();
 
+        if (!$agent && $user->user_email) {
+            $candidate = AgentModel::query()
+                ->where('email', $user->user_email)
+                ->first();
+
+            // Accept the email match only while that row has no login link of its
+            // own (covers both NULL and 0).
+            if ($candidate && empty($candidate->wp_user_id)) {
+                $agent = $candidate;
+            }
+        }
+
         return $agent ? (int) $agent->getID() : null;
+    }
+
+    /**
+     * Resolve the customer record backing the current logged-in user, if any.
+     *
+     * Deliberately mirrors getCurrentAgentId(): the linked `wp_user_id` is
+     * authoritative and email is only a fallback, for customer rows created
+     * before the login link existed — accepted only while that row carries no
+     * login link of its own, otherwise a shared email alone would hand one user
+     * another user's bookings.
+     *
+     * One WordPress user can back BOTH an agent row and a customer row: an agent
+     * who books through the public panel with their own email keeps their agent
+     * record and additionally gets a customer row linked to the same user id (see
+     * FrontendBookingPanel\Services\CustomerService::handleAutoUserCreation).
+     * This resolves the customer side, which is what the panel's "My Bookings"
+     * page lists.
+     *
+     * @return int|null
+     */
+    public static function getCurrentCustomerId(): ?int
+    {
+        $user = wp_get_current_user();
+        if (!$user || !$user->exists()) {
+            return null;
+        }
+
+        $customer = CustomerModel::query()
+            ->where('wp_user_id', $user->ID)
+            ->first();
+
+        if (!$customer && $user->user_email) {
+            $candidate = CustomerModel::query()
+                ->where('email', $user->user_email)
+                ->first();
+
+            // Accept the email match only while that row has no login link of its
+            // own (covers both NULL and 0).
+            if ($candidate && empty($candidate->wp_user_id)) {
+                $customer = $candidate;
+            }
+        }
+
+        return $customer ? (int) $customer->getID() : null;
     }
 
     /**

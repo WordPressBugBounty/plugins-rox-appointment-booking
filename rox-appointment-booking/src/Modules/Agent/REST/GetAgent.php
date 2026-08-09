@@ -111,6 +111,7 @@ class GetAgent extends AbstractREST
             ],
             'email' => $agent->email,
             'phone' => $agent->phone,
+            'status' => $agent->status ?? 'active',
         ];
         if ($detailed) {
             $data = array_merge($data, [
@@ -125,10 +126,13 @@ class GetAgent extends AbstractREST
                     ->where('agent_id', $agent->getID())
                     ->pluck('service_id')
                     ->toArray(),
-                'weekly_schedule' => json_decode($agent->weekly_schedule ?? '[]', true),
-                'special_days' => json_decode($agent->special_days ?? '[]', true),
+                // `?? []` guards against a stored empty string (not DB NULL) — json_decode('')
+                // returns null (invalid JSON), which crashed the Scheduler/FieldRepeater
+                // components expecting an array.
+                'weekly_schedule' => json_decode($agent->weekly_schedule ?? '[]', true) ?? [],
+                'special_days' => json_decode($agent->special_days ?? '[]', true) ?? [],
                 'availability' => $agent->availability ?? [],
-                'holiday' => json_decode($agent->holiday ?? '[]', true),
+                'holiday' => json_decode($agent->holiday ?? '[]', true) ?? [],
                 'internal_notes' => $agent->internal_notes ?? null,
                 'allow_to_login' => (bool)$agent->allow_to_login,
                 'user_type' => !empty($agent->wp_user_id) ? 'existing' : ($agent->user_type ?? null),
@@ -136,7 +140,7 @@ class GetAgent extends AbstractREST
                 'experience_years' => $agent->experience_years ?? null,
                 'certifications' => $agent->certifications ?? null,
                 'bio' => $agent->bio ?? null,
-                'social_profiles' => json_decode($agent->social_profiles ?? '[]', true),
+                'social_profiles' => json_decode($agent->social_profiles ?? '[]', true) ?? [],
             ]);
         }
         return $data;

@@ -97,6 +97,10 @@ class SaveAppointment extends AbstractREST
                     $this->syncRelatedOrderStatus((int) $id, $sanitizedData['status']);
                 }
 
+                // The edit may have changed the service, the extra services or the
+                // attendee count, all of which the order is priced from.
+                $this->syncRelatedOrderTotals((int) $id, $sanitizedData);
+
                 // Fire dashboard notification whenever the appointment status actually changes
                 if (isset($sanitizedData['status']) && $oldStatus !== $sanitizedData['status']) {
                     $appointmentService->sendStatusChangeNotification($existing, $sanitizedData['status']);
@@ -411,6 +415,45 @@ class SaveAppointment extends AbstractREST
             }
         }
 
+        // GROUP CAPACITY CHECK: a service with capacity === 'group' shares one
+        // slot across multiple bookings/customers, keyed on the SUM of
+        // total_attendees rather than a single-occupancy or booking-count block.
+        // Scoped to the same agent when one is set, so each agent's own session
+        // has its own attendee pool.
+        $group_service = !empty($data['service_id']) ? ServiceModel::find($data['service_id']) : null;
+        // Pro feature: without Pro active the service stays single-occupancy.
+        if ($group_service && $group_service->capacity === 'group' && defined('ROX_APPOINTMENT_BOOKING_PRO_VERSION')) {
+            $max_capacity = (int) $group_service->max_capacity;
+            if ($max_capacity <= 0) {
+                $max_capacity = 1;
+            }
+
+            $attendees_query = AppointmentModel::where('service_id', $data['service_id'])
+                ->where('date', $data['date'])
+                ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
+                ->where(function($query) use ($data) {
+                    $query->where('start_time', '<', $data['end_time'])
+                          ->where('end_time', '>', $data['start_time']);
+                });
+            if (!empty($data['agent_id'])) {
+                $attendees_query->where('agent_id', $data['agent_id']);
+            } else {
+                $attendees_query->whereNull('agent_id');
+            }
+            $existing_attendees = (int) $attendees_query->sum('total_attendees');
+            $requested_attendees = max(1, intval($data['total_attendees'] ?? 1));
+
+            if ($existing_attendees + $requested_attendees > $max_capacity) {
+                return new WP_Error(
+                    'slot_already_booked',
+                    esc_html__('This time slot does not have enough remaining spots for the number of attendees. Please choose a different time or reduce the number of attendees.', 'rox-appointment-booking'),
+                    ['status' => 409]
+                );
+            }
+
+            return true;
+        }
+
         // Agent-less appointment (agent_id NULL): enforce the service capacity —
         // reject when overlapping non-cancelled bookings of THIS service (any agent)
         // already reach max_capacity (default 1).
@@ -520,16 +563,14 @@ class SaveAppointment extends AbstractREST
             throw new \Exception('Service not found for appointment');
         }
 
-        $subtotal = $service->price ?? 0;
         $discountAmount = 0;
         $taxAmount = 0;
-        
-        $totalAttendees = $appointmentData['total_attendees'] ?? 1;
-        $subtotal = $subtotal * $totalAttendees;
-        
+
+        $subtotal = $this->calculateOrderSubtotal($service, $appointmentData);
+
         if (!empty($appointmentData['coupon_id'])) {
         }
-        
+
         $totalAmount = $subtotal - $discountAmount + $taxAmount;
         
         $paymentStatus = !empty($appointmentData['payment_status'])
@@ -559,7 +600,7 @@ class SaveAppointment extends AbstractREST
                 esc_html__('Order auto-created for appointment #%1$d - Service: %2$s (%3$d attendees)', 'rox-appointment-booking'),
                 $appointment->id,
                 $service->title ?? 'Unknown Service',
-                $totalAttendees
+                max(1, (int) ($appointmentData['total_attendees'] ?? 1))
             ),
         ];
 
@@ -650,5 +691,92 @@ class SaveAppointment extends AbstractREST
         }
 
         $order->update(['order_status' => $orderStatus]);
+    }
+
+    /**
+     * Price an appointment: the service (per attendee) plus its extra services.
+     *
+     * Extra services are counted once per appointment rather than per attendee —
+     * the same way validateAndSanitizeData() adds their duration once, and the way
+     * the frontend booking panel prices them
+     * (FrontendBookingPanel\Services\AppointmentService::calculateServerSubtotal).
+     *
+     * Shared by order creation and the update-time resync so the two can never
+     * disagree about what a booking costs.
+     *
+     * @param ServiceModel $service         The booked service.
+     * @param array        $appointmentData Sanitized appointment payload.
+     * @return float
+     */
+    private function calculateOrderSubtotal($service, array $appointmentData): float
+    {
+        $extraServicesTotal = 0;
+        if (!empty($appointmentData['extra_services']) && class_exists('\\RoxAppointmentBookingPro\\Modules\\ExtraService\\Data\\ExtraServiceModel')) {
+            foreach ($appointmentData['extra_services'] as $extra_id) {
+                $extra_service = \RoxAppointmentBookingPro\Modules\ExtraService\Data\ExtraServiceModel::find(intval($extra_id));
+                if ($extra_service) {
+                    $extraServicesTotal += (float) $extra_service->price;
+                }
+            }
+        }
+
+        $totalAttendees = max(1, (int) ($appointmentData['total_attendees'] ?? 1));
+
+        return round((float) ($service->price ?? 0) * $totalAttendees + $extraServicesTotal, 2);
+    }
+
+    /**
+     * Re-price the order behind an appointment after it was edited.
+     *
+     * Editing a booking can change what it costs — a different service, an extra
+     * service added or removed, a different number of attendees — but the order
+     * was priced once at creation and nothing recomputed it, so the appointment
+     * view would list an extra service the total did not include.
+     *
+     * Only the money the appointment determines is rewritten: an existing discount
+     * or tax stays as it is, since neither is derived from the appointment here.
+     * Payment rows are deliberately left alone — money already taken is not this
+     * endpoint's to rewrite, and the amount due is derived from the order total.
+     *
+     * @param int   $appointmentId   The edited appointment.
+     * @param array $appointmentData Sanitized appointment payload.
+     * @return void
+     */
+    private function syncRelatedOrderTotals(int $appointmentId, array $appointmentData): void
+    {
+        if (empty($appointmentData['service_id'])) {
+            return;
+        }
+
+        $service = ServiceModel::find($appointmentData['service_id']);
+        if (!$service) {
+            return;
+        }
+
+        // JSON_CONTAINS, not a LIKE on the encoded column: `booking_ids` holds
+        // unquoted numbers (`[31]`), so the `%"31"%` pattern the status syncs above
+        // use never matches an order created by the booking panel. Same lookup
+        // GetAppointment uses to resolve an appointment's order.
+        $order = OrderModel::whereRaw('JSON_CONTAINS(booking_ids, %s)', [json_encode($appointmentId)])->first();
+        if (!$order) {
+            return;
+        }
+
+        // An order can cover several appointments (the booking panel books more
+        // than one slot at a time). Re-pricing from this one appointment alone
+        // would wipe the others out of the total, so leave those orders alone.
+        $bookingIds = $order->booking_ids;
+        if (is_array($bookingIds) && count($bookingIds) > 1) {
+            return;
+        }
+
+        $subtotal = $this->calculateOrderSubtotal($service, $appointmentData);
+        $discountAmount = (float) ($order->discount_amount ?? 0);
+        $taxAmount = (float) ($order->tax_amount ?? 0);
+
+        $order->update([
+            'subtotal' => $subtotal,
+            'total_amount' => max(0, round($subtotal - $discountAmount + $taxAmount, 2)),
+        ]);
     }
 }

@@ -18,9 +18,14 @@ export default function BookingCard({ booking, onAction, onOpenDetail }) {
     meta = [],
     price,
     priceStrikethrough,
+    balance_due_formatted: balanceDueFormatted,
     completed,
     actions = [],
   } = booking;
+
+  // When a deposit was already paid, show what's still owed instead of the
+  // full price — matches the Pay Now action right below it.
+  const headlinePrice = balanceDueFormatted || price;
 
   const handleAction = (event, type) => {
     event.stopPropagation();
@@ -65,7 +70,7 @@ export default function BookingCard({ booking, onAction, onOpenDetail }) {
               : undefined
           }
         >
-          {price}
+          {headlinePrice}
         </div>
         <div className="booking-quick-actions">
           {actions.map((action) => (

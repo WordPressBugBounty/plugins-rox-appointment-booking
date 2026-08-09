@@ -5,9 +5,9 @@
 	"title": "Rox Appointment Login Form",
 	"category": "widgets",
 	"icon": "unlock",
-	"description": "Standalone customer login form (login, forgot password, reset password).",
+	"description": "Standalone login form for customers and agents (login, forgot password, reset password).",
 	"textdomain": "rox-appointment-booking",
-	"keywords": ["login", "customer", "account", "rox"],
+	"keywords": ["login", "customer", "agent", "account", "rox"],
 	"supports": {
 		"html": false
 	},

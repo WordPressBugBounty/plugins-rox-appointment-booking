@@ -78,7 +78,8 @@ class GetWordPressUsers extends AbstractREST
         // Get search parameter if provided
         $search = sanitize_text_field($request->get_param('search'));
 
-        // Optional mode selector for mapping source: customer or agent.
+        // Optional mode selector, kept for API compatibility: both modes exclude
+        // accounts already taken by an agent or a customer.
         $mode = sanitize_key((string) $request->get_param('mode'));
         if (empty($mode)) {
             $mode = 'customer';
@@ -93,13 +94,28 @@ class GetWordPressUsers extends AbstractREST
             );
         }
 
-        // Collect mapped WordPress user IDs based on selected mode.
-        $mapped_wp_user_ids = $mode === 'agent'
-            ? AgentModel::query()->whereNotNull('wp_user_id')->pluck('wp_user_id')->toArray()
-            : CustomerModel::query()->whereNotNull('wp_user_id')->pluck('wp_user_id')->toArray();
+        // Collect mapped WordPress user IDs from both agents and customers, so an
+        // account already taken by either one is never offered in the lookup.
+        $mapped_wp_user_ids = array_merge(
+            AgentModel::query()->whereNotNull('wp_user_id')->pluck('wp_user_id')->toArray(),
+            CustomerModel::query()->whereNotNull('wp_user_id')->pluck('wp_user_id')->toArray()
+        );
 
         $mapped_wp_user_ids = array_values(array_unique(array_filter(array_map('absint', $mapped_wp_user_ids))));
-        
+
+        // Agents/customers saved without a linked WordPress account still own their
+        // email address, so exclude WordPress users sharing one of those emails too.
+        $taken_emails = array_merge(
+            AgentModel::query()->whereNotNull('email')->pluck('email')->toArray(),
+            CustomerModel::query()->whereNotNull('email')->pluck('email')->toArray()
+        );
+
+        $mapped_wp_user_ids = array_values(array_unique(array_merge(
+            $mapped_wp_user_ids,
+            $this->getUserIdsByEmails($taken_emails)
+        )));
+
+
         // Get number parameter for limit
         $number = absint($request->get_param('number'));
         if (empty($number)) {
@@ -146,5 +162,29 @@ class GetWordPressUsers extends AbstractREST
                 ]
             ]
         );
+    }
+
+    /**
+     * Resolve a list of email addresses to WordPress user IDs in a single query.
+     *
+     * @param array $emails Email addresses.
+     * @return array List of WordPress user IDs.
+     */
+    private function getUserIdsByEmails(array $emails): array
+    {
+        global $wpdb;
+
+        $emails = array_values(array_unique(array_filter(array_map('sanitize_email', $emails))));
+
+        if (empty($emails)) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($emails), '%s'));
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Placeholders are generated from a counted array and every value is passed through prepare().
+        $ids = $wpdb->get_col($wpdb->prepare("SELECT ID FROM {$wpdb->users} WHERE user_email IN ({$placeholders})", $emails));
+
+        return array_values(array_filter(array_map('absint', (array) $ids)));
     }
 }

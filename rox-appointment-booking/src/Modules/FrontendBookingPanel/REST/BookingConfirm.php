@@ -83,7 +83,9 @@ class BookingConfirm extends AbstractREST
                 return $customFieldError;
             }
 
-            $customerResult = (new CustomerService())->saveCustomer($params);
+            $customerService = new CustomerService();
+
+            $customerResult = $customerService->saveCustomer($params);
             if (is_wp_error($customerResult)) {
                 return $customerResult;
             }
@@ -152,12 +154,24 @@ class BookingConfirm extends AbstractREST
 
             (new BookingEmailService())->sendBookingConfirmation($customerResult, $appointmentResult, $paymentResult, array_merge($params, ['order_id' => $orderId]));
 
+            // Booking is complete and cannot fail from here, so the session is
+            // only established now. The auth cookie is emitted with this
+            // response; the nonce is minted afterwards so it belongs to the
+            // newly logged-in user (the panel's old logged-out nonce would be
+            // rejected on every later REST call).
+            $autoLoggedIn = $customerService->maybeAutoLogin();
+
             return rox_appointment_booking_rest_response(
                 data: [
                     'customer' => $customerResult,
                     'appointments' => $appointmentResult,
                     'order' => $orderResult,
-                    'payment' => $paymentResult
+                    'payment' => $paymentResult,
+                    'auto_login' => [
+                        'logged_in' => $autoLoggedIn,
+                        'nonce' => $autoLoggedIn ? wp_create_nonce('wp_rest') : null,
+                        'logout_url' => $autoLoggedIn ? html_entity_decode(wp_logout_url()) : null,
+                    ]
                 ],
                 message: esc_html__('Your appointment has been booked successfully. A confirmation has been sent.', 'rox-appointment-booking')
             );

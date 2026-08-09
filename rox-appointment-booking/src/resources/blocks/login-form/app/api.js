@@ -3,7 +3,7 @@ import apiFetch from "@wordpress/api-fetch";
 /**
  * Thin `apiFetch` wrappers around the public auth REST endpoints the standalone
  * login form uses. Every url + the nonce come from the mount `data-config`
- * (built by `Modules\CustomerLogin\Services\LoginFormConfig`), so this module
+ * (built by `Modules\LoginForm\Services\LoginFormConfig`), so this module
  * never reads a global.
  *
  * The endpoints are public (`permissionCheck() => true`), but the nonce is sent

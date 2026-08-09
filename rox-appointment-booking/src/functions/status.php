@@ -23,13 +23,13 @@ if (!function_exists('rox_appointment_booking_order_statuses')) {
 	function rox_appointment_booking_order_statuses()
 	{
 		return apply_filters('rox_appointment_booking_order_statuses', [
-			["icon" => "notpaidcirclefilled", "label" => "Pending payment", "value" => "pending_payment"],
-			["icon" => "processingcirclefilled", "label" => "Processing", "value" => "processing"],
-			["icon" => "pending", "label" => "On hold", "value" => "on_hold"],
-			["icon" => "paidcirclefilled", "label" => "Completed", "value" => "completed"],
-			["icon" => "canceledcirclefilled", "label" => "Cancelled", "value" => "cancelled"],
-			["icon" => "refundedcirclefilled", "label" => "Refunded", "value" => "refunded"],
-			["icon" => "failedcirclefilled", "label" => "Failed", "value" => "failed"],
+			["icon" => "notpaidcirclefilled", "label" => __("Pending payment", "rox-appointment-booking"), "value" => "pending_payment"],
+			["icon" => "processingcirclefilled", "label" => __("Processing", "rox-appointment-booking"), "value" => "processing"],
+			["icon" => "pending", "label" => __("On hold", "rox-appointment-booking"), "value" => "on_hold"],
+			["icon" => "paidcirclefilled", "label" => __("Completed", "rox-appointment-booking"), "value" => "completed"],
+			["icon" => "canceledcirclefilled", "label" => __("Cancelled", "rox-appointment-booking"), "value" => "cancelled"],
+			["icon" => "refundedcirclefilled", "label" => __("Refunded", "rox-appointment-booking"), "value" => "refunded"],
+			["icon" => "failedcirclefilled", "label" => __("Failed", "rox-appointment-booking"), "value" => "failed"],
 		]);
 	}
 }
@@ -45,12 +45,12 @@ if (!function_exists('rox_appointment_booking_payment_statuses')) {
 	function rox_appointment_booking_payment_statuses()
 	{
 		return apply_filters('rox_appointment_booking_payment_statuses', [
-			["icon" => "failedcirclefilled", "label" => "Failed", "value" => "failed"],
-			["icon" => "paidcirclefilled", "label" => "Paid", "value" => "paid"],
-			["icon" => "canceledcirclefilled", "label" => "Cancelled", "value" => "cancelled"],
-			["icon" => "processingcirclefilled", "label" => "Processing", "value" => "processing"],
-			["icon" => "notpaidcirclefilled", "label" => "Unpaid", "value" => "unpaid"],
-			["icon" => "refundedcirclefilled", "label" => "Refunded", "value" => "refunded"],
+			["icon" => "failedcirclefilled", "label" => __("Failed", "rox-appointment-booking"), "value" => "failed"],
+			["icon" => "paidcirclefilled", "label" => __("Paid", "rox-appointment-booking"), "value" => "paid"],
+			["icon" => "canceledcirclefilled", "label" => __("Cancelled", "rox-appointment-booking"), "value" => "cancelled"],
+			["icon" => "processingcirclefilled", "label" => __("Processing", "rox-appointment-booking"), "value" => "processing"],
+			["icon" => "notpaidcirclefilled", "label" => __("Unpaid", "rox-appointment-booking"), "value" => "unpaid"],
+			["icon" => "refundedcirclefilled", "label" => __("Refunded", "rox-appointment-booking"), "value" => "refunded"],
 		]);
 	}
 }
@@ -66,13 +66,13 @@ if (!function_exists('rox_appointment_booking_appointment_statuses')) {
 	function rox_appointment_booking_appointment_statuses()
 	{
 		return apply_filters('rox_appointment_booking_appointment_statuses', [
-			["icon" => "approved", "label" => "Approved", "value" => "approved"],
-			["icon" => "rescheduled", "label" => "Rescheduled", "value" => "rescheduled"],
-			["icon" => "pending", "label" => "Pending", "value" => "pending"],
-			["icon" => "rejected", "label" => "Rejected", "value" => "rejected"],
-			["icon" => "canceledcirclefilled", "label" => "Cancelled", "value" => "cancelled"],
-			["icon" => "completed", "label" => "Completed", "value" => "completed"],
-			["icon" => "emergency", "label" => "Emergency", "value" => "emergency"],
+			["icon" => "approved", "label" => __("Approved", "rox-appointment-booking"), "value" => "approved"],
+			["icon" => "rescheduled", "label" => __("Rescheduled", "rox-appointment-booking"), "value" => "rescheduled"],
+			["icon" => "pending", "label" => __("Pending", "rox-appointment-booking"), "value" => "pending"],
+			["icon" => "rejected", "label" => __("Rejected", "rox-appointment-booking"), "value" => "rejected"],
+			["icon" => "canceledcirclefilled", "label" => __("Cancelled", "rox-appointment-booking"), "value" => "cancelled"],
+			["icon" => "completed", "label" => __("Completed", "rox-appointment-booking"), "value" => "completed"],
+			["icon" => "emergency", "label" => __("Emergency", "rox-appointment-booking"), "value" => "emergency"],
 		]);
 	}
 }
@@ -94,6 +94,27 @@ if (!function_exists('rox_appointment_booking_get_order_status_label')) {
 	}
 }
 
+if (!function_exists('rox_appointment_booking_get_payment_status_label')) {
+	/**
+	 * Resolve a payment_status value (e.g. 'partially_paid') to its human label
+	 * (e.g. 'Partially Paid') via rox_appointment_booking_payment_statuses().
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $value
+	 * @return string
+	 */
+	function rox_appointment_booking_get_payment_status_label($value)
+	{
+		foreach (rox_appointment_booking_payment_statuses() as $status) {
+			if ($status['value'] === $value) {
+				return $status['label'];
+			}
+		}
+		return $value;
+	}
+}
+
 if (!function_exists('rox_appointment_booking_payment_methods')) {
 	/**
 	 * Retrieve payment methods for the Booking Engine plugin.
@@ -106,9 +127,9 @@ if (!function_exists('rox_appointment_booking_payment_methods')) {
 	{
 		return apply_filters('rox_appointment_booking_payment_methods', [
 			["icon" => "card", "label" => "Stripe", "value" => "stripe"],
-			["icon" => "paylater", "label" => "Pay Later", "value" => "pay_later"],
-			["icon" => "cash", "label" => "Cash", "value" => "cash"],
-			["icon" => "debit", "label" => "Credit / Debit Card", "value" => "card"],
+			["icon" => "paylater", "label" => __("Pay Later", "rox-appointment-booking"), "value" => "pay_later"],
+			["icon" => "cash", "label" => __("Cash", "rox-appointment-booking"), "value" => "cash"],
+			["icon" => "debit", "label" => __("Credit / Debit Card", "rox-appointment-booking"), "value" => "card"],
 		]);
 	}
 }

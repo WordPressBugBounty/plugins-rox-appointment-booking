@@ -7,12 +7,12 @@
  * @subpackage Modules\Elementor\Widgets
  * @since 1.0.0
  *
- * Elementor widget that renders the same standalone customer login form as the
+ * Elementor widget that renders the same standalone login form as the
  * `[rox_appointment_login]` shortcode and the "Rox Appointment Login Form"
  * Gutenberg block. It depends on the shared login-form view bundle registered by
  * the module Provider and renders the same
  * `rox-appointment-booking-login-form-root` mount node, with the config built by
- * `CustomerLogin\Services\LoginFormConfig` — the single home for that logic.
+ * `LoginForm\Services\LoginFormConfig` — the single home for that logic.
  *
  * Because Elementor loads the declared frontend scripts inside its editor
  * preview iframe, the real form renders live in the editor — no separate editor
@@ -24,8 +24,8 @@ namespace RoxAppointmentBooking\Modules\Elementor\Widgets;
 use Elementor\Widget_Base;
 use Elementor\Controls_Manager;
 use RoxAppointmentBooking\Modules\Elementor\Provider;
-use RoxAppointmentBooking\Modules\CustomerLogin\Services\LoginFormConfig;
-use RoxAppointmentBooking\Modules\CustomerLogin\Services\LoginFormShortcode;
+use RoxAppointmentBooking\Modules\LoginForm\Services\LoginFormConfig;
+use RoxAppointmentBooking\Modules\LoginForm\Services\LoginFormShortcode;
 
 if (! defined('ABSPATH')) exit; // Exit if accessed directly
 
@@ -86,7 +86,7 @@ class LoginFormWidget extends Widget_Base
      */
     public function get_keywords(): array
     {
-        return ['login', 'customer', 'account', 'rox'];
+        return ['login', 'customer', 'agent', 'account', 'rox'];
     }
 
     /**
@@ -153,7 +153,7 @@ class LoginFormWidget extends Widget_Base
                 'label'       => esc_html__('Redirect after login (URL)', 'rox-appointment-booking'),
                 'type'        => Controls_Manager::TEXT,
                 'default'     => '',
-                'description' => esc_html__('Leave empty to send the customer to the WordPress admin.', 'rox-appointment-booking'),
+                'description' => esc_html__('Leave empty to send the user to the WordPress admin.', 'rox-appointment-booking'),
             ]
         );
 

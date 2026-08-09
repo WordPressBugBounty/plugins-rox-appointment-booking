@@ -6,6 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\Security;
 use RoxAppointmentBooking\Modules\UserManagement\Util\UserInfo;
 
 /**
@@ -51,7 +52,9 @@ class SaveUserSettings extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !current_user_can('manage_options')) {
+        // Agents edit their own profile from the panel too. Only ever writes the
+        // CURRENT user's own data — there is no id parameter.
+        if (!is_user_logged_in() || !Security::canAccessPanel()) {
             return false;
         }
 
@@ -119,12 +122,26 @@ class SaveUserSettings extends AbstractREST
             );
         }
 
-        update_user_meta($user_id, 'gender', $gender);
-        update_user_meta($user_id, 'date_of_birth', $dob);
-        update_user_meta($user_id, 'phone', $phone);
-        update_user_meta($user_id, 'internal_notes', $internal_notes);
-
         $userInfo = new UserInfo();
+        $agent = $userInfo->getAgentRecord();
+
+        if ($agent) {
+            // A panel agent's profile lives on the agent record — that is the row
+            // bookings, the calendar and the notification emails read. Email is not
+            // editable here (it is the identity/login key and UNIQUE in the table),
+            // and gender / date of birth / internal notes have no agent column.
+            $agent->update([
+                'first_name' => $first_name,
+                'last_name' => $last_name,
+                'phone' => $phone,
+            ]);
+        } else {
+            update_user_meta($user_id, 'gender', $gender);
+            update_user_meta($user_id, 'date_of_birth', $dob);
+            update_user_meta($user_id, 'phone', $phone);
+            update_user_meta($user_id, 'internal_notes', $internal_notes);
+        }
+
         $userData = $userInfo->getUserData();
 
         return rox_appointment_booking_rest_response(

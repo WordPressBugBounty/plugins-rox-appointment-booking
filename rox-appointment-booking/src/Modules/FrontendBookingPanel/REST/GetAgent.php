@@ -7,6 +7,7 @@ use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
 use RoxAppointmentBooking\Modules\Agent\Data\AgentModel;
+use RoxAppointmentBooking\Modules\Appointment\Services\AppointmentService;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceAgentRelationModel;
 
 /**
@@ -210,7 +211,7 @@ class GetAgent extends AbstractREST
         $id = $request->get_param('id');
         if ($id) {
             $agent = AgentModel::find($id);
-            if (!$agent) {
+            if (!$agent || !$agent->isActive()) {
                 return rox_appointment_booking_rest_response(
                     data : null,
                     code : 404,
@@ -231,7 +232,20 @@ class GetAgent extends AbstractREST
         $with_avatar = filter_var($request->get_param('with_avatar'), FILTER_VALIDATE_BOOLEAN);
         
         $query = AgentModel::query();
-        
+        $query->where('status', 'active');
+
+        // A logged-in agent must not be offered to themselves as a provider — the
+        // booking would put one person on both sides of the appointment, which
+        // FrontendBookingPanel\Services\AppointmentService rejects at save time.
+        // Scoped to the agent role so an admin who also holds an agent row keeps
+        // seeing the full list.
+        if (AppointmentService::isAgentUser()) {
+            $currentAgentId = AppointmentService::getCurrentAgentId();
+            if ($currentAgentId) {
+                $query->where('id', '!=', $currentAgentId);
+            }
+        }
+
         if (!empty($service_id)) {
             $agentIds = ServiceAgentRelationModel::where('service_id', $service_id)
                 ->pluck('agent_id')

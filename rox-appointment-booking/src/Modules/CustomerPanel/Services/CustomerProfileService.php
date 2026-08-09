@@ -34,7 +34,7 @@ class CustomerProfileService
 
     public function __construct()
     {
-        $code = rox_appointment_booking_payment_settings('stripe_currency', 'USD');
+        $code = rox_appointment_booking_payment_settings('payment_currency', 'USD');
         $this->currency = function_exists('rox_appointment_booking__get_currency_symbol')
             ? rox_appointment_booking__get_currency_symbol($code)
             : '$';

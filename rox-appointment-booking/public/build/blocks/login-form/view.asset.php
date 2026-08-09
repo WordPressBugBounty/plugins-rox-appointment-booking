@@ -1,1 +1,1 @@
-<?php return array('dependencies' => array('react', 'react-dom', 'react-jsx-runtime', 'wp-api-fetch'), 'version' => '023a9eca0f6673825cb2', 'handle' => 'undefined-blocks/login-form/view');
+<?php return array('dependencies' => array('react', 'react-dom', 'react-jsx-runtime', 'wp-api-fetch', 'wp-i18n'), 'version' => '05de828de6bac024808b', 'handle' => 'undefined-blocks/login-form/view');

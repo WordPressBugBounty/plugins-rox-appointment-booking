@@ -7,7 +7,7 @@ defined('ABSPATH') || exit;
  * Description: Appointment booking scheduling solution.
  * Plugin URI: https://wordpress.org/plugins/rox-appointment-booking/
  * Author: roxnor
- * Version: 1.2.0
+ * Version: 1.2.1
  * Author URI: http://roxnor.com
  * Requires PHP: 8.0
  * Text Domain: rox-appointment-booking
@@ -71,7 +71,7 @@ final class RoxAppointmentBooking
 		global $wpdb;
 
 		if (!defined('ROX_APPOINTMENT_BOOKING_VERSION')) {
-			define('ROX_APPOINTMENT_BOOKING_VERSION', '1.2.0');
+			define('ROX_APPOINTMENT_BOOKING_VERSION', '1.2.1');
 		}
 		if (!defined('ROX_APPOINTMENT_BOOKING_PREFIX')) {
 			define('ROX_APPOINTMENT_BOOKING_PREFIX', 'rox_appointment');
@@ -153,6 +153,8 @@ final class RoxAppointmentBooking
 
 		self::loadFunctions();
 
+		self::maybeUpgrade();
+
 		new \RoxAppointmentBooking\Boot();
 	}
 
@@ -163,10 +165,62 @@ final class RoxAppointmentBooking
 	 */
 	public function activatePlugin()
 	{
-		// include all files from activation directory by name asc: self::$pluginDir . 'src/plugin-lifecycle/activate-plugin/*-worker.php'
-		foreach (glob(self::$pluginDir . 'src/plugin-lifecycle/activate-plugin/*-worker.php') as $file) {
+		self::runActivationWorkers();
+		update_option('rox_appointment_booking_db_version', ROX_APPOINTMENT_BOOKING_VERSION);
+
+		// Only a real activation sends the admin to onboarding — maybeUpgrade()
+		// replays the same workers on every version bump and must not.
+		set_transient('rox_appointment_booking_activation_redirect', 1, 60);
+	}
+
+	/**
+	 * Includes every DB schema worker in numeric filename order: self::$pluginDir . 'src/plugin-lifecycle/activate-plugin/*-worker.php'.
+	 * Each worker guards itself with a SHOW TABLES/SHOW COLUMNS check before
+	 * creating or altering anything, so replaying the full set here is safe
+	 * even for sites that already have every table/column — only the workers
+	 * whose change is actually missing do anything.
+	 *
+	 * @return void
+	 */
+	protected static function runActivationWorkers(): void
+	{
+		$files = glob(self::$pluginDir . 'src/plugin-lifecycle/activate-plugin/*-worker.php') ?: [];
+
+		// glob() sorts alphabetically, which orders 17- before 2- and so runs
+		// the ALTER workers before the CREATE TABLE they depend on — on a fresh
+		// install those ALTERs hit a missing table, skip, and their columns are
+		// never added. Sort naturally so the numeric prefix means what it looks
+		// like it means.
+		usort($files, static fn($a, $b) => strnatcmp(basename($a), basename($b)));
+
+		foreach ($files as $file) {
 			include_once $file;
 		}
+	}
+
+	/**
+	 * Picks up schema changes (new tables/columns) for sites that update the
+	 * plugin through the normal WordPress update flow instead of a manual
+	 * deactivate+reactivate. WordPress only fires register_activation_hook on
+	 * an explicit activation — a plain "Update" in wp-admin (or an
+	 * auto-update) never triggers it, so an already-active site would
+	 * otherwise never get new DB columns added by a later plugin version.
+	 *
+	 * Runs on every `plugins_loaded`, but is a no-op past the first request
+	 * after an update: the stored option is bumped to the current version as
+	 * soon as the workers run once.
+	 *
+	 * @return void
+	 */
+	public static function maybeUpgrade(): void
+	{
+		$installedVersion = get_option('rox_appointment_booking_db_version', '');
+		if ($installedVersion === ROX_APPOINTMENT_BOOKING_VERSION) {
+			return;
+		}
+
+		self::runActivationWorkers();
+		update_option('rox_appointment_booking_db_version', ROX_APPOINTMENT_BOOKING_VERSION);
 	}
 
 	/**

@@ -40,7 +40,9 @@ class BookingEmailService
         }
         $senderEmail = sanitize_email($emailSettings['sender_email'] ?? '');
         $senderName = sanitize_text_field($emailSettings['sender_name'] ?? '');
-        $headers = [];
+        // The body is HTML — without this header wp_mail() defaults to
+        // text/plain and the customer sees the raw markup.
+        $headers = ['Content-Type: text/html; charset=UTF-8'];
         if (!empty($senderEmail)) {
             $headers[] = empty($senderName)
                 ? sprintf('From: %1$s', $senderEmail)
@@ -153,8 +155,7 @@ class BookingEmailService
             '</table>' .
             '<h3>Payment Details:</h3>' .
             '<table style="border-collapse: collapse; width: 100%%;">' .
-            '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Transaction ID:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">%s</td></tr>' .
-            '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Amount:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">%s</td></tr>' .
+            '%s' .
             '</table>' .
             '<h3>Customer Information:</h3>' .
             '<table style="border-collapse: collapse; width: 100%%;">' .
@@ -170,14 +171,61 @@ class BookingEmailService
             $order ? ucfirst($order->order_status) : 'N/A',
             count($appointments),
             $appointmentsHtml,
-            $payment['transaction_id'] ?? 'N/A',
-            $order ? $order->getFormattedTotal() : '$0.00',
+            $this->buildPaymentDetailsHtml($order, $payment),
             $customer['first_name'],
             $customer['last_name'],
             $customer['email'],
             $customer['phone'],
             $customFieldsHtml
         );
+    }
+
+    /**
+     * Build the "Payment Details" email rows. Shows a plain amount for a
+     * fully-paid order, or a Deposit Paid / Balance Due breakdown when the
+     * order still has a balance due later (see DEPOSIT_PAYMENT_PLAN.md §6).
+     *
+     * @param OrderModel|null $order Order model instance.
+     * @param array $payment Payment result.
+     * @return string
+     */
+    private function buildPaymentDetailsHtml(?OrderModel $order, array $payment): string
+    {
+        $paidAmount = (float) ($payment['amount'] ?? ($order?->amount_due_now ?? $order?->total_amount ?? 0));
+
+        $rows = sprintf(
+            '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Transaction ID:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">%s</td></tr>' .
+            '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Amount Paid:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">%s</td></tr>',
+            esc_html($payment['transaction_id'] ?? 'N/A'),
+            esc_html($this->formatAmount($order, $paidAmount))
+        );
+
+        $dueLater = (float) ($order?->amount_due_later ?? 0);
+        if ($dueLater > 0) {
+            $rows .= sprintf(
+                '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Deposit Paid:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">%s</td></tr>' .
+                '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Balance Due:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">%s</td></tr>',
+                esc_html($this->formatAmount($order, (float) ($order?->deposit_amount ?? 0))),
+                esc_html($this->formatAmount($order, $dueLater))
+            );
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Format an amount using the same currency symbol as the rest of the
+     * plugin (payment settings' currency, falling back to the order's own).
+     *
+     * @param OrderModel|null $order Order model instance.
+     * @param float $amount Amount to format.
+     * @return string
+     */
+    private function formatAmount(?OrderModel $order, float $amount): string
+    {
+        $currencyCode = rox_appointment_booking_payment_settings('payment_currency') ?: ($order?->currency ?? 'USD');
+        $symbol = rox_appointment_booking__get_currency_symbol($currencyCode);
+        return $symbol . number_format($amount, 2);
     }
 
     /**

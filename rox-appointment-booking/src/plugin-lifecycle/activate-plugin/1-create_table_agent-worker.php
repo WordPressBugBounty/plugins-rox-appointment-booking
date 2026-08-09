@@ -11,7 +11,7 @@ $rox_appointment_booking_sql_agent = "CREATE TABLE IF NOT EXISTS $rox_appointmen
     first_name VARCHAR(255) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
     title VARCHAR(255) DEFAULT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
+    email VARCHAR(191) NOT NULL UNIQUE,
     phone VARCHAR(20) DEFAULT NULL,
     allow_to_login TINYINT(1) DEFAULT 1,
     wp_user_id INT DEFAULT NULL,

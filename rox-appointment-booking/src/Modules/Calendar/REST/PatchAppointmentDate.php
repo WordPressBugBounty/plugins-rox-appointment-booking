@@ -58,7 +58,10 @@ class PatchAppointmentDate extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !Security::canViewBookings()) {
+        // Rescheduling is an edit, so it is admin/manager only. Agents get a
+        // read-only panel: their calendar is not draggable and this endpoint used
+        // to accept any appointment id from them (no ownership check).
+        if (!is_user_logged_in() || !Security::canManageBookings()) {
             return false;
         }
 
@@ -114,6 +117,14 @@ class PatchAppointmentDate extends AbstractREST
         $newEndTime = $oldEndTime
             ? $newDate . ' ' . gmdate('H:i:s', strtotime($oldEndTime))
             : null;
+
+        // Dropping an event onto a date where the same agent is already busy would
+        // silently double-book them, so apply the same hard overlap check the
+        // create paths run.
+        $conflict = $this->checkRescheduleConflict($appointment, $newDate, $newStartTime, $newEndTime);
+        if (is_wp_error($conflict)) {
+            return $conflict;
+        }
 
         $updateData = [
             'date'       => $newDate,
@@ -180,5 +191,78 @@ class PatchAppointmentDate extends AbstractREST
                 ]
             ]
         );
+    }
+
+    /**
+     * Reject a reschedule that would overlap another booking.
+     *
+     * Mirrors the hard conflict check the create paths run
+     * (SaveAppointment::checkSlotAvailability): per agent for a normal booking,
+     * per service capacity for an agent-less one.
+     *
+     * @param AppointmentModel $appointment
+     * @param string $newDate
+     * @param string|null $newStartTime
+     * @param string|null $newEndTime
+     * @return WP_Error|true
+     */
+    private function checkRescheduleConflict($appointment, string $newDate, $newStartTime, $newEndTime)
+    {
+        if (empty($newStartTime) || empty($newEndTime)) {
+            return true;
+        }
+
+        $appointmentId = (int) $appointment->getID();
+        $agentId = (int) ($appointment->agent_id ?? 0);
+
+        if (!$agentId) {
+            $maxCapacity = 1;
+            if (!empty($appointment->service_id)) {
+                $service = ServiceModel::find((int) $appointment->service_id);
+                if ($service && (int) $service->without_agent_capacity > 0) {
+                    $maxCapacity = (int) $service->without_agent_capacity;
+                }
+            }
+
+            $overlappingCount = AppointmentModel::where('service_id', $appointment->service_id)
+                ->where('date', $newDate)
+                ->where('id', '!=', $appointmentId)
+                ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
+                ->where(function ($query) use ($newStartTime, $newEndTime) {
+                    $query->where('start_time', '<', $newEndTime)
+                          ->where('end_time', '>', $newStartTime);
+                })
+                ->count();
+
+            if ($overlappingCount >= $maxCapacity) {
+                return new WP_Error(
+                    'slot_already_booked',
+                    esc_html__('This time slot is fully booked on the selected date. Please choose a different date.', 'rox-appointment-booking'),
+                    ['status' => 409]
+                );
+            }
+
+            return true;
+        }
+
+        $existing = AppointmentModel::where('agent_id', $agentId)
+            ->where('date', $newDate)
+            ->where('id', '!=', $appointmentId)
+            ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
+            ->where(function ($query) use ($newStartTime, $newEndTime) {
+                $query->where('start_time', '<', $newEndTime)
+                      ->where('end_time', '>', $newStartTime);
+            })
+            ->first();
+
+        if ($existing) {
+            return new WP_Error(
+                'slot_already_booked',
+                esc_html__('The agent already has an appointment at this time on the selected date. Please choose a different date.', 'rox-appointment-booking'),
+                ['status' => 409]
+            );
+        }
+
+        return true;
     }
 }

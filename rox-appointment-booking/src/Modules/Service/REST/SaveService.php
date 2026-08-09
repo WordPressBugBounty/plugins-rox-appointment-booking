@@ -175,6 +175,16 @@ class SaveService extends AbstractREST
                     headers : ['status' => 400]
                 );
             }
+
+            // A fixed deposit can never exceed the service's own price.
+            if (($params['deposit_type'] ?? '') === 'fixed' && isset($params['price']) && (float) $params['deposit_amount'] > (float) $params['price']) {
+                return rox_appointment_booking_rest_response(
+                    data : null,
+                    code : 400,
+                    message : esc_html__('Deposit amount cannot be greater than the service price', 'rox-appointment-booking'),
+                    headers : ['status' => 400]
+                );
+            }
         }
 
         // Validate status
@@ -216,21 +226,24 @@ class SaveService extends AbstractREST
             );
         }
 
-        // Check for duplicate title
-        $existing = ServiceModel::query()
-            ->where('title', $params['title'])
-            ->when($id, function($q) use ($id) {
-                $q->where('id', '!=', $id);
-            })
-            ->first();
+        // Check for duplicate title (only when a title was actually submitted —
+        // e.g. the Services list status toggle only sends `{ status }`).
+        if (isset($params['title'])) {
+            $existing = ServiceModel::query()
+                ->where('title', $params['title'])
+                ->when($id, function($q) use ($id) {
+                    $q->where('id', '!=', $id);
+                })
+                ->first();
 
-        if ($existing) {
-            return rox_appointment_booking_rest_response(
-                data : null,
-                code : 400,
-                message : esc_html__('A service with this title already exists', 'rox-appointment-booking'),
-                headers : ['status' => 400]
-            );
+            if ($existing) {
+                return rox_appointment_booking_rest_response(
+                    data : null,
+                    code : 400,
+                    message : esc_html__('A service with this title already exists', 'rox-appointment-booking'),
+                    headers : ['status' => 400]
+                );
+            }
         }
 
         try {
@@ -248,8 +261,10 @@ class SaveService extends AbstractREST
                 $service = new ServiceModel();
             }
 
-            // Set default values if not provided
-            if (empty($params['status'])) {
+            // Set default status only for new services — the edit form doesn't
+            // submit a status field, so defaulting unconditionally here would
+            // silently re-activate a service the Services list toggled inactive.
+            if (!$id && empty($params['status'])) {
                 $params['status'] = 'active';
             }
 
@@ -289,6 +304,21 @@ class SaveService extends AbstractREST
             // an invalid capacity.
             if (isset($params['without_agent_capacity'])) {
                 $params['without_agent_capacity'] = max(1, intval($params['without_agent_capacity']));
+            }
+
+            // Group booking is a Pro feature — block a non-Pro save from newly
+            // setting capacity to 'group'. But if the service was ALREADY 'group'
+            // before this save (Pro active at the time), leave it alone: the form
+            // resubmits the existing value on every edit, and downgrading it here
+            // would permanently erase the group config on the next unrelated edit
+            // instead of just hiding it — it should keep degrading gracefully at
+            // read/booking time and resume automatically if Pro is reactivated.
+            if (
+                isset($params['capacity']) && $params['capacity'] === 'group'
+                && !rox_appointment_booking_is_pro_user()
+                && $service->capacity !== 'group'
+            ) {
+                $params['capacity'] = 'alone';
             }
 
             // Handle weekly_schedule JSON
@@ -353,19 +383,34 @@ class SaveService extends AbstractREST
             $service->fill($fillable_data);
             $service->save();
 
-            // Handle category relationships
-            $this->handleCategoryRelationships($service, $params);
+            // Handle category/location/agent/extra-service relationships — only when
+            // the request actually submitted that field. The Services list status
+            // toggle sends just `{ status }`, and these handlers unconditionally
+            // delete + rebuild the relationship rows, so running them on a partial
+            // update would wipe the service's category (falling back to
+            // "Uncategorized"), location, agent, and extra-service selections.
+            // Category is the exception on create: the form omits the field
+            // entirely when no category is picked, so it must still run to apply
+            // the "Uncategorized" fallback. There is nothing to wipe on a new
+            // service, so this is safe.
+            if (!$id || isset($params['category_ids']) || isset($params['category_id'])) {
+                $this->handleCategoryRelationships($service, $params);
+            }
 
             // Handle location relationships (pro feature)
-            if (defined('ROX_APPOINTMENT_BOOKING_PRO_VERSION')) {
+            if (defined('ROX_APPOINTMENT_BOOKING_PRO_VERSION') && (isset($params['location']) || isset($params['location_id']))) {
                 $this->handleLocationRelationships($service, $params);
             }
 
             // Handle agent relationships
-            $this->handleAgentRelationships($service, $params);
+            if (isset($params['agent_ids']) || isset($params['agent_id'])) {
+                $this->handleAgentRelationships($service, $params);
+            }
 
             // Handle extra service relationships
-            $this->handleExtraServiceRelationships($service, $params);
+            if (isset($params['extra_services'])) {
+                $this->handleExtraServiceRelationships($service, $params);
+            }
 
             return rox_appointment_booking_rest_response(
                 data : [

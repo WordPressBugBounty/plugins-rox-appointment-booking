@@ -72,8 +72,13 @@ class GetService extends AbstractREST
     protected function getServiceData(ServiceModel $service, bool $detailed = false ): array
     {
         $currency = rox_appointment_booking_payment_settings('payment_currency') ?? 'USD';
+        $currencySymbol = rox_appointment_booking__get_currency_symbol($currency);
         $categoryIds = $this->getCategoryIdsByServiceId($service->getID());
-        
+        // Deposit payments are a Pro feature — booking panel never sees
+        // deposit info at all unless Pro is active, same idiom as
+        // allow_without_agent above.
+        $isPro = defined('ROX_APPOINTMENT_BOOKING_PRO_VERSION');
+
         $data = [
             'id' => $service->getID(),
             'name' => $service->title,
@@ -82,9 +87,16 @@ class GetService extends AbstractREST
             'duration' => (int) $service->duration,
             // Agent-optional booking is a Pro feature — flag is false unless Pro is active.
             'allow_without_agent' => defined('ROX_APPOINTMENT_BOOKING_PRO_VERSION') && (bool) $service->allow_without_agent,
+            // Group booking is a Pro feature — degrade to 'alone' if Pro isn't active.
+            'capacity' => $isPro ? $service->capacity : 'alone',
+            'max_capacity' => $service->max_capacity,
             'iconPath' => $service->thumbnail_id ? wp_get_attachment_url($service->thumbnail_id) : '',
-            'currency_symbol' => rox_appointment_booking__get_currency_symbol($currency),
+            'currency_symbol' => $currencySymbol,
             'extraServices' => $this->getExtraServiceIdsByServiceId($service->getID()),
+            'deposit' => $isPro && $service->requiresDeposit(),
+            'deposit_type' => $isPro ? $service->deposit_type : null,
+            'deposit_amount' => $isPro ? (float) $service->deposit_amount : 0,
+            'deposit_display_amount' => $isPro ? $service->getFormattedDepositAmount($currencySymbol) : '',
         ];
 
         if ($detailed) {
@@ -95,14 +107,15 @@ class GetService extends AbstractREST
                 'category_names' => $this->getCategoryNamesByServiceId($service->getID()), // All category names
                 'location' => $this->getLocationIdsByServiceId($service->getID()),
                 'agent' => $this->getAgentIdsByServiceId($service->getID()),
-                'capacity' => $service->capacity,
+                // Group booking is a Pro feature — degrade to 'alone' if Pro isn't active.
+                'capacity' => $isPro ? $service->capacity : 'alone',
                 'max_capacity' => $service->max_capacity,
                 'description' => $service->description,
                 'thumbnail_id' => $service->thumbnail_id,
                 'thumbnail_url' => $service->thumbnail_id ? wp_get_attachment_url($service->thumbnail_id) : '',
-                'deposit' => $service->deposit ? ['1'] : [],
-                'deposit_type' => $service->deposit_type,
-                'deposit_amount' => $service->deposit_amount,
+                'deposit' => ($isPro && $service->deposit) ? ['1'] : [],
+                'deposit_type' => $isPro ? $service->deposit_type : null,
+                'deposit_amount' => $isPro ? $service->deposit_amount : null,
                 'weekly_schedule' => $service->weekly_schedule,
                 'hide_price_booking_panel' => $service->hide_price_booking_panel ? ['1'] : [],
                 'hide_duration_booking_panel' => $service->hide_duration_booking_panel ? ['1'] : [],
@@ -129,7 +142,7 @@ class GetService extends AbstractREST
 
         if ($id) {
             $service = ServiceModel::find($id);
-            if (!$service) {
+            if (!$service || !$service->isActive()) {
                 return rox_appointment_booking_rest_response(
                     data : null,
                     code : 404,
@@ -152,6 +165,7 @@ class GetService extends AbstractREST
         $location_id = $request->get_param('location_id') ?? null;
 
         $query = ServiceModel::query();
+        $query->where('status', 'active');
 
         // Filter by category if cat_id is provided
         if (!empty($cat_id)) {

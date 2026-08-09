@@ -4,6 +4,10 @@ namespace RoxAppointmentBooking\Modules\UserManagement\Util;
 
 if (! defined('ABSPATH')) exit; // Exit if accessed directly
 
+use RoxAppointmentBooking\Modules\Agent\Data\AgentModel;
+use RoxAppointmentBooking\Modules\Appointment\Services\AppointmentService;
+use RoxAppointmentBooking\Supports\Security;
+
 /**
  * Class UserInfo
  * 
@@ -307,12 +311,58 @@ class UserInfo
     }
 
     /**
+     * Whether this user is an agent working inside the panel (and not an
+     * admin/manager who happens to also hold the agent role). Their profile is
+     * backed by the agent record, not by WordPress user meta.
+     *
+     * @return bool
+     */
+    public function isPanelAgent(): bool
+    {
+        return !Security::canManageBookings() && AppointmentService::isAgentUser();
+    }
+
+    /**
+     * The agent record backing this user's profile, or null when the user is not
+     * a panel agent or has no agent row.
+     *
+     * @return AgentModel|null
+     */
+    public function getAgentRecord(): ?AgentModel
+    {
+        if (!$this->isPanelAgent()) {
+            return null;
+        }
+
+        $agentId = AppointmentService::getCurrentAgentId();
+
+        return $agentId ? AgentModel::find($agentId) : null;
+    }
+
+    /**
      * Get user profile data as an array.
+     *
+     * For a panel agent the values come from the agent record — that is the row
+     * bookings, the calendar and the notification emails read, so editing user
+     * meta instead would look saved but change nothing. Gender / date of birth /
+     * internal notes have no counterpart on the agent table and are admin-facing,
+     * so they are omitted for agents.
      *
      * @return array
      */
     public function getUserData(): array
     {
+        $agent = $this->getAgentRecord();
+
+        if ($agent) {
+            return [
+                'first_name' => $agent->first_name ?? '',
+                'last_name' => $agent->last_name ?? '',
+                'email' => $agent->email ?? $this->getEmail(),
+                'phone' => $agent->phone ?? '',
+            ];
+        }
+
         return [
             'first_name' => $this->getFirstName(),
             'last_name' => $this->getLastName(),

@@ -25,7 +25,7 @@ class CustomerPaymentsService
 
     public function __construct()
     {
-        $code = rox_appointment_booking_payment_settings('stripe_currency', 'USD');
+        $code = rox_appointment_booking_payment_settings('payment_currency', 'USD');
         $this->currency = function_exists('rox_appointment_booking__get_currency_symbol')
             ? rox_appointment_booking__get_currency_symbol($code)
             : '$';
@@ -54,16 +54,25 @@ class CustomerPaymentsService
         foreach ($payments as $payment) {
             $status = strtolower($payment['status'] ?? 'unpaid');
             $amount = (float) ($payment['amount'] ?? 0);
+            $order = $this->getOrder($payment['order_id'] ?? null);
+
+            if ($status === 'partially_paid') {
+                // This row's own amount is what the deposit already collected —
+                // the customer-facing "Pay Now" amount must be the real
+                // remaining balance instead (see PayBooking::outstandingAmount(),
+                // which is what actually gets charged server-side).
+                $amount = $order ? (float) ($order->amount_due_later ?? 0) : $amount;
+            }
 
             if ($status === 'paid') {
                 $totalPaid += $amount;
             } elseif ($status === 'refunded') {
                 $refunded += $amount;
-            } elseif ($status === 'unpaid') {
+            } elseif ($status === 'unpaid' || $status === 'partially_paid') {
                 $outstanding += $amount;
             }
 
-            $transactions[] = $this->mapPayment($payment, $status, $amount);
+            $transactions[] = $this->mapPayment($payment, $status, $amount, $order);
         }
 
         return [
@@ -82,12 +91,17 @@ class CustomerPaymentsService
      * @param array  $payment
      * @param string $status  Lowercased payment status.
      * @param float  $amount
+     * @param OrderModel|null $order
      * @return array
      */
-    private function mapPayment(array $payment, string $status, float $amount): array
+    private function mapPayment(array $payment, string $status, float $amount, ?OrderModel $order): array
     {
-        $order = $this->getOrder($payment['order_id'] ?? null);
-        $title = $this->transactionTitle($order, $status);
+        // A payment row created after the per-booking split (see
+        // PaymentProcessingService::savePayment()) settles exactly one
+        // appointment; a legacy/deposit row (booking_id null) still covers
+        // the whole order.
+        $bookingId = !empty($payment['booking_id']) ? (int) $payment['booking_id'] : null;
+        $title = $this->transactionTitle($order, $status, $bookingId);
         $method = $this->methodLabel($payment['payment_method'] ?? '', $status);
         $when = !empty($payment['payment_time']) ? $payment['payment_time'] : ($payment['created_at'] ?? '');
         $dateLabel = $when ? gmdate('F d, Y', strtotime($when)) : '';
@@ -98,6 +112,9 @@ class CustomerPaymentsService
             'id' => 't' . (int) ($payment['id'] ?? 0),
             // Order id the Pay Now action settles (only meaningful for a payable row).
             'order_id' => $payable ? (int) ($payment['order_id'] ?? 0) : null,
+            // When set, Pay Now settles just this one appointment instead of
+            // the whole order (see PayBooking's booking_id path).
+            'booking_id' => $payable ? $bookingId : null,
             'status' => $uiStatus,
             'title' => $title,
             'meta' => trim($method . ($dateLabel ? ' · ' . $dateLabel : '')),
@@ -109,25 +126,43 @@ class CustomerPaymentsService
     }
 
     /**
-     * "{Service} — refunded/Pending" style title, derived from the order's first
-     * booking. Falls back to a generic label when the service can't be resolved.
+     * "{Service} — refunded/Pending" style title. When the row settles one
+     * specific appointment (the normal case), only that appointment's own
+     * service is shown. A legacy/deposit row with no single booking_id still
+     * covers the whole order, so every one of its bookings' service titles is
+     * listed instead. Falls back to a generic label when nothing resolves.
      *
      * @param OrderModel|null $order
      * @param string          $status
+     * @param int|null        $bookingId
      * @return string
      */
-    private function transactionTitle(?OrderModel $order, string $status): string
+    private function transactionTitle(?OrderModel $order, string $status, ?int $bookingId): string
     {
         $serviceTitle = esc_html__('Booking Payment', 'rox-appointment-booking');
 
-        if ($order) {
-            $bookingIds = $order->getBookingIds();
-            $appointment = !empty($bookingIds) ? AppointmentModel::find((int) $bookingIds[0]) : null;
+        if ($bookingId) {
+            $appointment = AppointmentModel::find($bookingId);
             if ($appointment && !empty($appointment->service_id)) {
                 $service = ServiceModel::find((int) $appointment->service_id);
                 if ($service && !empty($service->title)) {
                     $serviceTitle = $service->title;
                 }
+            }
+        } elseif ($order) {
+            $bookingIds = $order->getBookingIds();
+            $serviceTitles = [];
+            foreach ($bookingIds as $id) {
+                $appointment = AppointmentModel::find((int) $id);
+                if ($appointment && !empty($appointment->service_id)) {
+                    $service = ServiceModel::find((int) $appointment->service_id);
+                    if ($service && !empty($service->title)) {
+                        $serviceTitles[] = $service->title;
+                    }
+                }
+            }
+            if (!empty($serviceTitles)) {
+                $serviceTitle = implode(', ', $serviceTitles);
             }
         }
 

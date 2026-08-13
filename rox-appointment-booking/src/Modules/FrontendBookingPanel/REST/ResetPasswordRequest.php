@@ -173,39 +173,20 @@ class ResetPasswordRequest extends AbstractREST
             $reset_page_url
         );
 
-        $emailSettings = get_option('rox_appointment_booking_email_settings', []);
-        if (empty($emailSettings)) {
-            $emailSettings = get_option('rox_appointment_booking_notification_settings', []);
-        }
-        $senderEmail = sanitize_email($emailSettings['sender_email'] ?? '');
-        $senderName = sanitize_text_field($emailSettings['sender_name'] ?? '');
-        $headers = ['Content-Type: text/html; charset=UTF-8'];
-        if (!empty($senderEmail)) {
-            $headers[] = empty($senderName)
-                ? sprintf('From: %1$s', $senderEmail)
-                : sprintf('From: %1$s <%2$s>', $senderName, $senderEmail);
-        }
-
         $display_name = $wp_user->display_name ? $wp_user->display_name : $wp_user->user_login;
 
-        $email_body = sprintf(
-            '<p>%1$s <strong>%2$s</strong>,</p>' .
-            '<p>%3$s</p>' .
-            '<p><a href="%4$s">%5$s</a></p>' .
-            '<p>%6$s</p>',
-            esc_html__('Hello', 'rox-appointment-booking'),
-            esc_html($display_name),
-            esc_html__('We received a request to reset the password for your account.', 'rox-appointment-booking'),
-            esc_url($reset_url),
-            esc_html__('Reset your password', 'rox-appointment-booking'),
-            esc_html__('If you did not request a password reset, you can safely ignore this email.', 'rox-appointment-booking')
-        );
-
-        wp_mail(
-            $wp_user->user_email,
-            esc_html__('Password Reset Request', 'rox-appointment-booking'),
-            $email_body,
-            $headers
+        do_action(
+            'rox_appointment_booking_email_event',
+            'password_reset',
+            [
+                'customer'         => [
+                    'first_name' => $display_name,
+                    'last_name'  => '',
+                    'email'      => $wp_user->user_email,
+                ],
+                'username'         => $wp_user->user_login,
+                'set_password_url' => $reset_url,
+            ]
         );
     }
 }

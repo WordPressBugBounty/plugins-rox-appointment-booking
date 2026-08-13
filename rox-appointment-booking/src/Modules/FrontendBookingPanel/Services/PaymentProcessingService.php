@@ -138,6 +138,26 @@ class PaymentProcessingService
             return $paymentId;
         }
 
+        // The charge is settled here rather than through
+        // PaymentStatusSyncService, so raise the e-mail event directly — once
+        // for the order, however many payment rows savePayment() created. A
+        // pay-later booking never reaches this point (it is still unpaid).
+        if ($result['status'] === 'succeeded') {
+            do_action(
+                'rox_appointment_booking_email_event',
+                'payment_received',
+                [
+                    'customer_id' => $customerId,
+                    'order_id'    => $orderId,
+                    'payment'     => [
+                        'amount'         => $paymentResult['amount'],
+                        'transaction_id' => $paymentResult['transaction_id'],
+                        'payment_method' => 'stripe',
+                    ],
+                ]
+            );
+        }
+
         return array_merge($paymentResult, ['payment_id' => $paymentId]);
     }
 

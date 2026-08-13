@@ -11,6 +11,7 @@ use RoxAppointmentBooking\Modules\Order\Services\OrderService;
 use RoxAppointmentBooking\Modules\Order\Data\OrderModel;
 use RoxAppointmentBooking\Modules\Service\Data\ServiceModel;
 use RoxAppointmentBooking\Modules\Payment\Data\PaymentModel;
+use RoxAppointmentBooking\Modules\Payment\Services\PaymentStatusSyncService;
 use RoxAppointmentBooking\Modules\Appointment\Services\AppointmentService;
 
 /**
@@ -83,14 +84,19 @@ class SaveAppointment extends AbstractREST
                         ['status' => 404]
                     );
                 }
-                $oldStatus    = $existing->status;
-                $oldDate      = $existing->date ?? '';
-                $oldStartTime = $existing->start_time ?? '';
+                $oldStatus        = $existing->status;
+                $oldPaymentStatus = $existing->payment_status;
+                $oldDate          = $existing->date ?? '';
+                $oldStartTime     = $existing->start_time ?? '';
                 $sanitizedData['updated_by'] = $userId;
                 $result = $existing->update($sanitizedData);
 
                 if (!empty($sanitizedData['payment_status'])) {
-                    $this->syncRelatedPaymentStatus((int) $id, $sanitizedData['payment_status']);
+                    $this->syncRelatedPaymentStatus(
+                        (int) $id,
+                        $sanitizedData['payment_status'],
+                        $oldPaymentStatus !== $sanitizedData['payment_status']
+                    );
                 }
 
                 if (!empty($sanitizedData['status'])) {
@@ -185,8 +191,10 @@ class SaveAppointment extends AbstractREST
                 }
                 $appointmentService->sendAdminBookingNotification($result);
 
+                // The per-booking "Send notifications" checkbox stays an extra
+                // suppress switch on top of the global Settings → E-mail toggles.
                 if (!empty($sanitizedData['send_notification'])) {
-                    $appointmentService->sendAppointmentNotification($result);
+                    $appointmentService->sendAppointmentNotification($result, (int) $order->id);
                 }
 
                 /** Fires after a new appointment is created via the admin SaveAppointment endpoint. */
@@ -451,6 +459,32 @@ class SaveAppointment extends AbstractREST
                 );
             }
 
+            // The attendee pool above only covers this same group service. The agent
+            // can still be occupied by another service at the same time, so the
+            // single-occupancy guard still applies to everything outside the group.
+            if (!empty($data['agent_id'])) {
+                $agent_conflict = AppointmentModel::where('agent_id', $data['agent_id'])
+                    ->where('date', $data['date'])
+                    ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
+                    ->where(function($query) use ($data) {
+                        $query->where('service_id', '!=', $data['service_id'])
+                              ->whereNull('service_id', 'or');
+                    })
+                    ->where(function($query) use ($data) {
+                        $query->where('start_time', '<', $data['end_time'])
+                              ->where('end_time', '>', $data['start_time']);
+                    })
+                    ->first();
+
+                if ($agent_conflict) {
+                    return new WP_Error(
+                        'slot_already_booked',
+                        esc_html__('The selected agent already has another appointment at this time. Please choose a different time.', 'rox-appointment-booking'),
+                        ['status' => 409]
+                    );
+                }
+            }
+
             return true;
         }
 
@@ -663,9 +697,11 @@ class SaveAppointment extends AbstractREST
      *
      * @param int $appointmentId
      * @param string $paymentStatus
+     * @param bool $statusChanged Whether this differs from the stored status —
+     *        only then is the payment e-mail raised.
      * @return void
      */
-    private function syncRelatedPaymentStatus(int $appointmentId, string $paymentStatus): void
+    private function syncRelatedPaymentStatus(int $appointmentId, string $paymentStatus, bool $statusChanged = false): void
     {
         $order = OrderModel::where('booking_ids', 'LIKE', '%"' . $appointmentId . '"%')->first();
         if (!$order) {
@@ -674,6 +710,17 @@ class SaveAppointment extends AbstractREST
 
         $order->update(['payment_status' => $paymentStatus]);
         PaymentModel::where('order_id', $order->id)->update(['status' => $paymentStatus]);
+
+        // This path settles the status with a bulk update instead of going
+        // through PaymentStatusSyncService::applyStatus(), so it raises the
+        // e-mail itself.
+        if ($statusChanged) {
+            PaymentStatusSyncService::notifyStatusChange(
+                (int) $order->customer_id,
+                (int) $order->id,
+                $paymentStatus
+            );
+        }
     }
 
     /**

@@ -48,6 +48,38 @@ if (!function_exists('rox_appointment_booking_payment_settings')) {
 	}
 }
 
+if (!function_exists('rox_appointment_booking_email_settings')) {
+	/**
+	 * Retrieve e-mail settings for the Booking Engine plugin.
+	 *
+	 * Falls back to the legacy `rox_appointment_booking_notification_settings`
+	 * option when the current one has never been written — the same shim
+	 * GetEmailSettings applies, so sites that predate the rename keep their
+	 * sender configured.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string|null $key
+	 * @param mixed       $default
+	 *
+	 * @return mixed
+	 */
+	function rox_appointment_booking_email_settings($key = null, $default = null)
+	{
+		$settings = get_option('rox_appointment_booking_email_settings', []);
+
+		if (empty($settings)) {
+			$settings = get_option('rox_appointment_booking_notification_settings', []);
+		}
+
+		if (!is_array($settings)) {
+			$settings = [];
+		}
+
+		return $key ? ($settings[$key] ?? $default) : $settings;
+	}
+}
+
 if (!function_exists('rox_appointment_booking_customer_can_reschedule')) {
 	/**
 	 * Whether customers may re-schedule their own appointments — the
@@ -128,20 +160,21 @@ if (!function_exists('rox_appointment_booking_agent_can_cancel')) {
 if (!function_exists('rox_appointment_booking_default_system_fields')) {
 	/**
 	 * Canonical defaults for the customer-information system (built-in) fields.
-	 * Each field has `enabled` (shown on the booking form) and `required` flags.
+	 * Each field has `enabled` (shown on the booking form), `required` and
+	 * `width` ('full' | 'half' — the layout width on the booking form).
 	 * Email is always enabled + required (the system depends on it for customer
 	 * dedup and account login).
 	 *
-	 * @return array<string, array{enabled: bool, required: bool}>
+	 * @return array<string, array{enabled: bool, required: bool, width: string}>
 	 */
 	function rox_appointment_booking_default_system_fields()
 	{
 		return [
-			'first_name' => ['enabled' => true, 'required' => true],
-			'last_name'  => ['enabled' => true, 'required' => true],
-			'email'      => ['enabled' => true, 'required' => true],
-			'phone'      => ['enabled' => true, 'required' => true],
-			'notes'      => ['enabled' => true, 'required' => false],
+			'first_name' => ['enabled' => true, 'required' => true, 'width' => 'full'],
+			'last_name'  => ['enabled' => true, 'required' => true, 'width' => 'full'],
+			'email'      => ['enabled' => true, 'required' => true, 'width' => 'full'],
+			'phone'      => ['enabled' => true, 'required' => true, 'width' => 'full'],
+			'notes'      => ['enabled' => true, 'required' => false, 'width' => 'full'],
 		];
 	}
 }
@@ -152,7 +185,7 @@ if (!function_exists('rox_appointment_booking_system_fields')) {
 	 * The Pro plugin answers `rox_appointment_booking_system_fields` (a Pro
 	 * feature); with Pro inactive the defaults apply unchanged.
 	 *
-	 * @return array<string, array{enabled: bool, required: bool}>
+	 * @return array<string, array{enabled: bool, required: bool, width: string}>
 	 */
 	function rox_appointment_booking_system_fields()
 	{

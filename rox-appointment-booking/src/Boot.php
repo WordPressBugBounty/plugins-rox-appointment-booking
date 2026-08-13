@@ -40,6 +40,7 @@ class Boot
         new Modules\Payment\Provider();
         new Modules\FrontendBookingPanel\Provider();
         new Modules\Notification\Provider();
+        new Modules\Email\Provider();
         new Modules\Dashboard\Provider();
         new Modules\Blocks\Provider();
         new Modules\LoginForm\Provider();

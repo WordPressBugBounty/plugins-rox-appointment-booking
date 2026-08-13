@@ -5,6 +5,7 @@ defined('ABSPATH') || exit;
 
 use WP_Error;
 use RoxAppointmentBooking\Modules\Customer\Data\CustomerModel;
+use RoxAppointmentBooking\Modules\Email\Services\EmailTemplateRegistry;
 
 /**
  * Class CustomerService
@@ -280,38 +281,21 @@ class CustomerService
             'login'
         );
 
-        $emailSettings = get_option('rox_appointment_booking_email_settings', []);
-        if (empty($emailSettings)) {
-            $emailSettings = get_option('rox_appointment_booking_notification_settings', []);
-        }
-        $senderEmail = sanitize_email($emailSettings['sender_email'] ?? '');
-        $senderName = sanitize_text_field($emailSettings['sender_name'] ?? '');
-        $headers = ['Content-Type: text/html; charset=UTF-8'];
-        if (!empty($senderEmail)) {
-            $headers[] = empty($senderName)
-                ? sprintf('From: %1$s', $senderEmail)
-                : sprintf('From: %1$s <%2$s>', $senderName, $senderEmail);
-        }
-
-        $email_body = sprintf(
-            '<p>%1$s <strong>%2$s</strong>,</p>' .
-            '<p>%3$s</p>' .
-            '<p><strong>%4$s</strong> %5$s</p>' .
-            '<p><a href="%6$s">%7$s</a></p>',
-            esc_html__('Hello', 'rox-appointment-booking'),
-            esc_html($full_name),
-            esc_html__('Your account has been created.', 'rox-appointment-booking'),
-            esc_html__('Username:', 'rox-appointment-booking'),
-            esc_html($wp_user->user_login),
-            esc_url($set_password_url),
-            esc_html__('Set your password', 'rox-appointment-booking')
-        );
-
-        wp_mail(
-            $email,
-            esc_html__('Booking Engine Login Credentials', 'rox-appointment-booking'),
-            $email_body,
-            $headers
+        do_action(
+            'rox_appointment_booking_email_event',
+            'account_credentials',
+            [
+                'customer'         => [
+                    'first_name' => $full_name,
+                    'last_name'  => '',
+                    'email'      => $email,
+                ],
+                'username'         => $wp_user->user_login,
+                'set_password_url' => $set_password_url,
+            ],
+            // The agent variant of this e-mail is wired up in Step 9 of
+            // dev-resources/EMAIL_NOTIFICATION_SYSTEM_PLAN.md.
+            [EmailTemplateRegistry::RECIPIENT_CUSTOMER]
         );
     }
 

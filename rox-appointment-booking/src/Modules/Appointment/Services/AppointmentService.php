@@ -338,20 +338,33 @@ class AppointmentService
     }
 
     /**
-     * Send notification for a new appointment
-     * 
+     * Send the booking-confirmation e-mails for an appointment created from the
+     * admin panel — customer, agent and admin, each subject to its own toggle in
+     * Settings → E-mail. The agent and customer are read off the appointment.
+     *
+     * No dashboard notification here: that is always handled separately by
+     * sendAdminBookingNotification().
+     *
      * @param AppointmentModel $appointment
+     * @param int|null $orderId Order the appointment was booked under.
      * @return void
      */
-    public function sendAppointmentNotification(AppointmentModel $appointment): void
+    public function sendAppointmentNotification(AppointmentModel $appointment, ?int $orderId = null): void
     {
-        // Sends email to customer and agent only — no admin dashboard notification.
-        // Dashboard notification is always handled separately by sendAdminBookingNotification().
+        do_action(
+            'rox_appointment_booking_email_event',
+            'booking_confirmed',
+            [
+                'appointment_ids' => [(int) $appointment->id],
+                'customer_id'     => (int) $appointment->customer_id,
+                'order_id'        => $orderId,
+            ]
+        );
     }
 
     /**
      * Send notification for an appointment reschedule (date/slot change via admin form)
-     * 
+     *
      * @param AppointmentModel $appointment
      * @param string $oldDate
      * @param string $oldStartTime
@@ -367,11 +380,24 @@ class AppointmentService
         $notificationData['new_date']       = $newDate;
         $notificationData['new_start_time'] = $newStartTime;
         NotificationService::createRescheduleNotification($notificationData);
+
+        do_action(
+            'rox_appointment_booking_email_event',
+            'booking_rescheduled',
+            [
+                'appointment_ids' => [(int) $appointment->id],
+                'customer_id'     => (int) $appointment->customer_id,
+                'old_date'        => $oldDate,
+                'old_time'        => $oldStartTime,
+                'new_date'        => $newDate,
+                'new_time'        => $newStartTime,
+            ]
+        );
     }
 
     /**
      * Send notification for an appointment status change
-     * 
+     *
      * @param AppointmentModel $appointment
      * @param string $newStatus
      * @return void
@@ -380,6 +406,18 @@ class AppointmentService
     {
         $notificationData = $this->getNotificationData($appointment);
         NotificationService::createStatusChangeNotification($notificationData, $newStatus);
+
+        // Cancellation always warrants its own wording; every other status
+        // change shares the generic template.
+        do_action(
+            'rox_appointment_booking_email_event',
+            $newStatus === 'cancelled' ? 'booking_cancelled' : 'booking_status_changed',
+            [
+                'appointment_ids'    => [(int) $appointment->id],
+                'customer_id'        => (int) $appointment->customer_id,
+                'appointment_status' => $newStatus,
+            ]
+        );
     }
 
     /**

@@ -98,6 +98,20 @@ class SaveGeneral extends AbstractREST
                 unset($params['payment_currency']);
             }
 
+            // Same pattern as payment_currency above: this field lives on this
+            // form (Locations card) but is read everywhere via the Location
+            // settings option (GetLocation.php, App.php, BookingPanelStructure.php),
+            // so route it there instead of storing it on general_settings.
+            if (array_key_exists('location_module_enable', $params)) {
+                $location_settings = get_option('rox_appointment_booking_location_settings', []);
+                if (!is_array($location_settings)) {
+                    $location_settings = [];
+                }
+                $location_settings['location_module_enable'] = filter_var($params['location_module_enable'], FILTER_VALIDATE_BOOLEAN);
+                update_option('rox_appointment_booking_location_settings', $location_settings);
+                unset($params['location_module_enable']);
+            }
+
             // The Booking settings menu (SaveBooking) persists its toggles on
             // this same option, so merge instead of replacing — a General save
             // must not wipe keys this form does not render.
@@ -107,10 +121,11 @@ class SaveGeneral extends AbstractREST
                 $general_settings = [];
             }
 
-            // Drop any stale currency copy this option picked up back when the
-            // field persisted here, so it can no longer shadow the Payments
-            // option value on read (see GetGeneral).
+            // Drop any stale currency/location copy this option picked up back
+            // when those fields persisted here, so they can no longer shadow
+            // the real Payments/Location option values on read (see GetGeneral).
             unset($general_settings['payment_currency']);
+            unset($general_settings['location_module_enable']);
 
             update_option('rox_appointment_booking_general_settings', array_merge($general_settings, $params));
 

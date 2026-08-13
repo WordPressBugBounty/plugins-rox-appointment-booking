@@ -5,11 +5,14 @@ namespace RoxAppointmentBooking\Modules\Agent\REST;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
+use WP_Session_Tokens;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
 use RoxAppointmentBooking\Modules\Agent\Data\AgentModel;
 use RoxAppointmentBooking\Modules\Customer\Data\CustomerModel;
 use RoxAppointmentBooking\Modules\Service\Services\ServiceService;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceAgentRelationModel;
+use RoxAppointmentBooking\Modules\Email\Services\AccountCredentialsMailer;
+use RoxAppointmentBooking\Modules\Email\Services\EmailTemplateRegistry;
 
 /**
  * Class SaveAgent
@@ -305,6 +308,11 @@ class SaveAgent extends AbstractREST
                 }
             }
 
+            // Tracks whether createWordPressUser() ran below. It already applies
+            // the submitted password, so the reset block further down must not
+            // apply it a second time.
+            $wp_user_created = false;
+
             // Create or link WordPress user if allow_to_login is enabled. Skipped
             // entirely when the field wasn't submitted (partial update) so an
             // existing agent's login link isn't touched.
@@ -330,6 +338,17 @@ class SaveAgent extends AbstractREST
                         // Save WordPress user ID to agent record
                         $agent->wp_user_id = $wp_user_result;
                         $agent->save();
+                        $wp_user_created = true;
+
+                        AccountCredentialsMailer::send(
+                            (int) $wp_user_result,
+                            EmailTemplateRegistry::RECIPIENT_AGENT,
+                            [
+                                'name'  => $agent->getFullName(),
+                                'email' => (string) $agent->email,
+                                'phone' => (string) ($agent->phone ?? ''),
+                            ]
+                        );
                     }
                 }
             } elseif (isset($params['allow_to_login'])) {
@@ -351,6 +370,38 @@ class SaveAgent extends AbstractREST
             // agent's assigned services.
             if (isset($params['service_ids']) || isset($params['service_id'])) {
                 $this->handleServiceRelationships($agent, $params);
+            }
+
+            // Manual password reset from the edit form. Kept last, after the
+            // link/create block (so it also covers an account linked in this
+            // same request) and after the service sync, because the permission
+            // failure below returns early — everything else must already be
+            // saved by then. Skipped on create: createWordPressUser() has
+            // consumed the submitted password itself.
+            if ($id && !empty($params['password']) && $agent->wp_user_id && !$wp_user_created) {
+                // Checkbox arrives as ["1"] from the form's Checkbox.Group, the
+                // same shape allow_to_login handles above.
+                $send_password_email = false;
+                if (isset($params['send_password_email'])) {
+                    $send_password_email = is_array($params['send_password_email'])
+                        ? in_array("1", $params['send_password_email'])
+                        : filter_var($params['send_password_email'], FILTER_VALIDATE_BOOLEAN);
+                }
+
+                $password_result = $this->updateWordPressUserPassword(
+                    $agent,
+                    $params['password'],
+                    $send_password_email
+                );
+
+                if (is_wp_error($password_result)) {
+                    return rox_appointment_booking_rest_response(
+                        data : null,
+                        code : 403,
+                        message : $password_result->get_error_message(),
+                        headers : ['status' => 403]
+                    );
+                }
             }
             return rox_appointment_booking_rest_response(
                 data : [
@@ -489,6 +540,70 @@ class SaveAgent extends AbstractREST
         wp_new_user_notification($user_id, null, 'user');
 
         return $user_id;
+    }
+
+    /**
+     * Set a new password on the agent's linked WordPress account.
+     *
+     * @param AgentModel $agent Agent whose linked account is being updated.
+     * @param string $password Raw password submitted from the edit form.
+     * @param bool $send_password Whether to include the new password in the notification email.
+     * @return true|WP_Error True on success, WP_Error when the account may not be edited.
+     */
+    private function updateWordPressUserPassword(AgentModel $agent, string $password, bool $send_password = false)
+    {
+        $user_id = (int) $agent->wp_user_id;
+
+        // `manage_options` on its own is not enough here. The block above links
+        // an agent to any existing WordPress account matching their email, so
+        // that account can outrank the current user — an administrator, or a
+        // super admin on multisite. `edit_user` is what enforces that ranking.
+        if (!current_user_can('edit_user', $user_id)) {
+            return new WP_Error(
+                'rox_appointment_booking_cannot_edit_user',
+                esc_html__('Agent saved, but you do not have permission to change the password of the linked WordPress account.', 'rox-appointment-booking')
+            );
+        }
+
+        $result = wp_update_user([
+            'ID' => $user_id,
+            'user_pass' => $password,
+        ]);
+
+        if (is_wp_error($result)) {
+            return $result;
+        }
+
+        // Drop sessions so the old password stops working immediately. When the
+        // agent is linked to the account doing the editing (a salon owner who is
+        // also an agent), destroy only the *other* sessions: wp_update_user()
+        // has just re-issued this request's auth cookie against a fresh session
+        // token, and destroy_all() would throw that away and log them straight
+        // out of wp-admin.
+        if (get_current_user_id() === $user_id) {
+            wp_destroy_other_sessions();
+        } else {
+            WP_Session_Tokens::get_instance($user_id)->destroy_all();
+        }
+
+        // wp_password_change_notification() emails the site admin, not the
+        // account holder — so tell the agent themselves, otherwise they are
+        // locked out with no idea why. Routed through the plugin's e-mail module
+        // rather than wp_mail() so it uses the configured sender, the shared
+        // layout, and the template the admin can edit under Settings > E-mails.
+        // `new_password` is only filled when the admin ticked the send checkbox;
+        // empty leaves {new_password_block} out of the rendered body.
+        do_action(
+            'rox_appointment_booking_email_event',
+            'password_changed',
+            [
+                'agent_id'     => (int) $agent->getID(),
+                'new_password' => $send_password ? $password : '',
+            ],
+            [EmailTemplateRegistry::RECIPIENT_AGENT]
+        );
+
+        return true;
     }
 
     /**

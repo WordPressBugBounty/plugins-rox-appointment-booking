@@ -34,8 +34,13 @@ class AppointmentService
             return new WP_Error('missing_appointments', esc_html__('Appointments array is required', 'rox-appointment-booking'), ['status' => 400]);
         }
 
-        $appointmentIds = [];
-        
+        // Two-phase save: the whole cart is validated first and only written
+        // once every appointment in it passes. Validating and inserting in a
+        // single pass left the already-inserted rows behind — with no order, no
+        // payment and no notification — as soon as a later appointment was
+        // rejected, and those orphan rows then blocked the customer's own retry.
+        $validated = [];
+
         foreach ($params['appointments'] as $appointmentData) {
             // Frontend might send end_time or we can calculate it securely.
             // agent_id is validated conditionally below (agent-less services skip it).
@@ -159,7 +164,13 @@ class AppointmentService
                 })
                 ->first();
 
-            if ($customer_conflict) {
+            // Appointments validated earlier in this same cart are not in the
+            // database yet, so they are matched in memory. Every appointment in
+            // the cart belongs to $customerId, so an overlap caught here also
+            // covers the agent and capacity checks below.
+            $pending_conflict = $this->hasOverlappingValidated($validated, $appointmentData['date'], $full_start_time, $full_end_time);
+
+            if ($customer_conflict || $pending_conflict) {
                 return new WP_Error(
                     'customer_time_conflict',
                     esc_html__('You already have an appointment at this time. If you want to add or change a service, please edit or reschedule this appointment.', 'rox-appointment-booking'),
@@ -209,6 +220,33 @@ class AppointmentService
                         esc_html__('This time slot does not have enough remaining spots for the number of people you selected. Please choose a different time or reduce the number of attendees.', 'rox-appointment-booking'),
                         ['status' => 409]
                     );
+                }
+
+                // The attendee pool above only covers this same group service. The
+                // agent can still be occupied by another service at the same time,
+                // so the single-occupancy guard still applies outside the group.
+                if ($agent_id !== null) {
+                    $agent_conflict = AppointmentModel::query()
+                        ->where('agent_id', $agent_id)
+                        ->where('date', $appointmentData['date'])
+                        ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
+                        ->where(function($query) use ($appointmentData) {
+                            $query->where('service_id', '!=', intval($appointmentData['service_id']))
+                                  ->whereNull('service_id', 'or');
+                        })
+                        ->where(function($query) use ($full_start_time, $full_end_time) {
+                            $query->where('start_time', '<', $full_end_time)
+                                  ->where('end_time', '>', $full_start_time);
+                        })
+                        ->first();
+
+                    if ($agent_conflict) {
+                        return new WP_Error(
+                            'time_conflict',
+                            esc_html__('The selected agent already has another appointment at this time. Please choose a different time.', 'rox-appointment-booking'),
+                            ['status' => 409]
+                        );
+                    }
                 }
             } elseif ($allow_without_agent) {
                 // CAPACITY CONFLICT CHECK (agent-less):
@@ -264,30 +302,88 @@ class AppointmentService
                 }
             }
 
-            $appointment = new AppointmentModel();
-            $appointment->fill([
-                'customer_id' => $customerId,
-                'service_id' => intval($appointmentData['service_id']),
-                'agent_id' => $agent_id,
-                'location_id' => $appointmentData['location_id'] ?? null,
-                'category_id' => $appointmentData['category_id'] ?? null,
+            $validated[] = [
                 'date' => $appointmentData['date'],
-                'start_time' => $appointmentData['date'] . ' ' . $appointmentData['start_time'],
-                'end_time' => $appointmentData['date'] . ' ' . $calculated_end_time,
-                'extra_services' => !empty($extra_services) ? $extra_services : [],
-                'status' => rox_appointment_booking_general_settings('default_appointment_status', 'pending'),
-                'payment_status' => rox_appointment_booking_payment_settings('default_payment_status', 'unpaid'),
-                'total_attendees' => $total_attendees,
-            ]);
+                'start_time' => $full_start_time,
+                'end_time' => $full_end_time,
+                'fill' => [
+                    'customer_id' => $customerId,
+                    'service_id' => intval($appointmentData['service_id']),
+                    'agent_id' => $agent_id,
+                    'location_id' => $appointmentData['location_id'] ?? null,
+                    'category_id' => $appointmentData['category_id'] ?? null,
+                    'date' => $appointmentData['date'],
+                    'start_time' => $appointmentData['date'] . ' ' . $appointmentData['start_time'],
+                    'end_time' => $appointmentData['date'] . ' ' . $calculated_end_time,
+                    'extra_services' => !empty($extra_services) ? $extra_services : [],
+                    'status' => rox_appointment_booking_general_settings('default_appointment_status', 'pending'),
+                    'payment_status' => rox_appointment_booking_payment_settings('default_payment_status', 'unpaid'),
+                    'total_attendees' => $total_attendees,
+                ],
+            ];
+        }
+
+        // Phase 2: every appointment passed, so nothing below can reject the
+        // cart and leave a partial booking behind.
+        $appointmentIds = [];
+
+        foreach ($validated as $validatedAppointment) {
+            $appointment = new AppointmentModel();
+            $appointment->fill($validatedAppointment['fill']);
             $appointment->save();
-            
+
             $appointmentIds[] = $appointment->getID();
         }
+
         $this->createAppointmentNotifications($appointmentIds, $customerId);
         return [
             'appointment_ids' => $appointmentIds,
             'count' => count($appointmentIds)
         ];
+    }
+
+    /**
+     * Check an already-validated cart for an appointment overlapping the given slot.
+     *
+     * Mirrors the SQL overlap test used against the booking table (same date,
+     * start before the new end and end after the new start), for the rows that
+     * are not written yet. Compared as timestamps rather than strings because
+     * the panel's start_time is not guaranteed to share the H:i:s format of the
+     * calculated end_time, and MySQL's own coercion does not apply here.
+     *
+     * @param array $validated Appointments validated so far in this cart.
+     * @param string $date Booking date (Y-m-d).
+     * @param string $start_time Full start datetime.
+     * @param string $end_time Full end datetime.
+     * @return bool
+     */
+    private function hasOverlappingValidated(array $validated, string $date, string $start_time, string $end_time): bool
+    {
+        $start = strtotime($start_time);
+        $end = strtotime($end_time);
+
+        if ($start === false || $end === false) {
+            return false;
+        }
+
+        foreach ($validated as $validatedAppointment) {
+            if ($validatedAppointment['date'] !== $date) {
+                continue;
+            }
+
+            $validated_start = strtotime($validatedAppointment['start_time']);
+            $validated_end = strtotime($validatedAppointment['end_time']);
+
+            if ($validated_start === false || $validated_end === false) {
+                continue;
+            }
+
+            if ($validated_start < $end && $validated_end > $start) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

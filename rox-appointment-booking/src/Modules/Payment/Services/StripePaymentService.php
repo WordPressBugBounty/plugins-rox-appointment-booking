@@ -26,6 +26,8 @@ class StripePaymentService
     private const MAX_AMOUNT = 999999.99;
     private const MIN_AMOUNT = 0.50;
     private const IDEMPOTENCY_EXPIRY = 86400;
+    private const ZERO_DECIMAL_CURRENCIES = ['bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf'];
+    private const THREE_DECIMAL_CURRENCIES = ['bhd', 'jod', 'kwd', 'omr', 'tnd'];
 
     private string $secretKey;
     private string $publishableKey;
@@ -108,13 +110,81 @@ class StripePaymentService
                 'amount' => $amount,
             ];
         } catch (ApiErrorException $e) {
+            $this->logApiError($e, $amount, $paymentMethodId);
+
             return [
                 'success' => false,
-                'error' => 'Payment processing failed. Please try again.',
+                'error' => $this->buildCustomerFacingError($e),
             ];
         } catch (\Exception $e) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[ROX STRIPE] Exception: ' . $e->getMessage());
+            }
             return ['success' => false, 'error' => 'System error occurred'];
         }
+    }
+
+    /**
+     * Log the underlying Stripe failure so the generic customer-facing
+     * message can still be traced back to a real cause.
+     *
+     * @param ApiErrorException $e Stripe API exception.
+     * @param float $amount Payment amount.
+     * @param string $paymentMethodId Stripe payment method ID.
+     * @return void
+     */
+    private function logApiError(ApiErrorException $e, float $amount, string $paymentMethodId): void
+    {
+        if (!defined('WP_DEBUG') || !WP_DEBUG) {
+            return;
+        }
+
+        $error = $e->getError();
+
+        error_log(sprintf(
+            '[ROX STRIPE] %s | type=%s code=%s decline_code=%s param=%s | currency=%s amount_minor=%d pm=%s',
+            $e->getMessage(),
+            $error->type ?? '',
+            $error->code ?? '',
+            $error->decline_code ?? '',
+            $error->param ?? '',
+            $this->currency,
+            $this->convertToSmallestUnit($amount),
+            $paymentMethodId
+        ));
+    }
+
+    /**
+     * Build a customer-facing message from a Stripe API error.
+     *
+     * Card declines and amount-range rejections carry a reason the customer
+     * can act on, so those are passed through. Everything else (bad keys,
+     * a currency the account cannot process, connection errors) is a site
+     * configuration problem, so it stays generic and lives in the log only.
+     *
+     * @param ApiErrorException $e Stripe API exception.
+     * @return string
+     */
+    private function buildCustomerFacingError(ApiErrorException $e): string
+    {
+        $error = $e->getError();
+        $type = $error->type ?? '';
+        $code = $error->code ?? '';
+
+        if ($type === 'card_error') {
+            $message = sanitize_text_field((string) ($error->message ?? ''));
+            return $message !== '' ? $message : 'Your card was declined. Please try another card.';
+        }
+
+        if ($code === 'amount_too_small') {
+            return sprintf('The amount is below the minimum payment Stripe accepts in %s.', strtoupper($this->currency));
+        }
+
+        if ($code === 'amount_too_large') {
+            return sprintf('The amount is above the maximum payment Stripe accepts in %s.', strtoupper($this->currency));
+        }
+
+        return 'Payment processing failed. Please try again.';
     }
 
     /**
@@ -221,11 +291,23 @@ class StripePaymentService
     /**
      * Convert amount to the smallest currency unit.
      *
+     * Most currencies are two-decimal, but Stripe expects zero-decimal
+     * currencies (JPY, KRW, VND, ...) as whole units, and three-decimal
+     * currencies (KWD, BHD, ...) in thousandths rounded to the nearest ten.
+     *
      * @param float $amount Payment amount.
      * @return int
      */
     private function convertToSmallestUnit(float $amount): int
     {
+        if (in_array($this->currency, self::ZERO_DECIMAL_CURRENCIES, true)) {
+            return (int) round($amount);
+        }
+
+        if (in_array($this->currency, self::THREE_DECIMAL_CURRENCIES, true)) {
+            return (int) round($amount * 100) * 10;
+        }
+
         return (int) round($amount * 100);
     }
     

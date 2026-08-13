@@ -4,7 +4,7 @@ Tags: booking, reservation, appointments, calendar
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.2.1
+Stable tag: 1.2.2
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -218,6 +218,22 @@ After activation, you can configure the plugin settings from the WordPress admin
 
 
 == Changelog ==
+Version: 1.2.2 // 2026-08-13
+* Added: E-mail notifications for bookings, reminders, payments and account details.
+* Added: E-mail Templates editor with per-recipient toggles and placeholders.
+* Added: Test e-mail button in Settings.
+* Added: Separate admin notification e-mail address.
+* Added: Password regenerate option for customers and agents.
+* Added: Setting to choose which statuses block a time slot.
+* Improved: Booking options are now grouped under General settings.
+* Improved: All e-mails now follow the sender and toggle settings.
+* Improved: Booking panel design and logged-in customer area.
+* Improved: Customer dashboard, sidebar and booking details design.
+* Fixed: Stripe payments failing in some cases.
+* Fixed: Appointments were created when the booking should have failed.
+* Fixed: Slot mismatch for agents on group bookings.
+* Fixed: Location and category now auto-select when only one exists.
+
 Version: 1.2.1 // 2026-08-09
 * Added: Customer dashboard page — created automatically, or place it anywhere with the `[rox_appointment_dashboard]` shortcode.
 * Added: Settings to let customers and agents reschedule or cancel their own appointments.

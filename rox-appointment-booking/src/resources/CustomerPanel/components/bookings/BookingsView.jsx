@@ -255,6 +255,7 @@ export default function BookingsView({
               onClose={closeDrawers}
               onReschedule={() => setActiveDrawer("reschedule")}
               onCancel={() => openCancel(selected)}
+              onBookAgain={() => handleAction("bookAgain", selected)}
               canReschedule={canReschedule}
               canCancel={canCancel}
             />

@@ -79,6 +79,21 @@ class GetGeneral extends AbstractREST
                 // pass usa
                 'default_phone_country_code' => rox_appointment_booking_general_settings('default_phone_country_code'),
                 'default_appointment_status' => 'pending',
+                'blocking_appointment_statuses' => [],
+                'time_system' => '12_hour',
+                'date_format' => 'MM/DD/YYYY',
+                'show_appointment_end_time' => false,
+                'thousand_separator' => 'comma',
+                'hide_price_breakdown_for_free_services' => false,
+                // Booking Permissions — same keys BookingSettingsForm.jsx's
+                // GetBooking.php defaults to false for; duplicated here so a
+                // fresh install renders identically on both settings menus.
+                'customer_create_auto_enable' => false,
+                'customer_auto_login_enable' => false,
+                'customer_reschedule_enable' => false,
+                'customer_cancel_enable' => false,
+                'agent_reschedule_enable' => false,
+                'agent_cancel_enable' => false,
             ];
 
             $general_settings = wp_parse_args($general_settings, $defaults);
@@ -90,6 +105,16 @@ class GetGeneral extends AbstractREST
             // copy left on general_settings — from when this form persisted the
             // field itself — would otherwise shadow the real stored value.
             $general_settings['payment_currency'] = rox_appointment_booking_payment_settings('payment_currency') ?? 'USD';
+
+            // Same reasoning as payment_currency above: stored on the Location
+            // settings option (read by GetLocation.php/App.php/BookingPanelStructure.php),
+            // surfaced here since the Locations toggle now also lives on the
+            // General settings form.
+            $location_settings = get_option('rox_appointment_booking_location_settings', []);
+            $general_settings['location_module_enable'] = filter_var(
+                $location_settings['location_module_enable'] ?? false,
+                FILTER_VALIDATE_BOOLEAN
+            );
 
             return rox_appointment_booking_rest_response(
                 data: $general_settings,

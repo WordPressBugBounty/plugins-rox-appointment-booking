@@ -176,7 +176,9 @@ class GetAppointment extends AbstractREST
                 'payment_status' => $appointmentData['payment_status'] ?? '',
                 'customer_id' => $appointmentData['customer_id'] ?? null,
                 'internal_notes' => $appointmentData['internal_notes'] ?? '',
-                'send_notification' => $appointmentData['send_notification'] ?? 0,
+                // Shaped for the form's checkbox group, which takes an array of
+                // checked values — same convention as GetCustomer's send_notifications.
+                'send_notification' => !empty($appointmentData['send_notification']) ? ["1"] : [],
                 'check_availability' => [
                     'date' => $appointmentData['date'] ?? null,
                     'start_time' => $this->formatTimeForFrontend($appointmentData['start_time'] ?? null),

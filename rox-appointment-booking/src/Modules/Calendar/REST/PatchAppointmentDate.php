@@ -107,6 +107,7 @@ class PatchAppointmentDate extends AbstractREST
         }
 
         // Preserve existing times, only change the date part
+        $oldDate      = $appointment->date;       // e.g. "2026-02-19"
         $oldStartTime = $appointment->start_time; // e.g. "2026-02-19 10:00:00"
         $oldEndTime   = $appointment->end_time;   // e.g. "2026-02-19 11:00:00"
 
@@ -177,6 +178,19 @@ class PatchAppointmentDate extends AbstractREST
          * @param string|null      $previousEnd   End time before the reschedule.
          */
         do_action('rox_appointment_booking_after_appointment_rescheduled', $appointment, $oldStartTime, $oldEndTime);
+
+        do_action(
+            'rox_appointment_booking_email_event',
+            'booking_rescheduled',
+            [
+                'appointment_ids' => [(int) $id],
+                'customer_id'     => (int) $appointment->customer_id,
+                'old_date'        => (string) $oldDate,
+                'old_time'        => (string) $oldStartTime,
+                'new_date'        => (string) $newDate,
+                'new_time'        => (string) $newStartTime,
+            ]
+        );
 
         return rox_appointment_booking_rest_response(
             data: [

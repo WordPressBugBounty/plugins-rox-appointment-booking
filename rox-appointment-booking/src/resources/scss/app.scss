@@ -1060,6 +1060,206 @@
     }
   }
 
+  // "Recreate Password" in the Agent / Customer edit forms. Closed it is a
+  // dashed trigger matching .field-repeater-trigger below (the Social Profiles
+  // row), so it reads as one more optional section rather than a live field.
+  // Open it becomes a bordered panel holding the password input and the
+  // send-by-email checkbox.
+  .recreate-password-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 40px;
+    // Neither this nor the panel sits in a Form.Item, so match antd's default
+    // 24px item spacing by hand or the next field crowds straight up against it.
+    margin-bottom: 24px;
+    padding: 10px 14px 10px 16px;
+    background: #fff;
+    border: 1px dashed #c1c3c8;
+    border-radius: 6px;
+    color: #494a4c;
+    font-family: "Heebo", sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, color 0.2s ease;
+
+    &:hover {
+      border-color: #151720;
+      border-style: solid;
+      color: #151720;
+    }
+  }
+
+  .recreate-password-panel {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    // Not a Form.Item, so antd's 24px item spacing has to be added by hand.
+    margin-bottom: 24px;
+    padding: 0 0 20px;
+    gap: 20px;
+    background: #f7f8fc;
+    border-radius: 6px;
+
+    .recreate-password-panel__header {
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      align-self: stretch;
+      height: 40px;
+      padding: 13px 14px 13px 16px;
+      border-bottom: 1px solid #e7eaf1;
+    }
+
+    .recreate-password-panel__title {
+      color: #151720;
+      font-family: "Heebo", sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 21px;
+    }
+
+    .recreate-password-panel__close {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 2px;
+      padding: 0 2px 2px;
+      background: transparent;
+      border: 0;
+      color: #97999e;
+      cursor: pointer;
+      transition: color 0.2s ease;
+
+      span {
+        font-family: "Heebo", sans-serif;
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 19px;
+      }
+
+      &:hover {
+        color: #151720;
+      }
+    }
+
+    .recreate-password-panel__body {
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      align-self: stretch;
+      padding: 0 20px;
+      gap: 24px;
+    }
+
+    .recreate-password-panel__fields {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      align-self: stretch;
+      gap: 16px;
+
+      // Rows are spaced by the flex gap above, so antd's own item margin would
+      // stack on top of it.
+      .ant-form-item {
+        width: 100%;
+        margin-bottom: 0;
+      }
+
+      .ant-form-item-label {
+        padding-bottom: 10px;
+
+        > label {
+          height: auto;
+          color: #151720;
+          font-family: "Heebo", sans-serif;
+          font-size: 14px;
+          font-weight: 400;
+          line-height: 21px;
+        }
+      }
+
+      .ant-input-affix-wrapper {
+        height: 40px;
+        padding: 10px 12px 10px 16px;
+        background: #fff;
+        border: 1px solid #d5d7db;
+        border-radius: 6px;
+
+        .ant-input {
+          font-family: "Heebo", sans-serif;
+          font-size: 14px;
+
+          &::placeholder {
+            color: #97999e;
+          }
+        }
+
+        .ant-input-suffix {
+          color: #97999e;
+          font-size: 20px;
+        }
+      }
+
+      // The global Checkbox theme sizes the box at 20px; this design wants 16px
+      // with a 4px radius and a 10px gap to the label.
+      .ant-checkbox-wrapper {
+        align-items: center;
+        margin: 0;
+
+        .ant-checkbox-inner {
+          width: 16px;
+          height: 16px;
+          border: 1.5px solid #bbbec7;
+          border-radius: 4px;
+        }
+
+        .ant-checkbox + span {
+          padding-inline-start: 10px;
+          color: #494a4c;
+          font-family: "Heebo", sans-serif;
+          font-size: 14px;
+          font-weight: 400;
+          line-height: 21px;
+        }
+      }
+    }
+
+    .recreate-password-panel__notice {
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      align-self: stretch;
+      padding: 10px 14px 14px;
+      gap: 6px;
+      background: #fff;
+      border-radius: 6px;
+
+      svg {
+        flex: none;
+      }
+
+      p {
+        // The design nudges the copy down 3px so its cap height lines up with
+        // the info icon.
+        margin: 0;
+        padding-top: 3px;
+        color: #494a4c;
+        font-family: "Heebo", sans-serif;
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 18px;
+      }
+    }
+  }
+
   .field-repeater {
     display: flex;
     flex-direction: column;
@@ -2274,7 +2474,9 @@
 
     .free-to-pro-btn {
       border-radius: 6px;
-      background: #fff4a2;
+      // Swapped with the hover fill below — the deeper yellow is now the
+      // resting state and the paler one is the hover.
+      background: #ffef79;
       display: flex;
       width: 143px;
       padding: 10px 12px;
@@ -2292,7 +2494,7 @@
       }
 
       &:hover {
-        background: #ffef79;
+        background: #fff4a2;
       }
     }
 
@@ -3788,9 +3990,12 @@
     white-space: nowrap;
     transition: all 0.3s ease;
     min-width: 143px;
+    // antd gives every Button a default drop shadow; this is a flat CTA.
+    box-shadow: none;
 
     &:hover {
       background-color: #FFE482;
+      box-shadow: none;
     }
   }
 
@@ -3957,12 +4162,14 @@
     align-items: center;
     gap: 6px;
     background: #FFD640;
-    //box-shadow: 0 2px 8px rgba(251, 191, 36, 0.4);
+    // antd gives every Button a default drop shadow; this is a flat CTA.
+    box-shadow: none;
 
     &:hover,
     &:focus {
       color: #151720 !important;
       background: #FFE482 !important;
+      box-shadow: none;
     }
   }
 
@@ -3995,6 +4202,17 @@
 
 /* Pro Features Modal — hover state only; all layout is inline in the component */
 .pro-features-modal__btn {
+  // Flat CTA. antd ships a shadow on `.ant-btn` and swaps in another on
+  // hover/active, so every state has to be cleared — and with `!important`,
+  // since the component's own inline `boxShadow: none` was not winning against
+  // antd's generated rules.
+  &,
+  &:hover,
+  &:focus,
+  &:focus-visible,
+  &:active {
+    box-shadow: none !important;
+  }
 
   &:hover,
   &:focus {

@@ -521,42 +521,60 @@ class GetAppointmentSchedule extends AbstractREST
         }
         $appointments = $query->get();
 
-        if (!$appointments || $appointments->isEmpty()) {
-            return [];
+        // The attendee pool above only covers this service. The agent can still be
+        // occupied by another service at the same time; those bookings share no
+        // capacity with the group session, so they block the slot outright.
+        $other_service_appointments = [];
+        if ($agent_id !== null) {
+            $other_service_appointments = AppointmentModel::query()
+                ->where('agent_id', $agent_id)
+                ->where('date', '>=', gmdate('Y-m-d'))
+                ->where(function($query) use ($service_id) {
+                    $query->where('service_id', '!=', $service_id)
+                          ->whereNull('service_id', 'or');
+                })
+                ->get();
         }
 
         $grouped_appointments = [];
-        foreach ($appointments as $appointment) {
-            $status = strtolower(trim((string) ($appointment->status ?? '')));
-            if (in_array($status, ['cancelled', 'canceled', 'rejected'], true)) {
+        foreach ([[$appointments, false], [$other_service_appointments, true]] as [$collection, $is_exclusive]) {
+            if (!$collection || $collection->isEmpty()) {
                 continue;
             }
 
-            $date = $appointment->date;
-            if (empty($date) || empty($appointment->start_time) || empty($appointment->end_time)) {
-                continue;
-            }
-            if (!isset($grouped_appointments[$date])) {
-                $grouped_appointments[$date] = [];
-            }
+            foreach ($collection as $appointment) {
+                $status = strtolower(trim((string) ($appointment->status ?? '')));
+                if (in_array($status, ['cancelled', 'canceled', 'rejected'], true)) {
+                    continue;
+                }
 
-            $appointment_start_time = $this->extractTimeFromStartTime((string) $appointment->start_time);
-            $appointment_end_time = $this->extractTimeFromStartTime((string) $appointment->end_time);
+                $date = $appointment->date;
+                if (empty($date) || empty($appointment->start_time) || empty($appointment->end_time)) {
+                    continue;
+                }
+                if (!isset($grouped_appointments[$date])) {
+                    $grouped_appointments[$date] = [];
+                }
 
-            if (empty($appointment_start_time) || empty($appointment_end_time)) {
-                continue;
+                $appointment_start_time = $this->extractTimeFromStartTime((string) $appointment->start_time);
+                $appointment_end_time = $this->extractTimeFromStartTime((string) $appointment->end_time);
+
+                if (empty($appointment_start_time) || empty($appointment_end_time)) {
+                    continue;
+                }
+
+                $attendees = (int) ($appointment->total_attendees ?? 1);
+                if ($attendees < 1) {
+                    $attendees = 1;
+                }
+
+                $grouped_appointments[$date][] = [
+                    'start' => \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$appointment_start_time}"),
+                    'end' => \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$appointment_end_time}"),
+                    'attendees' => $attendees,
+                    'exclusive' => $is_exclusive,
+                ];
             }
-
-            $attendees = (int) ($appointment->total_attendees ?? 1);
-            if ($attendees < 1) {
-                $attendees = 1;
-            }
-
-            $grouped_appointments[$date][] = [
-                'start' => \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$appointment_start_time}"),
-                'end' => \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$appointment_end_time}"),
-                'attendees' => $attendees,
-            ];
         }
 
         // Map special days by date for quick lookup
@@ -588,16 +606,23 @@ class GetAppointmentSchedule extends AbstractREST
 
                 // Sum attendees of bookings overlapping this slot
                 $attendee_sum = 0;
+                $agent_busy = false;
                 foreach ($day_appointments as $appt) {
                     if (!$appt['start'] || !$appt['end']) continue;
                     // Condition for overlap: slot_start < appt_end AND slot_end > appt_start
                     if ($slot_start < $appt['end'] && $slot_end > $appt['start']) {
+                        // Another service on the agent's calendar: no shared capacity,
+                        // the slot is gone whatever the group has room for.
+                        if ($appt['exclusive']) {
+                            $agent_busy = true;
+                            break;
+                        }
                         $attendee_sum += $appt['attendees'];
                     }
                 }
 
                 // Slot is full only when attendee count reaches the capacity limit
-                if ($attendee_sum >= $max_capacity) {
+                if ($agent_busy || $attendee_sum >= $max_capacity) {
                     $blocked[] = $slot_time_str;
                 }
             }

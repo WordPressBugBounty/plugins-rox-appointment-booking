@@ -6,6 +6,7 @@ use RoxAppointmentBooking\Modules\Order\Data\OrderModel;
 use RoxAppointmentBooking\Modules\Customer\Data\CustomerModel;
 use RoxAppointmentBooking\Modules\Appointment\Data\AppointmentModel;
 use RoxAppointmentBooking\Modules\Payment\Data\PaymentModel;
+use RoxAppointmentBooking\Modules\Payment\Services\PaymentStatusSyncService;
 use RoxAppointmentBooking\Modules\Notification\Services\NotificationService;
 
 /**
@@ -121,7 +122,8 @@ class OrderService
             throw new \Exception(esc_html__('Order not found', 'rox-appointment-booking'));
         }
 
-        $oldOrderStatus = $order->order_status ?? null;
+        $oldOrderStatus   = $order->order_status ?? null;
+        $oldPaymentStatus = $order->payment_status ?? null;
 
         if (!$id) {
             $paymentSettings = rox_appointment_booking_payment_settings();
@@ -146,6 +148,17 @@ class OrderService
 
         if ($id && isset($data['payment_status'])) {
             $this->syncPaymentStatus($order, $data['payment_status']);
+
+            // Bulk-updated above rather than through
+            // PaymentStatusSyncService::applyStatus(), so the payment e-mail is
+            // raised here — only when the status actually moved.
+            if ($oldPaymentStatus !== $data['payment_status']) {
+                PaymentStatusSyncService::notifyStatusChange(
+                    (int) $order->customer_id,
+                    (int) $order->id,
+                    $data['payment_status']
+                );
+            }
         }
 
         if ($id && isset($data['order_status']) && $oldOrderStatus !== $data['order_status']) {
@@ -306,6 +319,15 @@ class OrderService
         $order->save();
 
         NotificationService::createOrderStatusNotification($this->buildOrderNotificationData($order));
+
+        do_action(
+            'rox_appointment_booking_email_event',
+            'payment_refunded',
+            [
+                'customer_id' => (int) $order->customer_id,
+                'order_id'    => (int) $order->id,
+            ]
+        );
 
         return $order;
     }

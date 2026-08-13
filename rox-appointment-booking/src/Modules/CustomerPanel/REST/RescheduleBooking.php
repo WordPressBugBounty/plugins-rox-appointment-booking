@@ -135,11 +135,27 @@ class RescheduleBooking extends AbstractREST
             );
         }
 
+        $oldDate      = (string) ($booking->date ?? '');
+        $oldStartTime = (string) ($booking->start_time ?? '');
+
         $booking->update([
             'date' => $date,
             'start_time' => $startDateTime,
             'end_time' => $endDateTime,
         ]);
+
+        do_action(
+            'rox_appointment_booking_email_event',
+            'booking_rescheduled',
+            [
+                'appointment_ids' => [(int) $id],
+                'customer_id'     => $customerId,
+                'old_date'        => $oldDate,
+                'old_time'        => $oldStartTime,
+                'new_date'        => $date,
+                'new_time'        => $startDateTime,
+            ]
+        );
 
         return rox_appointment_booking_rest_response(
             data: [

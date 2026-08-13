@@ -123,6 +123,16 @@ class CancelBooking extends AbstractREST
 
         $booking->update(['status' => 'cancelled']);
 
+        do_action(
+            'rox_appointment_booking_email_event',
+            'booking_cancelled',
+            [
+                'appointment_ids'    => [(int) $id],
+                'customer_id'        => $customerId,
+                'appointment_status' => 'cancelled',
+            ]
+        );
+
         return rox_appointment_booking_rest_response(
             data: ['id' => $id, 'status' => 'cancelled'],
             message: esc_html__('Booking cancelled successfully', 'rox-appointment-booking')

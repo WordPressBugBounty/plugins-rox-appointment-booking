@@ -7,7 +7,7 @@ defined('ABSPATH') || exit;
  * Description: Appointment booking scheduling solution.
  * Plugin URI: https://wordpress.org/plugins/rox-appointment-booking/
  * Author: roxnor
- * Version: 1.2.1
+ * Version: 1.2.2
  * Author URI: http://roxnor.com
  * Requires PHP: 8.0
  * Text Domain: rox-appointment-booking
@@ -71,7 +71,7 @@ final class RoxAppointmentBooking
 		global $wpdb;
 
 		if (!defined('ROX_APPOINTMENT_BOOKING_VERSION')) {
-			define('ROX_APPOINTMENT_BOOKING_VERSION', '1.2.1');
+			define('ROX_APPOINTMENT_BOOKING_VERSION', '1.2.2');
 		}
 		if (!defined('ROX_APPOINTMENT_BOOKING_PREFIX')) {
 			define('ROX_APPOINTMENT_BOOKING_PREFIX', 'rox_appointment');
@@ -228,7 +228,11 @@ final class RoxAppointmentBooking
 	 *
 	 * @return void
 	 */
-	public function deactivatePlugin() {}
+	public function deactivatePlugin() {
+		// Leaving the reminder scan scheduled would keep WP-Cron firing a hook
+		// nothing listens to once the plugin is gone.
+		wp_clear_scheduled_hook( 'rox_appointment_booking_send_reminders' );
+	}
 }
 
 new  RoxAppointmentBooking();

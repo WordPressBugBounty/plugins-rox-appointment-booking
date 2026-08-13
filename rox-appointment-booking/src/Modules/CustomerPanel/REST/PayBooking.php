@@ -179,6 +179,22 @@ class PayBooking extends AbstractREST
             }
         }
 
+        // This path settles the payment itself rather than going through
+        // PaymentStatusSyncService, so it has to raise the e-mail event too.
+        do_action(
+            'rox_appointment_booking_email_event',
+            'payment_received',
+            [
+                'customer_id' => $customerId,
+                'order_id'    => $orderId,
+                'payment'     => [
+                    'amount'         => $amount,
+                    'transaction_id' => $transactionId,
+                    'payment_method' => 'stripe',
+                ],
+            ]
+        );
+
         return rox_appointment_booking_rest_response(
             data: [
                 'order_id' => $orderId,
@@ -309,6 +325,22 @@ class PayBooking extends AbstractREST
                 $booking->update(['payment_status' => 'paid']);
             }
         }
+
+        // Settled here rather than through PaymentStatusSyncService, so this
+        // path raises the e-mail event itself.
+        do_action(
+            'rox_appointment_booking_email_event',
+            'payment_received',
+            [
+                'customer_id' => $customerId,
+                'order_id'    => $orderId,
+                'payment'     => [
+                    'amount'         => $amount,
+                    'transaction_id' => $transactionId,
+                    'payment_method' => 'stripe',
+                ],
+            ]
+        );
     }
 
     /** Find the order (if any) whose booking_ids contains this appointment id. */

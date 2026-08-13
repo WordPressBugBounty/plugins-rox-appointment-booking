@@ -1,1 +1,1 @@
-<?php return array('dependencies' => array(), 'version' => '4978743865d668707457', 'handle' => 'undefined-vendors');
+<?php return array('dependencies' => array(), 'version' => '96cb24f80ef3f3b630c9', 'handle' => 'undefined-vendors');

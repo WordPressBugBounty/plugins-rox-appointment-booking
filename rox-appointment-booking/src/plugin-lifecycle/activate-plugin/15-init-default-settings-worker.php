@@ -45,18 +45,3 @@ if ($payment_settings === null || $payment_settings === []) {
     );
 }
 
-/**
- * By default location module is enabled — but only on the very first run.
- * Workers are replayed by maybeUpgrade() on every version bump, so writing this
- * unconditionally would silently re-enable the module on each plugin update and
- * discard the site owner's choice.
- */
-if (get_option('rox_appointment_booking_location_settings', null) === null) {
-    update_option(
-        'rox_appointment_booking_location_settings',
-        [
-            'location_module_enable' => true,
-        ]
-    );
-}
-

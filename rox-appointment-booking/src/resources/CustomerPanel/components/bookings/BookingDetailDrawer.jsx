@@ -11,6 +11,7 @@ export default function BookingDetailDrawer({
   onClose,
   onReschedule,
   onCancel,
+  onBookAgain,
   canReschedule = false,
   canCancel = false,
 }) {
@@ -21,10 +22,17 @@ export default function BookingDetailDrawer({
     ? `🕐 ${booking.weekday}, ${booking.month} ${booking.day} · ${timeRange}`
     : "";
 
+  // A cancelled booking can't be moved or cancelled again — it only offers a
+  // re-book, matching the card's own actions (and not admin-gated).
+  const isCancelled = booking && booking.status === "cancelled";
+
   // Both actions are admin-gated (Settings > Booking); with neither allowed the
   // drawer renders without a footer instead of an empty bar.
-  const footer =
-    canCancel || canReschedule ? (
+  const footer = isCancelled ? (
+    <Button variant="primary" style={{ flex: 1 }} onClick={onBookAgain}>
+      Book Again
+    </Button>
+  ) : canCancel || canReschedule ? (
       <>
         {canCancel && (
           <Button variant="secondary" style={{ flex: 1 }} onClick={onCancel}>

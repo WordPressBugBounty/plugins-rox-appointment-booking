@@ -45,6 +45,8 @@ class AppointmentModel extends AbstractModel
         'internal_notes',
         'send_notification',
         'reminder_notification',
+        'reminder_sent_customer_at',
+        'reminder_sent_agent_at',
         'created_at',
         'updated_at',
     ];

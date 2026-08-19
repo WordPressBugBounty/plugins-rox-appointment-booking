@@ -89,21 +89,21 @@ class Table extends AbstractREST
                     [
                         "key" => "1",
                         "type" => "default",
-                        "label" => "Table Settings",
+                        "label" => esc_html__('Table Settings', 'rox-appointment-booking'),
                         "icon" => "filter",
                         "route" => "/table/settings"
                     ],
                     [
                         "key" => "2",
                         "type" => "default",
-                        "label" => "Export",
+                        "label" => esc_html__('Export', 'rox-appointment-booking'),
                         "icon" => "export",
                         "route" => "/table/customers"
                     ],
                     [
                         "key" => "3",
                         "type" => "primary",
-                        "label" => "Add Service",
+                        "label" => esc_html__('Add Service', 'rox-appointment-booking'),
                         "icon" => "add",
                         "route" => "/table/add"
                     ]
@@ -111,84 +111,87 @@ class Table extends AbstractREST
                 "filters" => [
                     "searchId" => [
                         "type" => "input",
-                        "placeholder" => "Search ID"
+                        "placeholder" => esc_html__('Search ID', 'rox-appointment-booking')
                     ],
                     "dateRange" => [
                         "type" => "dateRange",
-                        "placeholder" => ["Start Date", "End Date"]
+                        "placeholder" => [
+                            esc_html__('Start Date', 'rox-appointment-booking'),
+                            esc_html__('End Date', 'rox-appointment-booking'),
+                        ]
                     ],
                     "service" => [
                         "type" => "select",
-                        "placeholder" => "Service",
+                        "placeholder" => esc_html__('Service', 'rox-appointment-booking'),
                         "options" => ["Physio", "Ortho", "Derma"]
                     ],
                     "employee" => [
                         "type" => "select",
-                        "placeholder" => "Employee",
+                        "placeholder" => esc_html__('Employee', 'rox-appointment-booking'),
                         "options" => ["Miles Tone", "Jackson", "Joss"]
                     ],
                     "customers" => [
                         "type" => "select",
-                        "placeholder" => "Customers",
+                        "placeholder" => esc_html__('Customers', 'rox-appointment-booking'),
                         "options" => ["John Doe", "Jacob", "Wilson"]
                     ],
                     "status" => [
                         "type" => "select",
-                        "placeholder" => "All Status",
+                        "placeholder" => esc_html__('All Status', 'rox-appointment-booking'),
                         "options" => ["Pending", "Approved", "Emergency"]
                     ]
                 ],
                 "columns" => [
                     [
-                        "title" => "ID",
+                        "title" => esc_html__('ID', 'rox-appointment-booking'),
                         "dataIndex" => "id",
                         "key" => "id",
                         "align" => "center",
                         "sorter" => true
                     ],
                     [
-                        "title" => "Start Date",
+                        "title" => esc_html__('Start Date', 'rox-appointment-booking'),
                         "dataIndex" => "startDate",
                         "key" => "startDate",
                         "align" => "center",
                         "sorter" => true
                     ],
                     [
-                        "title" => "Service",
+                        "title" => esc_html__('Service', 'rox-appointment-booking'),
                         "dataIndex" => "service",
                         "key" => "service",
                         "render" => "link",
                         "sorter" => true
                     ],
                     [
-                        "title" => "Customer",
+                        "title" => esc_html__('Customer', 'rox-appointment-booking'),
                         "dataIndex" => "customer",
                         "key" => "customer",
                         "render" => "detailedAvatar",
                         "sorter" => true
                     ],
                     [
-                        "title" => "Employee",
+                        "title" => esc_html__('Employee', 'rox-appointment-booking'),
                         "dataIndex" => "employee",
                         "key" => "employee",
                         "render" => "nameAvatar",
                         "sorter" => true
                     ],
                     [
-                        "title" => "Duration",
+                        "title" => esc_html__('Duration', 'rox-appointment-booking'),
                         "dataIndex" => "duration",
                         "key" => "duration",
                         "sorter" => true
                     ],
                     [
-                        "title" => "Status",
+                        "title" => esc_html__('Status', 'rox-appointment-booking'),
                         "dataIndex" => "status",
                         "key" => "status",
                         "render" => "status",
                         "sorter" => true
                     ],
                     [
-                        "title" => "Created At",
+                        "title" => esc_html__('Created At', 'rox-appointment-booking'),
                         "dataIndex" => "createdAt",
                         "key" => "createdAt",
                         "sorter" => true
@@ -201,7 +204,7 @@ class Table extends AbstractREST
                     "rowSelection" => []
                 ]
             ],
-            "title" => "Appointments"
+            "title" => esc_html__('Appointments', 'rox-appointment-booking')
         ]);
     }
 }

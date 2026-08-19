@@ -215,7 +215,13 @@ export default function BookNewView({ onNavigate, prefill = null }) {
     if (currentKey === "location") {
       load("public/location", undefined, setLocations);
     } else if (currentKey === "category") {
-      load("public/category", undefined, setCategories);
+      // Scoped to the chosen location (only categories that have at least one
+      // service available there), matching the service step's location filter.
+      load(
+        "public/category",
+        sel.location ? { location_id: sel.location.id } : undefined,
+        setCategories
+      );
     } else if (currentKey === "service") {
       load(
         "public/service",

@@ -21,6 +21,8 @@
 namespace RoxAppointmentBooking\Modules\Blocks\Services;
 
 use RoxAppointmentBooking\Supports\Assets;
+use RoxAppointmentBooking\Supports\Color;
+use RoxAppointmentBooking\Supports\IdList;
 
 if (! defined('ABSPATH')) exit; // Exit if accessed directly
 
@@ -229,7 +231,7 @@ class BookingPanelBlock
         return [
             'version'           => ROX_APPOINTMENT_BOOKING_VERSION,
             'appTitle'          => ROX_APPOINTMENT_BOOKING_NAME,
-            'defaultLocale'     => 'en_US',
+            'defaultLocale'     => determine_locale(),
             'timezone'          => get_option('timezone_string') ?: 'UTC',
             'dateFormat'        => get_option('date_format') ?: 'Y-m-d',
             'timeFormat'        => get_option('time_format') ?: 'H:i:s',
@@ -261,12 +263,27 @@ class BookingPanelBlock
         $hide_navigation = !empty($attributes['hideNavigation']) ? 'true' : 'false';
         $hide_info       = !empty($attributes['hideInfo']) ? 'true' : 'false';
 
+        // The grey frame around the panel. `showBackground` defaults to true, so
+        // only an explicit false switches it off; the colour is dropped unless it
+        // sanitises to a plain hex / rgb() value.
+        $show_background  = (!array_key_exists('showBackground', $attributes) || $attributes['showBackground']) ? 'true' : 'false';
+        $background_color = Color::sanitize((string) ($attributes['backgroundColor'] ?? ''));
+
+        // Optional "only offer these" picks. An empty list is the default and
+        // means the panel offers every location / category, exactly as before.
+        $location_ids = IdList::toAttr($attributes['locationIds'] ?? []);
+        $category_ids = IdList::toAttr($attributes['categoryIds'] ?? []);
+
         return sprintf(
-            '<div %1$s><div class="rox-appointment-booking-frontend-root" data-instance="%2$s" data-type="booking-form" data-hide-navigation="%3$s" data-hide-info="%4$s"></div></div>',
+            '<div %1$s><div class="rox-appointment-booking-frontend-root" data-instance="%2$s" data-type="booking-form" data-hide-navigation="%3$s" data-hide-info="%4$s" data-show-background="%5$s" data-background-color="%6$s" data-locations="%7$s" data-categories="%8$s"></div></div>',
             $wrapper_attributes,
             esc_attr((string) self::$instance_count),
             esc_attr($hide_navigation),
-            esc_attr($hide_info)
+            esc_attr($hide_info),
+            esc_attr($show_background),
+            esc_attr($background_color),
+            esc_attr($location_ids),
+            esc_attr($category_ids)
         );
     }
 }

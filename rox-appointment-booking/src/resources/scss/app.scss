@@ -553,6 +553,13 @@
       height: 64px;
     }
 
+    // Pushed to the far end of the row, opposite the search field.
+    .filter-bar-extra {
+      display: flex;
+      align-items: center;
+      margin-left: auto;
+    }
+
     .filter-toggle-btn {
       display: flex;
       align-items: center;
@@ -2551,13 +2558,40 @@
       }
     }
 
-    .notification-button {
+    // Documentation / Support share the notification bell's box exactly, so the
+    // three icon buttons in the topbar read as one set. Declared together
+    // rather than duplicated so they cannot drift apart.
+    .notification-button,
+    .topbar-icon-button {
       border-radius: 6px;
       border: 1px solid #dbdde1;
       background: #fff;
+      // The glyphs stroke with currentColor, so this is what paints them.
+      // Pinned here and repeated in the interactive states below because antd
+      // swaps a text button's colour to its primary blue on focus/active,
+      // which the icons would otherwise inherit.
+      color: #151720;
+      // 36px square, overriding antd's 32px `controlHeight` for icon-only
+      // buttons, so all three line up with the 36px avatar beside them.
+      width: 36px;
+      height: 36px;
+      padding: 0;
 
+      // The glyph sat a couple of px high because an inline <svg> aligns its
+      // bottom to the text baseline, and the line box still reserves descender
+      // space underneath — so the wrapper measures taller than the icon and the
+      // icon rides at the top of it. Making the wrapper a flex box and the svg
+      // a block takes the icon out of inline flow entirely, so the wrapper is
+      // exactly the icon's height and centres truly.
       .ant-btn-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
         line-height: 1;
+
+        svg {
+          display: block;
+        }
       }
 
       ~.ant-badge-count {
@@ -2572,9 +2606,31 @@
         }
       }
 
-      &:hover {
-        background: #f3f4f9;
+      // Clicking settles into the hover look rather than picking up a ring.
+      // Two rings had to go: antd's own focus style, and — because an action
+      // with an `href` renders as an <a> — wp-admin's global `a:focus`
+      // box-shadow, which was the blue outline left behind after a click.
+      &:hover,
+      &:focus,
+      &:focus-visible,
+      &:active {
+        background: #E7EAFA;
+        border: 1px solid transparent;
+        outline: none;
+        box-shadow: none;
+        // Held at the resting colour: only the fill reacts, the glyph never
+        // shifts to antd's blue.
+        color: #151720;
       }
+    }
+
+    // Documentation and Support read as a pair, 8px apart, where every other
+    // action in the row sits 16px apart. The row's own `gap` can't express that
+    // — it is shared with the version block, the Pro CTA, the divider and the
+    // avatar, which all keep 16px — so the second button pulls back the 8px
+    // difference instead.
+    .topbar-icon-button + .topbar-icon-button {
+      margin-left: -8px;
     }
 
     .notification-dropdown {
@@ -4200,6 +4256,128 @@
   }
 }
 
+/* Pro upsell CTA that replaces a disabled "Add …" action once a free-plan
+   limit is reached (currently the Agents filter bar). Mirrors the onboarding
+   repeater's locked button — that lives in onboarding.scss, which the admin
+   bundle does not load, so the treatment is restated here rather than shared. */
+.pro-unlock-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #d5d7db;
+  border-radius: 6px;
+  background: #fff;
+  color: #97999e;
+  font-family: "Heebo", sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.3s ease, border-color 0.3s ease,
+    color 0.3s ease;
+
+  // Heebo leaves more room above its cap height than below the baseline, so
+  // against a flex-centred icon the label reads a pixel high. Same nudge the
+  // onboarding version of this button carries.
+  span {
+    position: relative;
+    top: 1px;
+  }
+
+  // SVGs default to inline, which leaves a few px of baseline whitespace
+  // around them — that reads as the icon itself sitting off-centre.
+  svg {
+    display: block;
+  }
+
+  // `color` carries both the label and the glyph (the icon is drawn with
+  // currentColor), so one declaration recolours the whole control.
+  &:hover,
+  &:focus {
+    background: #ffe482;
+    border-color: #ffe482;
+    color: #151720;
+    text-decoration: none;
+  }
+}
+
+/* Dark tooltip for the locked CTA above — same treatment as
+   `.onboarding-locked-tooltip` in onboarding.scss. */
+.pro-locked-tooltip {
+  .ant-tooltip-inner {
+    background: #151720;
+    box-shadow: 0 4px 8px 0 rgba(10, 11, 15, 0.3);
+    padding: 7px 10px 7px 10px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 16px;
+    word-spacing: 1px;
+    min-height: auto;
+    // Fixed rather than sized to the label, so the text wraps onto a second
+    // line instead of running out as one long strip. `box-sizing` pinned so
+    // the 164px is the bubble's outer width, padding included, and the antd
+    // defaults that would otherwise fight it are cleared.
+    box-sizing: border-box;
+    width: 164px;
+    min-width: 0;
+    max-width: none;
+    white-space: normal;
+  }
+
+  .ant-tooltip-arrow::before {
+    background: #151720;
+  }
+}
+
+/* Tooltips on the topbar's Documentation / Support buttons. Top-level, not
+   nested under the app root — antd portals the bubble to <body>, so a nested
+   selector would never match it. Same dark treatment as the two tooltips
+   above. */
+.topbar-tooltip {
+  // antd positions the popup `sizePopupArrow / 2 + marginXXS` (8 + 4 = 12px)
+  // below the button, and the visible tip occupies the first 8px of that — so
+  // its default leaves a 4px gap. Pulling the popup up closes half of it.
+  // This is the dial for that gap: 0 restores antd's 4px, -4px closes it flush.
+  margin-top: -2px;
+
+  .ant-tooltip-inner {
+    background: #151720;
+    box-shadow: 0 4px 8px 0 rgba(10, 11, 15, 0.3);
+    // Padding is measured on the bubble itself — the arrow is a separate
+    // element sitting outside it and takes nothing from these numbers.
+    // 8 + 16 + 8 = the 32px bubble below. Pinned to border-box so that
+    // arithmetic holds: the height would otherwise size the *content* box and
+    // the bubble would come out 16px taller.
+    box-sizing: border-box;
+    padding: 8px 9px;
+    font-family: "Heebo", sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 16px;
+    // Fixed, not a floor, so the bubble is 32px whatever the label. antd's own
+    // min-height is the same value here, but it is restated because min-height
+    // beats height in the cascade — leaving antd's to apply would make the
+    // fixed height inert. `min-width` is cleared (antd pads out short labels
+    // with it), and `white-space` keeps the label on the single 16px line this
+    // height assumes.
+    height: 32px;
+    min-height: 32px;
+    min-width: 0;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+  }
+
+  .ant-tooltip-arrow::before {
+    background: #151720;
+  }
+}
+
 /* Pro Features Modal — hover state only; all layout is inline in the component */
 .pro-features-modal__btn {
   // Flat CTA. antd ships a shadow on `.ant-btn` and swaps in another on
@@ -4218,5 +4396,68 @@
   &:focus {
     background: #ffe482 !important;
     color: #151720 !important;
+  }
+}
+/* Empty state for a dashboard card — Recent Activity, Most Booked Services and
+   Upcoming Today all render through `Dashboard/CardEmptyState.jsx`.
+
+   Distinct from `.empty-state-container` in components/common/EmptyState.scss,
+   which is the page-level treatment (120px illustration, 50px padding, a
+   primary action) used by Appointments, Services and Locations — far too large
+   to sit inside a card. */
+.dashboard-card-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  gap: 17px;
+  padding: 0 20px;
+
+  // Grows into whatever the card leaves so the block sits optically centred,
+  // with the min-height only as a floor for short cards.
+  flex: 1;
+  min-height: var(--card-empty-min-height, 240px);
+
+  // Pinned to an exact height instead. `flex: 0 0 auto` is the half that makes
+  // it stick: the cards are flex columns, so a bare height would just be
+  // stretched back out by the parent's own sizing.
+  &--fixed {
+    flex: 0 0 auto;
+    min-height: 0;
+    height: var(--card-empty-height);
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    // Only ever takes effect when an action is rendered — with the text block
+    // alone there is no second child for it to separate.
+    gap: 25px;
+  }
+
+  &__text {
+    text-align: center;
+  }
+
+  &__title {
+    font-family: "Inter", sans-serif;
+    font-size: 18px;
+    font-weight: 500;
+    color: #151720;
+    margin-bottom: 8px;
+  }
+
+  &__description {
+    font-family: "Inter", sans-serif;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    color: #494a4c;
+    // Caps the sentence at roughly two lines so it reads as a paragraph under
+    // the title rather than one long strip.
+    max-width: 290px;
   }
 }

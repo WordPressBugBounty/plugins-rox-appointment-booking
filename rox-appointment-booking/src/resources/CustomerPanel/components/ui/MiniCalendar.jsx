@@ -1,15 +1,16 @@
 import React, { useState } from "react";
+import { getMonthNames, siteLocale } from "../../../lib/locale.js";
 
 // Real, navigable month calendar (mockup `.reschedule-cal`). Controlled by a
 // `value` (a "YYYY-MM-DD" string) + `onChange(next)`. Dates before `minDate`
 // (default today) are disabled; today is highlighted. Month arrows move the view.
 // An optional `isDisabled(dateStr)` predicate disables extra dates (e.g. days off
 // / holidays) on top of the past-date rule.
-const DAY_HEADS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
+//
+// Names come from WordPress (see lib/locale.js), so the grid reads in the site
+// language. Sunday-first to match the cells, which are laid out from getDay().
+const DAY_HEADS = siteLocale.weekdaysShort;
+const MONTHS = getMonthNames();
 
 const pad = (n) => String(n).padStart(2, "0");
 const ymd = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`; // m is 0-indexed
@@ -57,8 +58,8 @@ export default function MiniCalendar({ value, onChange, minDate, isDisabled }) {
         </button>
       </div>
       <div className="reschedule-cal">
-        {DAY_HEADS.map((h) => (
-          <div key={h} className="cal-day-head">
+        {DAY_HEADS.map((h, i) => (
+          <div key={i} className="cal-day-head">
             {h}
           </div>
         ))}

@@ -76,6 +76,56 @@ class App
         add_action('admin_enqueue_scripts', [$this, 'enqueueAssets'], 100);
         add_action('admin_init', [$this, 'maybeRedirectToOnboard']);
         add_action('in_admin_header', [$this, 'removeOtherPluginNotices'], 1);
+        add_filter('upload_mimes', [$this, 'allowSvgUpload']);
+        add_filter('wp_check_filetype_and_ext', [$this, 'fixSvgFiletype'], 10, 4);
+    }
+
+    /**
+     * Allows SVG uploads for admins. WordPress core excludes image/svg+xml
+     * from the default mime allowlist, so the media library rejects .svg
+     * files (needed for uploading SVG icons) without this.
+     *
+     * @param array $mimes Allowed mime types keyed by file extension.
+     * @return array
+     */
+    public function allowSvgUpload(array $mimes): array
+    {
+        if (current_user_can('manage_options')) {
+            $mimes['svg'] = 'image/svg+xml';
+        }
+
+        return $mimes;
+    }
+
+    /**
+     * WordPress core can't sniff SVG as a real image (it's not a raster
+     * format), so even after allowSvgUpload() permits the mime type, core's
+     * own file-type check still rejects it with "This file cannot be
+     * processed by the web server." Trusts the extension for admins so the
+     * upload passes validation.
+     *
+     * @param array       $data     Filetype/extension data.
+     * @param string      $file     Full path to the uploaded file.
+     * @param string      $filename Name of the uploaded file.
+     * @param array|null  $mimes    Allowed mime types. Core sometimes calls
+     *                              this filter without passing $mimes, so it
+     *                              must not be type-hinted as array.
+     * @return array
+     */
+    public function fixSvgFiletype(array $data, string $file, string $filename, $mimes): array
+    {
+        if (!current_user_can('manage_options') || $data['type']) {
+            return $data;
+        }
+
+        $filetype = wp_check_filetype($filename, $mimes ?: get_allowed_mime_types());
+
+        if ($filetype['ext'] === 'svg') {
+            $data['ext'] = 'svg';
+            $data['type'] = 'image/svg+xml';
+        }
+
+        return $data;
     }
 
     /**
@@ -92,7 +142,7 @@ class App
         $vars = [
             'version' => ROX_APPOINTMENT_BOOKING_VERSION,
             'appTitle' => 'Rox Appointment Booking',
-            'defaultLocale' => 'en_US',
+            'defaultLocale' => determine_locale(),
             'timezone' => get_option('timezone_string') ?: 'UTC',
             'dateFormat' => get_option('date_format') ?: 'Y-m-d',
             'timeFormat' => get_option('time_format') ?: 'H:i:s',
@@ -195,12 +245,16 @@ class App
     }
 
     /**
-     * Whether at least one location record exists.
+     * Whether at least one ACTIVE location record exists.
      *
      * Only Pro can create locations, so on the free plan this is always false.
      * Used to hide the (empty, unselectable) Location field on the admin booking
      * form until a location has actually been created — without hiding the
      * Locations menu, which stays gated on isLocationModuleEnabled().
+     *
+     * Inactive locations don't count: the form's dropdown only offers active
+     * ones (GetLocation `mode=list`), so counting a disabled location here would
+     * bring back the empty field this flag exists to hide.
      *
      * @return bool
      */
@@ -210,7 +264,9 @@ class App
             return false;
         }
 
-        return \RoxAppointmentBookingPro\Modules\Location\Data\LocationModel::count() > 0;
+        return \RoxAppointmentBookingPro\Modules\Location\Data\LocationModel::query()
+            ->where('status', 'active')
+            ->count() > 0;
     }
 
     /**

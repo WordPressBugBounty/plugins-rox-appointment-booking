@@ -6,6 +6,10 @@ import BookingsView from "./components/bookings/BookingsView.jsx";
 import BookNewView from "./components/booknew/BookNewView.jsx";
 import PaymentsView from "./components/payments/PaymentsView.jsx";
 import ProfileView from "./components/profile/ProfileView.jsx";
+// Side effect: registers the WordPress-derived Day.js locale, so every date the
+// panel renders (and MiniCalendar's month/weekday names) follows the site
+// language rather than Day.js's built-in English.
+import "../lib/locale.js";
 import "./styles/customer-panel.scss";
 
 // Customer Panel — separate UI mounted into its OWN dedicated mount node

@@ -427,7 +427,7 @@ const reducer = (state = getInitialState(), action) => {
         selectedStartTime: null,
         selectedEndTime: null,
         customerInfo: null,
-        currentStep: state.hasLocations ? 2 : 1,
+        currentStep: 1,
       };
       break;
       

@@ -161,12 +161,25 @@ class GetBookingConfirmation extends AbstractREST
             );
         }
 
-        // Let Pro (or any add-on) require proof of ownership before handing
-        // back a customer's name/email/phone — e.g. WooCommerce's own order
-        // key. Defaults to allowed: an order id alone is already effectively
-        // a one-time secret for the synchronous Stripe/Pay Later flow this
-        // endpoint doesn't even serve.
-        $accessGranted = apply_filters('rox_appointment_booking_booking_confirmation_access', true, $orderId, $request);
+        // Require proof of ownership before handing back a customer's
+        // name/email/phone. Defaults to DENIED: order_id is a sequential
+        // auto-increment integer, not a secret, so on its own it would let
+        // anyone enumerate every customer's PII. The only legitimate caller
+        // is the return leg of a redirect-based gateway, and Pro's
+        // WooCommerceStatusSyncService::verifyConfirmationAccess() grants
+        // access there against WooCommerce's own validated order key.
+        $accessGranted = apply_filters('rox_appointment_booking_booking_confirmation_access', false, $orderId, $request);
+
+        // Second grant path: a logged-in customer pulling up their own order.
+        // Covers the flows the WooCommerce filter deliberately skips (Stripe /
+        // Pay Later, where there is no wc order key to validate against) and is
+        // real ownership rather than a bearer token, so page caching can't
+        // stale it out.
+        $customer = $order->customer_id ? CustomerModel::find($order->customer_id) : null;
+        if (!$accessGranted && is_user_logged_in() && $customer) {
+            $accessGranted = (int) $customer->wp_user_id === get_current_user_id();
+        }
+
         if (!$accessGranted) {
             return rox_appointment_booking_rest_response(
                 data: null,
@@ -176,7 +189,6 @@ class GetBookingConfirmation extends AbstractREST
             );
         }
 
-        $customer = $order->customer_id ? CustomerModel::find($order->customer_id) : null;
         $payment = PaymentModel::query()->where('order_id', $orderId)->first();
 
         $bookingIds = $order->getBookingIds();

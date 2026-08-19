@@ -292,7 +292,7 @@ class Provider
         return [
             'version'           => ROX_APPOINTMENT_BOOKING_VERSION,
             'appTitle'          => ROX_APPOINTMENT_BOOKING_NAME,
-            'defaultLocale'     => 'en_US',
+            'defaultLocale'     => determine_locale(),
             'timezone'          => get_option('timezone_string') ?: 'UTC',
             'dateFormat'        => get_option('date_format') ?: 'Y-m-d',
             'timeFormat'        => get_option('time_format') ?: 'H:i:s',

@@ -6,6 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\IdList;
 use RoxAppointmentBookingPro\Modules\Location\Data\LocationModel;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceLocationRelationModel;
 
@@ -127,12 +128,22 @@ class GetLocation extends AbstractREST
         }
 
         $page = $request->get_param('page') ?? 1;
-        $per_page = $request->get_param('per_page') ?? 20;
+        // A booking-panel surface (block / Elementor widget) can restrict the
+        // visitor to a hand-picked subset. An empty list means no restriction.
+        $ids = IdList::parse($request->get_param('ids'));
+
+        // With an explicit id list the default page size would silently drop any
+        // pick beyond the 20th, so size the page to the list instead.
+        $per_page = $request->get_param('per_page') ?? (!empty($ids) ? count($ids) : 20);
         $search = $request->get_param('search') ?? '';
         $service_id = $request->get_param('service_id') ?? null;
 
         $query = LocationModel::query();
         $query->where('status', 'active');
+
+        if (!empty($ids)) {
+            $query->whereIn('id', $ids);
+        }
 
         // Filter by service if service_id is provided
         if (!empty($service_id)) {

@@ -2,6 +2,9 @@ import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ConfigProvider } from "antd";
 import BookingService from "../../components/BookingService/index.jsx";
+// Side effect: registers the WordPress-derived Day.js locale. Imported before
+// any date is rendered so antd's pickers and every dayjs().format() pick it up.
+import { getAntdLocale, siteLocale } from "../../lib/locale.js";
 // Same base stylesheet the frontend App loads — sets box-sizing:border-box +
 // the Heebo font on `.rox-appointment-booking-frontend` so the reused panel
 // (slots, inputs) renders identically to the main booking panel.
@@ -79,12 +82,23 @@ const mountRoot = (el) => {
 
   createRoot(el).render(
     <StrictMode>
-      <ConfigProvider theme={themeConfig}>
+      <ConfigProvider
+        theme={themeConfig}
+        locale={getAntdLocale()}
+        direction={siteLocale.direction}
+      >
         <div
           className="rox-appointment-booking-frontend"
           data-instance={el.dataset.instance}
         >
-          <BookingService singleAgentId={agentId} singleAgentConfig={config} />
+          <BookingService
+            singleAgentId={agentId}
+            singleAgentConfig={config}
+            // Frame settings live in the same data-config blob, but the panel
+            // takes them as plain props so every surface feeds it the same way.
+            showBackground={config.showBackground !== false}
+            backgroundColor={config.backgroundColor || ""}
+          />
         </div>
       </ConfigProvider>
     </StrictMode>,

@@ -1,22 +1,19 @@
 import React from "react";
+import dayjs from "dayjs";
 
+// Day.js runs on the WordPress-derived locale (lib/locale.js, imported by the
+// block's view entry), so month names and the AM/PM marker follow the site
+// language instead of being hardcoded English.
 const formatDate = (date) => {
   if (!date) return "";
-  const d = date instanceof Date ? date : new Date(date);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  const d = dayjs(date);
+  return d.isValid() ? d.format("MMM D, YYYY") : "";
 };
 
 const formatTime = (time) => {
   if (!time) return "";
   const [h, m] = String(time).split(":");
-  const hour = parseInt(h, 10);
-  const ampm = hour >= 12 ? "PM" : "AM";
-  return `${hour % 12 || 12}:${m} ${ampm}`;
+  return dayjs().hour(parseInt(h, 10)).minute(parseInt(m, 10)).format("h:mm A");
 };
 
 /**

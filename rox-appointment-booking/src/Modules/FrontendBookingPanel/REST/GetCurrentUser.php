@@ -72,7 +72,7 @@ class GetCurrentUser extends AbstractREST
             return new WP_REST_Response([
                 'success' => false,
                 'code' => 401,
-                'message' => 'User not authenticated',
+                'message' => esc_html__('User not authenticated', 'rox-appointment-booking'),
                 'data' => null
             ], 401);
         }

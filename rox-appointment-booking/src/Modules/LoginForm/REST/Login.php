@@ -83,7 +83,7 @@ class Login extends AbstractREST
             return new WP_REST_Response([
                 'success' => false,
                 'code' => 400,
-                'message' => 'Email is required',
+                'message' => esc_html__('Email is required', 'rox-appointment-booking'),
                 'data' => null
             ], 400);
         }
@@ -92,7 +92,7 @@ class Login extends AbstractREST
             return new WP_REST_Response([
                 'success' => false,
                 'code' => 400,
-                'message' => 'Password is required',
+                'message' => esc_html__('Password is required', 'rox-appointment-booking'),
                 'data' => null
             ], 400);
         }
@@ -101,7 +101,7 @@ class Login extends AbstractREST
             return new WP_REST_Response([
                 'success' => false,
                 'code' => 400,
-                'message' => 'Invalid email address',
+                'message' => esc_html__('Invalid email address', 'rox-appointment-booking'),
                 'data' => null
             ], 400);
         }
@@ -113,7 +113,7 @@ class Login extends AbstractREST
                 return new WP_REST_Response([
                     'success' => false,
                     'code' => 401,
-                    'message' => 'Invalid email or password',
+                    'message' => esc_html__('Invalid email or password', 'rox-appointment-booking'),
                     'data' => null
                 ], 401);
             }
@@ -144,7 +144,7 @@ class Login extends AbstractREST
             return new WP_REST_Response([
                 'success' => false,
                 'code' => 401,
-                'message' => 'Account not found',
+                'message' => esc_html__('Account not found', 'rox-appointment-booking'),
                 'data' => null
             ], 401);
         } catch (\Exception $e) {
@@ -180,7 +180,7 @@ class Login extends AbstractREST
         return new WP_REST_Response([
             'success' => true,
             'code' => 200,
-            'message' => 'Login successful',
+            'message' => esc_html__('Login successful', 'rox-appointment-booking'),
             'data' => $data
         ], 200);
     }

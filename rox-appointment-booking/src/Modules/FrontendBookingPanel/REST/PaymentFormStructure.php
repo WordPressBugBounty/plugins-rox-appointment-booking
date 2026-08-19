@@ -78,9 +78,9 @@ class PaymentFormStructure extends AbstractREST
             'payLaterEnable' => false,
             'currency' => sanitize_text_field($payment_settings['payment_currency'] ?? 'usd'),
             'fields' => [
-                ['type' => 'email', 'label' => 'Email', 'name' => 'email', 'required' => true],
-                ['type' => 'number', 'label' => 'Amount', 'name' => 'amount', 'required' => true, 'min' => 0.50, 'max' => 999999.99],
-                ['type' => 'stripe_card', 'label' => 'Card Details', 'name' => 'card_element', 'required' => true]
+                ['type' => 'email', 'label' => esc_html__('Email', 'rox-appointment-booking'), 'name' => 'email', 'required' => true],
+                ['type' => 'number', 'label' => esc_html__('Amount', 'rox-appointment-booking'), 'name' => 'amount', 'required' => true, 'min' => 0.50, 'max' => 999999.99],
+                ['type' => 'stripe_card', 'label' => esc_html__('Card Details', 'rox-appointment-booking'), 'name' => 'card_element', 'required' => true]
             ],
             'submit_url' => rest_url(ROX_APPOINTMENT_BOOKING_TEXT_DOMAIN . '/v1/payment'),
             'nonce' => wp_create_nonce('wp_rest')

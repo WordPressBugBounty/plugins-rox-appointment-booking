@@ -4,7 +4,11 @@
 // stay in sync. Mirrors the public booking panel's Calendar.jsx rules
 // (holiday > special day off > weekly day_off).
 
+import dayjs from "dayjs";
+
 // JS Date.getDay() order (0=Sun) → the day names the schedule endpoint uses.
+// These are wire values matched against `weekly_schedule[].day_name`, not UI
+// text, so they stay in English.
 export const DAY_NAMES = [
   "Sunday",
   "Monday",
@@ -16,12 +20,14 @@ export const DAY_NAMES = [
 ];
 
 // "09:00:00" (24h) → "9:00 AM" for slot labels (the schedule endpoint returns
-// raw 24h times).
+// raw 24h times). Formatted through Day.js so the meridiem comes from the
+// WordPress-derived locale rather than a hardcoded English "AM"/"PM".
 export function to12h(t) {
   const [h, m] = String(t).split(":").map(Number);
-  const ampm = h >= 12 ? "PM" : "AM";
-  const hr = h % 12 === 0 ? 12 : h % 12;
-  return `${hr}:${String(m || 0).padStart(2, "0")} ${ampm}`;
+  return dayjs()
+    .hour(h || 0)
+    .minute(m || 0)
+    .format("h:mm A");
 }
 
 // The bookable timeslots for a date, or null when it's off (holiday > special

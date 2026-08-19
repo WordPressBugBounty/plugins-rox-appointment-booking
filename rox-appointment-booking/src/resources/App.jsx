@@ -5,6 +5,9 @@ import "./scss/app.scss";
 
 import { ConfigProvider, message } from "antd";
 import { HashRouter } from "react-router-dom";
+// Side effect: registers the WordPress-derived Day.js locale. Imported before
+// any date is rendered so antd's pickers and every dayjs().format() pick it up.
+import { getAntdLocale, siteLocale } from "./lib/locale.js";
 import AppContent from "./components/layout/AppContent.jsx";
 import { NotificationProvider } from "./contexts/NotificationContext.jsx";
 import { getSidebarConfig } from "./config/sidebar.js";
@@ -182,7 +185,11 @@ const root = createRoot(rootElement);
 const render = () => {
   root.render(
     <StrictMode>
-      <ConfigProvider theme={themeConfig}>
+      <ConfigProvider
+        theme={themeConfig}
+        locale={getAntdLocale()}
+        direction={siteLocale.direction}
+      >
         <HashRouter>
           <App />
         </HashRouter>

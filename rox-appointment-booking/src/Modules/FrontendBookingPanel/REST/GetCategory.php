@@ -6,9 +6,11 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\IdList;
 use RoxAppointmentBooking\Modules\Category\Data\CategoryModel;
 use RoxAppointmentBooking\Modules\Category\Services\CategoryService;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceCategoryRelationModel;
+use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceLocationRelationModel;
 
 /**
  * Class GetCategory
@@ -121,11 +123,48 @@ class GetCategory extends AbstractREST
         }
 
         $page = $request->get_param('page') ?? 1;
-        $per_page = $request->get_param('per_page') ?? 20;
+        // A booking-panel surface (block / Elementor widget) can restrict the
+        // visitor to a hand-picked subset. An empty list means no restriction.
+        $ids = IdList::parse($request->get_param('ids'));
+
+        // With an explicit id list the default page size would silently drop any
+        // pick beyond the 20th, so size the page to the list instead.
+        $per_page = $request->get_param('per_page') ?? (!empty($ids) ? count($ids) : 20);
         $search = $request->get_param('search') ?? '';
         $service_id = $request->get_param('service_id') ?? null;
+        $location_id = $request->get_param('location_id') ?? null;
 
         $query = CategoryModel::query();
+
+        if (!empty($ids)) {
+            $query->whereIn('id', $ids);
+        }
+
+        // Filter by location if location_id is provided: walk location -> services
+        // -> categories, so only categories that actually have a service available
+        // at the chosen location are returned (mirrors the admin category endpoint).
+        if (!empty($location_id)) {
+            // Get service IDs that belong to the specified location
+            $serviceIds = ServiceLocationRelationModel::where('location_id', $location_id)
+                ->pluck('service_id')
+                ->toArray();
+
+            // Get the category IDs those services are assigned to
+            $locationCategoryIds = [];
+            if (!empty($serviceIds)) {
+                $locationCategoryIds = ServiceCategoryRelationModel::whereIn('service_id', $serviceIds)
+                    ->pluck('category_id')
+                    ->toArray();
+            }
+
+            // Filter categories by the IDs found through the location's services
+            if (!empty($locationCategoryIds)) {
+                $query->whereIn('id', array_values(array_unique($locationCategoryIds)));
+            } else {
+                // If no categories found for this location, return empty result
+                $query->where('id', 0);
+            }
+        }
 
         // Filter by service if service_id is provided
         if (!empty($service_id)) {

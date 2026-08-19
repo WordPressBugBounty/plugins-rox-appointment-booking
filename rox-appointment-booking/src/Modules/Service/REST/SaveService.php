@@ -680,7 +680,7 @@ class SaveService extends AbstractREST
         if (!$uncategorized) {
             $uncategorized = new CategoryModel();
             $uncategorized->fill([
-                'title' => 'Uncategorized',
+                'title' => esc_html__('Uncategorized', 'rox-appointment-booking'),
                 'slug' => 'uncategorized',
                 'description' => esc_html__('Default category for services without a category', 'rox-appointment-booking'),
                 'sort_order' => 0,

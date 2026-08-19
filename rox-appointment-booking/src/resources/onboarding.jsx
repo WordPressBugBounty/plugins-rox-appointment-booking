@@ -4,6 +4,9 @@ import { ConfigProvider } from 'antd';
 import { BrowserRouter } from 'react-router-dom';
 import apiFetch from '@wordpress/api-fetch';
 import Onboarding from './Onboarding/index.jsx';
+// Side effect: registers the WordPress-derived Day.js locale. Imported before
+// any date is rendered so antd's pickers and every dayjs().format() pick it up.
+import { getAntdLocale, siteLocale } from './lib/locale.js';
 import './scss/app.scss';
 import './scss/onboarding.scss';
 
@@ -92,7 +95,11 @@ if (rootElement) {
   const root = createRoot(rootElement);
   root.render(
     <StrictMode>
-      <ConfigProvider theme={themeConfig}>
+      <ConfigProvider
+        theme={themeConfig}
+        locale={getAntdLocale()}
+        direction={siteLocale.direction}
+      >
           <Onboarding />
         </ConfigProvider>
     </StrictMode>

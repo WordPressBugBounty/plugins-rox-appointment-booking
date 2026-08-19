@@ -77,20 +77,12 @@ class BookingPanelStructure extends AbstractREST
     {
         $plugin_url = plugin_dir_url(dirname(dirname(dirname(dirname(dirname(__FILE__)))))) . 'rox-appointment-booking/public/';
 
-        $location_module_enable = get_option('rox_appointment_booking_location_settings', [])['location_module_enable'] ?? false;
-
-        // The location step is a Pro feature. Even when the location module is
-        // enabled, the booking panel must only start from the location step when
-        // Pro is active; otherwise it starts from the category step.
-        $location_module_enable = $location_module_enable && rox_appointment_booking_is_pro_user();
-
-        // Even with the module enabled on Pro, the location step is only usable
-        // once at least one location exists — otherwise the panel would open on
-        // an empty location step with nothing to pick. Start from the category
-        // step until a location has been created.
-        if ($location_module_enable) {
-            $location_module_enable = \RoxAppointmentBookingPro\Modules\Location\Data\LocationModel::count() > 0;
-        }
+        // The location step is a Pro feature and is only usable once at least one
+        // location exists — otherwise the panel would open on an empty location
+        // step with nothing to pick. Both checks live in shared helpers so the
+        // block editor and the Elementor widget decide the same way.
+        $location_module_enable = rox_appointment_booking_location_module_enabled()
+            && rox_appointment_booking_location_count() > 0;
 
         $integrations_settings = get_option('rox_appointment_booking_integrations_settings', []);
 
@@ -104,12 +96,14 @@ class BookingPanelStructure extends AbstractREST
         $google_login = apply_filters('rox_appointment_booking_google_login_config', [
             'enabled'    => false,
             'clientId'   => '',
-            'buttonText' => 'Continue with Google',
+            'buttonText' => esc_html__('Continue with Google', 'rox-appointment-booking'),
         ]);
 
         return apply_filters('rox_appointment_booking_temp_location_data', [
-            "title" => $location_module_enable ? "Location Selection" : "Category Selection",
-            "subTitle" => "Select the location where you'd like to book your appointment.",
+            "title" => $location_module_enable
+                ? esc_html__('Location Selection', 'rox-appointment-booking')
+                : esc_html__('Category Selection', 'rox-appointment-booking'),
+            "subTitle" => esc_html__("Select the location where you'd like to book your appointment.", 'rox-appointment-booking'),
             "icon" => $plugin_url . "svgs/sidebar_image.svg",
             "location" => $location_module_enable ? true : false,
 
@@ -126,7 +120,8 @@ class BookingPanelStructure extends AbstractREST
             "mailchimpConsentEnabled" => !empty($integrations_settings['mailchimp_enabled'])
                 && !empty($integrations_settings['mailchimp_api_key'])
                 && !empty($integrations_settings['mailchimp_audience_id']),
-            "mailchimpConsentText" => $integrations_settings['mailchimp_consent_text'] ?? 'Subscribe me to updates',
+            "mailchimpConsentText" => $integrations_settings['mailchimp_consent_text']
+                ?? esc_html__('Subscribe me to updates', 'rox-appointment-booking'),
 
             // "Sign in with Google" button on the Customer Information step. Only
             // true when the Gmail-capable Pro answered the filter above with the

@@ -6,6 +6,7 @@ if (! defined('ABSPATH')) exit; // Exit if accessed directly
 
 use RoxAppointmentBooking\Modules\Agent\Data\AgentModel;
 use RoxAppointmentBooking\Modules\Appointment\Services\AppointmentService;
+use RoxAppointmentBooking\Modules\UserManagement\Services\RoleManager;
 use RoxAppointmentBooking\Supports\Security;
 
 /**
@@ -159,7 +160,14 @@ class UserInfo
         }
 
         $wp_roles = wp_roles();
-        return $wp_roles->role_names[$role] ?? $role;
+        $role_name = $wp_roles->role_names[$role] ?? $role;
+
+        // Role names are stored untranslated in the database by add_role(), so
+        // they have to be localised on output. Core's own roles go through
+        // translate_user_role(); the plugin's two roles go through RoleManager.
+        return $wp_roles->is_role($role)
+            ? RoleManager::translateRoleName(translate_user_role($role_name))
+            : $role_name;
     }
 
     /**

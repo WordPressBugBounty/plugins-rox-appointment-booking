@@ -21,7 +21,9 @@
 		"showStats": { "type": "boolean", "default": true },
 		"showSocials": { "type": "boolean", "default": true },
 		"showWorkDays": { "type": "boolean", "default": true },
-		"showContact": { "type": "boolean", "default": true }
+		"showContact": { "type": "boolean", "default": true },
+		"showBackground": { "type": "boolean", "default": true },
+		"backgroundColor": { "type": "string", "default": "" }
 	},
 	"editorScript": "rox-appointment-booking-single-agent-booking-editor",
 	"editorStyle": "rox-appointment-booking-single-agent-booking-editor-style",

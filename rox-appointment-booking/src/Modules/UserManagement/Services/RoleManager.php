@@ -62,6 +62,28 @@ class RoleManager
 	}
 
 	/**
+	 * Translate a role display name.
+	 *
+	 * WordPress stores the display name passed to add_role() verbatim in the
+	 * database, so the name can only be localised when it is printed. The
+	 * self::ROLES constant holds the untranslated English source strings (a
+	 * constant cannot call __()); this method is the single place that turns one
+	 * into the site language, mirroring core's translate_user_role().
+	 *
+	 * @param string $role_name Untranslated role display name.
+	 * @return string
+	 */
+	public static function translateRoleName(string $role_name): string
+	{
+		$names = [
+			'Booking Engine Customer' => __('Booking Engine Customer', 'rox-appointment-booking'),
+			'Booking Engine Agent'    => __('Booking Engine Agent', 'rox-appointment-booking'),
+		];
+
+		return $names[$role_name] ?? $role_name;
+	}
+
+	/**
 	 * Register all custom roles.
 	 *
 	 * @return void

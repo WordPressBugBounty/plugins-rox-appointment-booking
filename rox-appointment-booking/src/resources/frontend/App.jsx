@@ -6,6 +6,10 @@ import BookingService from "./../components/BookingService/index.jsx";
 
 
 import { ConfigProvider } from "antd";
+// Side effect: registers the WordPress-derived Day.js locale. Imported before
+// any date is rendered so antd's pickers and every dayjs().format() pick it up.
+import { getAntdLocale, siteLocale } from "../lib/locale.js";
+import { parseIdList } from "../lib/idList.js";
 
 const themeConfig = {
   token: {
@@ -45,12 +49,25 @@ const themeConfig = {
   },
 };
 
-const App = ({ instanceId, type, hideNavigation, hideInfo }) => {
+const App = ({
+  instanceId,
+  type,
+  hideNavigation,
+  hideInfo,
+  showBackground,
+  backgroundColor,
+  allowedLocationIds,
+  allowedCategoryIds,
+}) => {
   // Access frontend config from window object
   const config = window?.rox_appointment_booking?.config?.frontend || {};
 
   return (
-    <ConfigProvider theme={themeConfig}>
+    <ConfigProvider
+      theme={themeConfig}
+      locale={getAntdLocale()}
+      direction={siteLocale.direction}
+    >
       <div className="rox-appointment-booking-frontend" data-instance={instanceId}>
         {/* Frontend booking components will go here */}
         <BookingService
@@ -58,6 +75,10 @@ const App = ({ instanceId, type, hideNavigation, hideInfo }) => {
           type={type}
           hideNavigation={hideNavigation}
           hideInfo={hideInfo}
+          showBackground={showBackground}
+          backgroundColor={backgroundColor}
+          allowedLocationIds={allowedLocationIds}
+          allowedCategoryIds={allowedCategoryIds}
         />
       </div>
     </ConfigProvider>
@@ -76,6 +97,14 @@ const mountRoot = (rootElement) => {
   const type = rootElement.dataset.type;
   const hideNavigation = rootElement.dataset.hideNavigation === "true";
   const hideInfo = rootElement.dataset.hideInfo === "true";
+  // Absent attribute (the plain shortcode) keeps the frame — only an explicit
+  // "false" from a surface that offers the toggle removes it.
+  const showBackground = rootElement.dataset.showBackground !== "false";
+  const backgroundColor = rootElement.dataset.backgroundColor || "";
+  // Optional "only offer these" lists set by the block / Elementor widget.
+  // Absent (the plain shortcode) or empty means every location / category.
+  const allowedLocationIds = parseIdList(rootElement.dataset.locations);
+  const allowedCategoryIds = parseIdList(rootElement.dataset.categories);
 
   root.render(
     <StrictMode>
@@ -84,6 +113,10 @@ const mountRoot = (rootElement) => {
         type={type}
         hideNavigation={hideNavigation}
         hideInfo={hideInfo}
+        showBackground={showBackground}
+        backgroundColor={backgroundColor}
+        allowedLocationIds={allowedLocationIds}
+        allowedCategoryIds={allowedCategoryIds}
       />
     </StrictMode>
   );

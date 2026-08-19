@@ -2,6 +2,9 @@ import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ConfigProvider } from "antd";
 import ServiceListApp from "./app/ServiceListApp.jsx";
+// Side effect: registers the WordPress-derived Day.js locale. Imported before
+// any date is rendered so antd's pickers and every dayjs().format() pick it up.
+import { getAntdLocale, siteLocale } from "../../lib/locale.js";
 import "./app/service-list.scss";
 
 const themeConfig = {
@@ -27,7 +30,11 @@ document
 
     createRoot(el).render(
       <StrictMode>
-        <ConfigProvider theme={themeConfig}>
+        <ConfigProvider
+          theme={themeConfig}
+          locale={getAntdLocale()}
+          direction={siteLocale.direction}
+        >
           <ServiceListApp config={config} />
         </ConfigProvider>
       </StrictMode>,

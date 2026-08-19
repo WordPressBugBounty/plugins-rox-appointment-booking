@@ -4,7 +4,7 @@ Tags: booking, reservation, appointments, calendar
 Requires at least: 6.5
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.2.2
+Stable tag: 1.2.3
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -218,6 +218,20 @@ After activation, you can configure the plugin settings from the WordPress admin
 
 
 == Changelog ==
+Version: 1.2.3 // 2026-08-19
+* Added: Category filter for the booking panel block and Elementor widget.
+* Added: Background controls for the booking panel block and Elementor widget.
+* Added: Background color picker for the booking panel block and Elementor widget.
+* Added: "Add to Calendar" option on the booking confirmation.
+* Added: Active permissions badge on the General settings tab.
+* Improved: Calendars, dates and times now follow the site language.
+* Improved: Translation coverage across tables, forms, dashboard and payments.
+* Improved: Category and Location steps are now hidden when only one option exists.
+* Improved: Onboarding category suggestions and wording.
+* Improved: Booking confirmation details now require a valid order key.
+* Fixed: "Book Another" reloaded the page instead of restarting the booking.
+* Fixed: Wrong steps shown in the booking panel step list.
+
 Version: 1.2.2 // 2026-08-13
 * Added: E-mail notifications for bookings, reminders, payments and account details.
 * Added: E-mail Templates editor with per-recipient toggles and placeholders.

@@ -24,6 +24,9 @@ namespace RoxAppointmentBooking\Modules\Elementor\Widgets;
 use Elementor\Widget_Base;
 use Elementor\Controls_Manager;
 use RoxAppointmentBooking\Modules\Elementor\Provider;
+use RoxAppointmentBooking\Supports\Color;
+use RoxAppointmentBooking\Supports\IdList;
+use RoxAppointmentBooking\Modules\Category\Data\CategoryModel;
 
 if (! defined('ABSPATH')) exit; // Exit if accessed directly
 
@@ -107,8 +110,9 @@ class BookingPanelWidget extends Widget_Base
     }
 
     /**
-     * Registers the widget controls: one "Layout" section with two switchers
-     * mirroring the Gutenberg block.
+     * Registers the widget controls, mirroring the Gutenberg block: a "Layout"
+     * section (visibility switchers + the panel frame) and an "Availability"
+     * section restricting which locations / categories the visitor is offered.
      *
      * @return void
      */
@@ -140,7 +144,123 @@ class BookingPanelWidget extends Widget_Base
             ]
         );
 
+        $this->add_control(
+            'show_background',
+            [
+                'label'        => esc_html__('Enable background', 'rox-appointment-booking'),
+                'type'         => Controls_Manager::SWITCHER,
+                'return_value' => 'yes',
+                'default'      => 'yes',
+                'description'  => esc_html__('Draws the grey frame (background, padding and shadow) around the panel.', 'rox-appointment-booking'),
+            ]
+        );
+
+        $this->add_control(
+            'background_color',
+            [
+                'label'       => esc_html__('Background color', 'rox-appointment-booking'),
+                'type'        => Controls_Manager::COLOR,
+                'default'     => '',
+                'description' => esc_html__('Leave empty to keep the default grey.', 'rox-appointment-booking'),
+                // Only meaningful while the frame is drawn.
+                'condition'   => ['show_background' => 'yes'],
+            ]
+        );
+
         $this->end_controls_section();
+
+        $this->start_controls_section(
+            'availability',
+            ['label' => esc_html__('Availability', 'rox-appointment-booking')]
+        );
+
+        // The location control is only offered when the visitor would actually
+        // see a location step to restrict: Pro active, the location module on,
+        // and more than one location saved (with exactly one the panel
+        // auto-selects it and skips the step).
+        if (rox_appointment_booking_location_choice_available()) {
+            $this->add_control(
+                'location_ids',
+                [
+                    'label'       => esc_html__('Locations', 'rox-appointment-booking'),
+                    'type'        => Controls_Manager::SELECT2,
+                    'multiple'    => true,
+                    'options'     => $this->getLocationOptions(),
+                    'default'     => [],
+                    'label_block' => true,
+                    'description' => esc_html__('Leave empty to offer every location. Pick one or more to limit the location step to just those.', 'rox-appointment-booking'),
+                ]
+            );
+        }
+
+        $this->add_control(
+            'category_ids',
+            [
+                'label'       => esc_html__('Categories', 'rox-appointment-booking'),
+                'type'        => Controls_Manager::SELECT2,
+                'multiple'    => true,
+                'options'     => $this->getCategoryOptions(),
+                'default'     => [],
+                'label_block' => true,
+                'description' => esc_html__('Leave empty to offer every category. Pick one or more to limit the category step to just those.', 'rox-appointment-booking'),
+            ]
+        );
+
+        $this->end_controls_section();
+    }
+
+    /**
+     * Builds the location SELECT2 options (`id => name`). Only ever called
+     * behind rox_appointment_booking_location_choice_available(), which already
+     * guarantees Pro is active and therefore that the Pro location model exists.
+     *
+     * @return array<int, string>
+     */
+    protected function getLocationOptions(): array
+    {
+        $model = '\RoxAppointmentBookingPro\Modules\Location\Data\LocationModel';
+
+        if (!class_exists($model)) {
+            return [];
+        }
+
+        $options = [];
+
+        foreach ($model::query()->where('status', 'active')->get() as $location) {
+            $id = (int) $location->getID();
+            $name = trim((string) $location->getName());
+
+            $options[$id] = $name !== '' ? $name : sprintf(
+                /* translators: %d: location id */
+                esc_html__('Location #%d', 'rox-appointment-booking'),
+                $id
+            );
+        }
+
+        return $options;
+    }
+
+    /**
+     * Builds the category SELECT2 options (`id => title`).
+     *
+     * @return array<int, string>
+     */
+    protected function getCategoryOptions(): array
+    {
+        $options = [];
+
+        foreach (CategoryModel::query()->get() as $category) {
+            $id = (int) $category->getID();
+            $title = trim((string) $category->title);
+
+            $options[$id] = $title !== '' ? $title : sprintf(
+                /* translators: %d: category id */
+                esc_html__('Category #%d', 'rox-appointment-booking'),
+                $id
+            );
+        }
+
+        return $options;
     }
 
     /**
@@ -156,10 +276,23 @@ class BookingPanelWidget extends Widget_Base
         $hide_navigation = (($settings['hide_navigation'] ?? '') === 'yes') ? 'true' : 'false';
         $hide_info       = (($settings['hide_info'] ?? '') === 'yes') ? 'true' : 'false';
 
+        // Frame switch defaults to on, unlike the two hide toggles above.
+        $show_background  = (($settings['show_background'] ?? 'yes') === 'yes') ? 'true' : 'false';
+        $background_color = Color::sanitize((string) ($settings['background_color'] ?? ''));
+
+        // Optional "only offer these" picks. Elementor hands SELECT2 values
+        // back as strings; an empty list means no restriction.
+        $location_ids = IdList::toAttr($settings['location_ids'] ?? []);
+        $category_ids = IdList::toAttr($settings['category_ids'] ?? []);
+
         printf(
-            '<div class="rox-appointment-booking-frontend-root" data-type="booking-form" data-hide-navigation="%1$s" data-hide-info="%2$s"></div>',
+            '<div class="rox-appointment-booking-frontend-root" data-type="booking-form" data-hide-navigation="%1$s" data-hide-info="%2$s" data-show-background="%3$s" data-background-color="%4$s" data-locations="%5$s" data-categories="%6$s"></div>',
             esc_attr($hide_navigation),
-            esc_attr($hide_info)
+            esc_attr($hide_info),
+            esc_attr($show_background),
+            esc_attr($background_color),
+            esc_attr($location_ids),
+            esc_attr($category_ids)
         );
     }
 }

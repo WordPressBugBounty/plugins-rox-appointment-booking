@@ -87,7 +87,7 @@ class LoginFormConfig
         $google = apply_filters('rox_appointment_booking_google_login_config', [
             'enabled'    => false,
             'clientId'   => '',
-            'buttonText' => 'Continue with Google',
+            'buttonText' => esc_html__('Continue with Google', 'rox-appointment-booking'),
         ]);
 
         if ($show_google && !empty($google['enabled']) && !empty($google['clientId'])) {

@@ -339,10 +339,16 @@ class GetAppointment extends AbstractREST
                                 ->get();
 
         $appointmentsData = $appointments->toArray();
+        // Titles for the list's Location column, or null when the Locations
+        // module isn't usable (no Pro / module switched off / no active
+        // location). Null means the `location` key is left off the rows
+        // entirely, which is how the appointments table decides to drop the
+        // column instead of rendering an empty one.
+        $locationTitles = $this->getLocationTitleMap($appointmentsData);
         $groupedAppointments = [];
         $groupId = 1;
         foreach ($appointmentsData as $appointment) {
-            $response = $this->buildAppointmentResponse($appointment, $customerService, $agentService);
+            $response = $this->buildAppointmentResponse($appointment, $customerService, $agentService, $locationTitles);
             $dateKey = !empty($appointment['date'])
                 ? $appointment['date']
                 : (isset($appointment['start_time']) ? gmdate('Y-m-d', strtotime($appointment['start_time'])) : 'unknown');
@@ -514,15 +520,16 @@ class GetAppointment extends AbstractREST
      * @param array $appointmentData
      * @param CustomerService $customerService
      * @param AgentService $agentService
+     * @param array|null $locationTitles Location id => title map, or null when the Locations module isn't usable.
      * @return array
      */
-    private function buildAppointmentResponse($appointmentData, $customerService, $agentService): array
+    private function buildAppointmentResponse($appointmentData, $customerService, $agentService, ?array $locationTitles = null): array
     {
         $customer = isset($appointmentData['customer_id']) ? $customerService->getCustomer($appointmentData['customer_id']) : null;
         $agent = isset($appointmentData['agent_id']) ? $agentService->getAgent($appointmentData['agent_id']) : null;
         $serviceTitle = isset($appointmentData['service_id']) ? ServiceService::getServiceTitleById($appointmentData['service_id'] ?? null) : '';
-        
-        return [
+
+        $response = [
             'id' => $appointmentData['id'] ?? null,
             'time' => isset($appointmentData['start_time']) ? gmdate('g:i A', strtotime($appointmentData['start_time'])) : null,
             'service' => $serviceTitle,
@@ -532,6 +539,78 @@ class GetAppointment extends AbstractREST
             'status' => strtolower($appointmentData['status'] ?? ''),
             'created_at' => isset($appointmentData['created_at']) ? gmdate('Y-m-d H:i:s', strtotime($appointmentData['created_at'])) : null
         ];
+
+        // Only carried when the module is usable — see getLocationTitleMap().
+        // A row without a location still gets the key (as an empty string) so
+        // the column stays consistent across the whole page.
+        if ($locationTitles !== null) {
+            $locationId = (int) ($appointmentData['location_id'] ?? 0);
+            $response['location'] = $locationId ? ($locationTitles[$locationId] ?? '') : '';
+        }
+
+        return $response;
+    }
+
+    /**
+     * Build the location id => title map for the appointment list rows.
+     *
+     * Returns null when the Locations module isn't usable, which tells
+     * buildAppointmentResponse() to leave the `location` key off entirely.
+     * "Usable" means the same three things the booking panel checks before it
+     * opens on the location step: Pro is active, the Locations module switch is
+     * on, and at least one ACTIVE location exists — an inactive-only install has
+     * nothing bookable to show.
+     *
+     * Reads the `rox_appointment_location` table directly for the same reason
+     * getLocationOption() does: the table is created by core, while the Location
+     * model ships with Pro.
+     *
+     * @param array $appointmentsData
+     * @return array<int, string>|null
+     */
+    private function getLocationTitleMap(array $appointmentsData): ?array
+    {
+        if (!rox_appointment_booking_is_pro_user()) {
+            return null;
+        }
+
+        $location_settings = get_option('rox_appointment_booking_location_settings', []);
+        if (!filter_var($location_settings['location_module_enable'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+            return null;
+        }
+
+        global $wpdb;
+        $table = ROX_APPOINTMENT_BOOKING_DB_PREFIX . ROX_APPOINTMENT_BOOKING_PREFIX . '_location';
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- No core Location model exists; table is created by core regardless of Pro.
+        $activeCount = (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $table WHERE status = %s", 'active'));
+        if ($activeCount < 1) {
+            return null;
+        }
+
+        $locationIds = array_values(array_unique(array_filter(array_map(
+            static function ($appointment) {
+                return (int) ($appointment['location_id'] ?? 0);
+            },
+            $appointmentsData
+        ))));
+
+        // The column is still shown (this page's bookings simply predate the
+        // module, or were made without a location), just with empty cells.
+        if (empty($locationIds)) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($locationIds), '%d'));
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL -- Placeholders are generated, values are passed through prepare().
+        $rows = $wpdb->get_results($wpdb->prepare("SELECT id, title FROM $table WHERE id IN ($placeholders)", $locationIds), ARRAY_A);
+
+        $titles = [];
+        foreach ((array) $rows as $row) {
+            $titles[(int) $row['id']] = (string) $row['title'];
+        }
+
+        return $titles;
     }
 
     /**

@@ -8,6 +8,8 @@ use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
 use RoxAppointmentBooking\Modules\Category\Data\CategoryModel;
 use RoxAppointmentBooking\Modules\Category\Services\CategoryService;
+use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceCategoryRelationModel;
+use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceLocationRelationModel;
 
 /**
  * Class GetCategory
@@ -136,8 +138,38 @@ class GetCategory extends AbstractREST
         $per_page = $request->get_param('per_page') ?? 10;
         $search = $request->get_param('search') ?? '';
         $mode = $request->get_param('mode') ?? 'default';
+        $location_id = $request->get_param('location_id') ?? null;
 
         $query = CategoryModel::query();
+
+        // Filter by location if location_id is provided: walk location -> services
+        // -> categories, so only categories that actually have a service available
+        // at the chosen location are returned. Uses the same relation tables the
+        // Service endpoint filters on, which keeps the appointment form's
+        // Location -> Category -> Service cascade consistent (every category listed
+        // here has at least one service for that location).
+        if (!empty($location_id)) {
+            // Get service IDs that belong to the specified location
+            $serviceIds = ServiceLocationRelationModel::where('location_id', $location_id)
+                ->pluck('service_id')
+                ->toArray();
+
+            // Get the category IDs those services are assigned to
+            $categoryIds = [];
+            if (!empty($serviceIds)) {
+                $categoryIds = ServiceCategoryRelationModel::whereIn('service_id', $serviceIds)
+                    ->pluck('category_id')
+                    ->toArray();
+            }
+
+            // Filter categories by the IDs found through the location's services
+            if (!empty($categoryIds)) {
+                $query->whereIn('id', array_values(array_unique($categoryIds)));
+            } else {
+                // If no categories found for this location, return empty result
+                $query->where('id', 0);
+            }
+        }
 
         if (!empty($search)) {
             $query->where(function($q) use ($search) {

@@ -110,7 +110,7 @@ class GetPayment extends AbstractREST
             // Service charges (subtotal)
             if ($order->subtotal > 0) {
                 $pricingItems[] = [
-                    'label' => 'Service Charges',
+                    'label' => esc_html__('Service Charges', 'rox-appointment-booking'),
                     'amount' => $order->subtotal,
                     'className' => ''
                 ];
@@ -123,7 +123,13 @@ class GetPayment extends AbstractREST
             
             // Tax/VAT
             if ($order->tax_amount > 0) {
-                $taxLabel = $taxRate > 0 ? sprintf('VAT (%.1f%%)', $taxRate) : 'Tax';
+                $taxLabel = $taxRate > 0
+                    ? sprintf(
+                        /* translators: %s: tax rate percentage, e.g. 7.5 */
+                        esc_html__('VAT (%s%%)', 'rox-appointment-booking'),
+                        number_format_i18n($taxRate, 1)
+                    )
+                    : esc_html__('Tax', 'rox-appointment-booking');
                 $pricingItems[] = [
                     'label' => $taxLabel,
                     'amount' => $order->tax_amount,
@@ -134,32 +140,32 @@ class GetPayment extends AbstractREST
             // Discount
             if ($order->discount_amount > 0) {
                 $pricingItems[] = [
-                    'label' => 'Discount',
+                    'label' => esc_html__('Discount', 'rox-appointment-booking'),
                     'amount' => $order->discount_amount,
                     'className' => 'discount'
                 ];
             }
-            
+
             // Subtotal (service charges + tax - discount)
             $subtotal = ($order->subtotal + $order->tax_amount) - $order->discount_amount;
             $pricingItems[] = [
-                'label' => 'Subtotal',
+                'label' => esc_html__('Subtotal', 'rox-appointment-booking'),
                 'amount' => $subtotal,
                 'className' => 'subtotal-row'
             ];
-            
+
             // Total Paid
             $totalPaid = $order->total_amount - $dueAmount;
             $pricingItems[] = [
-                'label' => 'Total Paid',
+                'label' => esc_html__('Total Paid', 'rox-appointment-booking'),
                 'amount' => $totalPaid,
                 'className' => 'paid'
             ];
-            
+
             // Due
             if ($dueAmount > 0) {
                 $pricingItems[] = [
-                    'label' => 'Due',
+                    'label' => esc_html__('Due', 'rox-appointment-booking'),
                     'amount' => $dueAmount,
                     'className' => 'due-row'
                 ];
@@ -237,8 +243,12 @@ class GetPayment extends AbstractREST
         $discountAmount = $order ? (float) ($order->discount_amount ?? 0) : 0;
 
         $serviceLabel = ($service && !empty($service->title))
-            ? $service->title . ' (Service Charges)'
-            : 'Service Charges';
+            ? sprintf(
+                /* translators: %s: service title */
+                esc_html__('%s (Service Charges)', 'rox-appointment-booking'),
+                $service->title
+            )
+            : esc_html__('Service Charges', 'rox-appointment-booking');
 
         $taxRate = 0;
         if ($serviceChargeAmount > 0 && $taxAmount > 0) {
@@ -257,7 +267,13 @@ class GetPayment extends AbstractREST
 
             if ($taxAmount > 0) {
                 $pricingItems[] = [
-                    'label' => $taxRate > 0 ? sprintf('VAT (%.1f%%)', $taxRate) : 'Tax',
+                    'label' => $taxRate > 0
+                        ? sprintf(
+                            /* translators: %s: tax rate percentage, e.g. 7.5 */
+                            esc_html__('VAT (%s%%)', 'rox-appointment-booking'),
+                            number_format_i18n($taxRate, 1)
+                        )
+                        : esc_html__('Tax', 'rox-appointment-booking'),
                     'amount' => $taxAmount,
                     'className' => ''
                 ];
@@ -265,7 +281,7 @@ class GetPayment extends AbstractREST
 
             if ($discountAmount > 0) {
                 $pricingItems[] = [
-                    'label' => 'Discount',
+                    'label' => esc_html__('Discount', 'rox-appointment-booking'),
                     'amount' => -$discountAmount,
                     'className' => 'discount'
                 ];
@@ -273,21 +289,21 @@ class GetPayment extends AbstractREST
 
             $subtotalAmount = ($serviceChargeAmount + $taxAmount) - $discountAmount;
             $pricingItems[] = [
-                'label' => 'Subtotal',
+                'label' => esc_html__('Subtotal', 'rox-appointment-booking'),
                 'amount' => max($subtotalAmount, 0),
                 'className' => 'subtotal-row'
             ];
 
             $totalPaid = max($totalAmount - $dueAmount, 0);
             $pricingItems[] = [
-                'label' => 'Total Paid',
+                'label' => esc_html__('Total Paid', 'rox-appointment-booking'),
                 'amount' => $totalPaid,
                 'className' => 'paid'
             ];
 
             if ($dueAmount > 0) {
                 $pricingItems[] = [
-                    'label' => 'Due',
+                    'label' => esc_html__('Due', 'rox-appointment-booking'),
                     'amount' => $dueAmount,
                     'className' => 'due-row'
                 ];
@@ -298,29 +314,29 @@ class GetPayment extends AbstractREST
         if ($customer) {
             $customerItems = [
                 [
-                    'label'  => 'Customer',
+                    'label'  => esc_html__('Customer', 'rox-appointment-booking'),
                     'value'  => $customer->getFullName(),
                     'avatar' => $customer->thumbnail_id ? wp_get_attachment_url($customer->thumbnail_id) : '',
                     'props'  => ['span' => 12]
                 ],
                 [
-                    'label'  => 'Employee',
+                    'label'  => esc_html__('Employee', 'rox-appointment-booking'),
                     'value'  => $agent ? $agent->getFullName() : '',
                     'avatar' => ($agent && $agent->thumbnail_id) ? wp_get_attachment_url($agent->thumbnail_id) : '',
                     'props'  => ['span' => 12]
                 ],
                 [
-                    'label'  => 'Service',
+                    'label'  => esc_html__('Service', 'rox-appointment-booking'),
                     'value'  => $service->title ?? '',
                     'props'  => ['span' => 12]
                 ],
                 [
-                    'label'  => 'Date, Time',
+                    'label'  => esc_html__('Date, Time', 'rox-appointment-booking'),
                     'value'  => $dateTimeFormatted,
                     'props'  => ['span' => 12]
                 ],
                 [
-                    'label'  => 'Payment Method',
+                    'label'  => esc_html__('Payment Method', 'rox-appointment-booking'),
                     'value'  => $order ? ucfirst(str_replace('_', ' ', $order->payment_method ?? '')) : '',
                     'props'  => ['span' => 12]
                 ]
@@ -360,11 +376,11 @@ class GetPayment extends AbstractREST
             'created_at' => $payment->created_at,
             'updated_at' => $payment->updated_at,
             'customer_info_section' => [
-                'title' => 'Booking INFORMATION',
+                'title' => esc_html__('Booking INFORMATION', 'rox-appointment-booking'),
                 'items' => $customerItems
             ],
              'pricing_breakdown_section' => [
-            'title' => 'PRICING BREAKDOWN',
+            'title' => esc_html__('PRICING BREAKDOWN', 'rox-appointment-booking'),
             'items' => $pricingItems,
             'currencySymbol' => $currencySymbol,
         ],

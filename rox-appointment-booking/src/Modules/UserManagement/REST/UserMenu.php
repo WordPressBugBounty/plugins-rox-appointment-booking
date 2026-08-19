@@ -87,7 +87,7 @@ class UserMenu extends AbstractREST
         $items = [
             [
                 "key" => "profile",
-                "label" => "Profile",
+                "label" => esc_html__('Profile', 'rox-appointment-booking'),
                 "icon" => "avatar",
                 "action" => [
                     "type" => "navigate",
@@ -101,7 +101,7 @@ class UserMenu extends AbstractREST
         if (Security::canManageBookings()) {
             $items[] = [
                 "key" => "settings",
-                "label" => "Setting",
+                "label" => esc_html__('Setting', 'rox-appointment-booking'),
                 "icon" => "setting",
                 "action" => [
                     "type" => "navigate",
@@ -112,7 +112,7 @@ class UserMenu extends AbstractREST
 
         $items[] = [
             "key" => "logout",
-            "label" => "Logout",
+            "label" => esc_html__('Logout', 'rox-appointment-booking'),
             "icon" => "logout",
             "action" => [
                 "type" => "logout",

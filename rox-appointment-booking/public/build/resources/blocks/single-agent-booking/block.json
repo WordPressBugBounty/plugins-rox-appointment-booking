@@ -44,6 +44,14 @@
     "showContact": {
       "type": "boolean",
       "default": true
+    },
+    "showBackground": {
+      "type": "boolean",
+      "default": true
+    },
+    "backgroundColor": {
+      "type": "string",
+      "default": ""
     }
   },
   "editorScript": "rox-appointment-booking-single-agent-booking-editor",

@@ -1,5 +1,15 @@
-import { useBlockProps, InspectorControls } from "@wordpress/block-editor";
-import { PanelBody, SelectControl, ToggleControl, Spinner } from "@wordpress/components";
+import {
+	useBlockProps,
+	InspectorControls,
+	ColorPalette,
+} from "@wordpress/block-editor";
+import {
+	PanelBody,
+	SelectControl,
+	ToggleControl,
+	Spinner,
+	BaseControl,
+} from "@wordpress/components";
 import { useEffect, useState } from "@wordpress/element";
 import { __ } from "@wordpress/i18n";
 import apiFetch from "@wordpress/api-fetch";
@@ -18,15 +28,23 @@ import "../../components/BookingService/bookingstyle.scss";
  * public side by the Pro `SingleAgentBookingBlock::renderBlock()`.
  */
 const Edit = ({ attributes, setAttributes }) => {
-	const { agentId, showBio, showStats, showSocials, showWorkDays, showContact } =
-		attributes;
+	const {
+		agentId,
+		showBio,
+		showStats,
+		showSocials,
+		showWorkDays,
+		showContact,
+		showBackground,
+		// NOTE: named `backgroundColor` because it is ours alone — the block does
+		// not opt into `supports.color`, which would reserve that same attribute
+		// name for a palette slug. Rename this if colour support is ever added.
+		backgroundColor,
+	} = attributes;
 
 	const blockProps = useBlockProps({
 		className: "rox-single-agent-block-editor",
 	});
-
-	const restBase =
-		window?.rox_appointment_booking?.config?.app?.restBaseUrl || "/wp-json/";
 
 	const [agents, setAgents] = useState([]);
 	const [agentsLoading, setAgentsLoading] = useState(true);
@@ -37,7 +55,7 @@ const Edit = ({ attributes, setAttributes }) => {
 	useEffect(() => {
 		let active = true;
 		apiFetch({
-			url: `${restBase}rox-appointment-booking/v1/public/agent?mode=list&per_page=100`,
+			path: "/rox-appointment-booking/v1/public/agent?mode=list&per_page=100",
 		})
 			.then((res) => {
 				if (active) setAgents(Array.isArray(res?.data) ? res.data : []);
@@ -60,7 +78,7 @@ const Edit = ({ attributes, setAttributes }) => {
 		let active = true;
 		setAgentLoading(true);
 		apiFetch({
-			url: `${restBase}rox-appointment-booking/v1/public/agent/${agentId}`,
+			path: `/rox-appointment-booking/v1/public/agent/${agentId}`,
 		})
 			.then((res) => {
 				if (active) setAgent(res?.success ? res.data : null);
@@ -110,26 +128,70 @@ const Edit = ({ attributes, setAttributes }) => {
 						checked={!!showBio}
 						onChange={(value) => setAttributes({ showBio: value })}
 					/>
+					{/*
+					 * Hidden for now: the redesigned agent sidebar no longer shows
+					 * stats / contact / socials / work days, so the controls have
+					 * nothing to switch. Everything behind them is left in place —
+					 * the block.json attributes, the values passed to the preview
+					 * below, and the Pro config — so restoring these controls is
+					 * the only step needed when the sections come back.
+					 *
+					 <ToggleControl
+					 	label={__("Show stats", "rox-appointment-booking")}
+					 	checked={!!showStats}
+					 	onChange={(value) => setAttributes({ showStats: value })}
+					 />
+					 <ToggleControl
+					 	label={__("Show contact", "rox-appointment-booking")}
+					 	checked={!!showContact}
+					 	onChange={(value) => setAttributes({ showContact: value })}
+					 />
+					 <ToggleControl
+					 	label={__("Show socials", "rox-appointment-booking")}
+					 	checked={!!showSocials}
+					 	onChange={(value) => setAttributes({ showSocials: value })}
+					 />
+					 <ToggleControl
+					 	label={__("Show work days", "rox-appointment-booking")}
+					 	checked={!!showWorkDays}
+					 	onChange={(value) => setAttributes({ showWorkDays: value })}
+					 />
+					 */}
+				</PanelBody>
+				<PanelBody
+					title={__("Appearance", "rox-appointment-booking")}
+					initialOpen={false}
+				>
 					<ToggleControl
-						label={__("Show stats", "rox-appointment-booking")}
-						checked={!!showStats}
-						onChange={(value) => setAttributes({ showStats: value })}
+						label={__("Enable background", "rox-appointment-booking")}
+						help={__(
+							"Draws the grey frame (background, padding and shadow) around the panel. Turn it off to let the panel sit directly on the page.",
+							"rox-appointment-booking",
+						)}
+						checked={!!showBackground}
+						onChange={(value) => setAttributes({ showBackground: value })}
 					/>
-					<ToggleControl
-						label={__("Show contact", "rox-appointment-booking")}
-						checked={!!showContact}
-						onChange={(value) => setAttributes({ showContact: value })}
-					/>
-					<ToggleControl
-						label={__("Show socials", "rox-appointment-booking")}
-						checked={!!showSocials}
-						onChange={(value) => setAttributes({ showSocials: value })}
-					/>
-					<ToggleControl
-						label={__("Show work days", "rox-appointment-booking")}
-						checked={!!showWorkDays}
-						onChange={(value) => setAttributes({ showWorkDays: value })}
-					/>
+					{showBackground && (
+						<BaseControl
+							id="rox-single-agent-background-color"
+							label={__("Background color", "rox-appointment-booking")}
+							help={__(
+								"Leave empty to keep the panel's default grey.",
+								"rox-appointment-booking",
+							)}
+							__nextHasNoMarginBottom
+						>
+							<ColorPalette
+								value={backgroundColor || undefined}
+								// Clearing hands back `undefined`; store "" so the
+								// attribute keeps its declared string type.
+								onChange={(value) =>
+									setAttributes({ backgroundColor: value || "" })
+								}
+								clearable
+							/>
+						</BaseControl>
+					)}
 				</PanelBody>
 			</InspectorControls>
 
@@ -148,8 +210,15 @@ const Edit = ({ attributes, setAttributes }) => {
 					</div>
 				) : (
 					<div
-						className="service-layout-outer single-agent rox-single-agent-preview"
-						style={{ pointerEvents: "none" }}
+						className={`service-layout-outer single-agent rox-single-agent-preview${
+							showBackground ? "" : " no-background"
+						}`}
+						style={{
+							pointerEvents: "none",
+							...(showBackground && backgroundColor
+								? { backgroundColor }
+								: {}),
+						}}
 					>
 						<div className="service-layout">
 							<div className="service-sidebar step-container">

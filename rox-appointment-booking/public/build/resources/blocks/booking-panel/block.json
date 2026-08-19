@@ -24,6 +24,28 @@
     "hideInfo": {
       "type": "boolean",
       "default": false
+    },
+    "showBackground": {
+      "type": "boolean",
+      "default": true
+    },
+    "backgroundColor": {
+      "type": "string",
+      "default": ""
+    },
+    "locationIds": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "number"
+      }
+    },
+    "categoryIds": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "number"
+      }
     }
   },
   "editorScript": "rox-appointment-booking-booking-panel-editor",

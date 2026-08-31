@@ -52,6 +52,136 @@
     "backgroundColor": {
       "type": "string",
       "default": ""
+    },
+    "accentColor": {
+      "type": "string",
+      "default": ""
+    },
+    "fontFamily": {
+      "type": "string",
+      "default": ""
+    },
+    "navBackBgColor": {
+      "type": "string",
+      "default": ""
+    },
+    "navBackTextColor": {
+      "type": "string",
+      "default": ""
+    },
+    "navBackBorderColor": {
+      "type": "string",
+      "default": ""
+    },
+    "navBackBgColorHover": {
+      "type": "string",
+      "default": ""
+    },
+    "navBackTextColorHover": {
+      "type": "string",
+      "default": ""
+    },
+    "navBackBorderColorHover": {
+      "type": "string",
+      "default": ""
+    },
+    "navBackPadding": {
+      "type": "object",
+      "default": {}
+    },
+    "navBackMargin": {
+      "type": "object",
+      "default": {}
+    },
+    "navBackBorderStyle": {
+      "type": "string",
+      "default": ""
+    },
+    "navBackBorderWidth": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "navBackBorderRadius": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "navBackFontSize": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "navBackFontWeight": {
+      "type": "string",
+      "default": ""
+    },
+    "navNextBgColor": {
+      "type": "string",
+      "default": ""
+    },
+    "navNextTextColor": {
+      "type": "string",
+      "default": ""
+    },
+    "navNextBorderColor": {
+      "type": "string",
+      "default": ""
+    },
+    "navNextBgColorHover": {
+      "type": "string",
+      "default": ""
+    },
+    "navNextTextColorHover": {
+      "type": "string",
+      "default": ""
+    },
+    "navNextBorderColorHover": {
+      "type": "string",
+      "default": ""
+    },
+    "navNextPadding": {
+      "type": "object",
+      "default": {}
+    },
+    "navNextMargin": {
+      "type": "object",
+      "default": {}
+    },
+    "navNextBorderStyle": {
+      "type": "string",
+      "default": ""
+    },
+    "navNextBorderWidth": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "navNextBorderRadius": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "navNextFontSize": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "navNextFontWeight": {
+      "type": "string",
+      "default": ""
     }
   },
   "editorScript": "rox-appointment-booking-single-agent-booking-editor",

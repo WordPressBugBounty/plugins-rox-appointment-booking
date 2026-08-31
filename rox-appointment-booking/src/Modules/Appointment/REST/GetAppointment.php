@@ -222,6 +222,12 @@ class GetAppointment extends AbstractREST
                 // Answered by Pro's Google Calendar integration, if connected and
                 // this appointment synced with a Meet link; empty otherwise.
                 'meet_link' => apply_filters('rox_appointment_booking_meet_link', '', $appointmentData['id'] ?? 0),
+                // The link text belonging to whichever integration answered
+                // above ("Join Google Meet", "Join Zoom Meeting"). Answered at
+                // the same priorities as the link itself, so the label can
+                // never name a different provider than the URL. Empty when no
+                // integration answered — the UI then uses a generic label.
+                'meet_link_label' => apply_filters('rox_appointment_booking_meet_link_label', '', $appointmentData['id'] ?? 0),
             ];
 
             // A panel user never sees the ORDER: the Order Details card and the

@@ -34,7 +34,8 @@ const icon = (
 registerBlockType(metadata.name, {
 	icon,
 	edit: Edit,
-	// Dynamic block: markup is produced by the PHP render_callback, which mounts
-	// the shortcode's frontend booking panel bundle.
+	// Dynamic block: markup is produced by the PHP render_callback — the
+	// shortcode's frontend panel mount node in general mode, and the trigger
+	// button (byte-identical to the Elementor widget's) in popup mode.
 	save: () => null,
 });

@@ -1,4 +1,8 @@
 // Editor-only styles for the Rox Appointment Booking Panel block preview.
+//
+// The panel and the popup trigger are both drawn by the real frontend
+// stylesheets, which edit.jsx imports so the canvas matches the published page.
+// Only what the editor needs on top of those belongs here.
 .rox-booking-panel-block-editor {
 	.rox-booking-panel-preview__loading {
 		display: flex;
@@ -6,4 +10,47 @@
 		justify-content: center;
 		min-height: 200px;
 	}
+}
+
+.rox-booking-button-block-editor {
+	// The preview button keeps its pointer events so hovering it previews the
+	// hover colours; the click itself is swallowed in ButtonPreview. Clicks
+	// still bubble to the block wrapper, so selecting and dragging the block
+	// works as it does for any other.
+	.rox-booking-button[aria-disabled="true"] {
+		cursor: default;
+	}
+
+	// A full-width button in a narrow editor column should still fill it.
+	.rox-booking-button--full {
+		width: 100%;
+	}
+}
+
+// Normal / Hover colour tabs inside the Button colors panel.
+// PanelColorSettings is normally its own collapsible panel; nested inside one it
+// has to drop the frame, or the sidebar shows a panel inside a panel.
+.rox-booking-button-color-tabs {
+	.components-tab-panel__tabs {
+		margin-bottom: 8px;
+	}
+
+	.rox-booking-button-colors {
+		border: 0;
+
+		> .components-panel__body-title {
+			display: none;
+		}
+
+		.components-panel__body {
+			border: 0;
+		}
+	}
+}
+
+.rox-booking-button-colors__help {
+	margin: 4px 0 0;
+	color: #757575;
+	font-size: 12px;
+	font-style: normal;
 }

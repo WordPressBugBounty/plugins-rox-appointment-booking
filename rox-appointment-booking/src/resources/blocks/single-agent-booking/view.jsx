@@ -5,6 +5,8 @@ import BookingService from "../../components/BookingService/index.jsx";
 // Side effect: registers the WordPress-derived Day.js locale. Imported before
 // any date is rendered so antd's pickers and every dayjs().format() pick it up.
 import { getAntdLocale, siteLocale } from "../../lib/locale.js";
+import { ensureWebFont } from "../../lib/webFont.js";
+import { readAccent, withAccent } from "../../lib/accentTheme.js";
 // Same base stylesheet the frontend App loads — sets box-sizing:border-box +
 // the Heebo font on `.rox-appointment-booking-frontend` so the reused panel
 // (slots, inputs) renders identically to the main booking panel.
@@ -24,7 +26,7 @@ import "../../frontend/scss/app.scss";
  */
 
 // Matches the frontend App's antd theme so the reused panel renders identically.
-const themeConfig = {
+const baseThemeConfig = {
   token: {
     borderRadius: 6,
     fontFamily: '"Heebo", sans-serif',
@@ -53,6 +55,12 @@ const themeConfig = {
       colorBorder: "rgb(219,221,225)",
       fontWeightStrong: 400,
       colorText: "rgb(0,0,0)",
+      // Kept in step with the booking panel's own ConfigProvider (see
+      // frontend/App.jsx) — this surface renders the same customer form, so the
+      // calendar has to come out the same size. 30 * 7 + 14 * 2 = a 238px panel.
+      cellWidth: 30,
+      cellHeight: 26,
+      pickerDatePanelPaddingHorizontal: 14,
     },
     Skeleton: {
       gradientFromColor: "rgb(226,229,239)",
@@ -80,6 +88,28 @@ const mountRoot = (el) => {
   const config = parseConfig(el);
   const agentId = config.agentId ? Number(config.agentId) : null;
 
+  // A resolved CSS stack, already validated server-side against the shared
+  // font list. Empty keeps the panel on the stylesheet's own font.
+  const fontFamily = config.fontFamily || "";
+
+  // The Elementor editor re-renders the widget over AJAX, where the enqueue
+  // PHP does on page load never arrives — so load the face from the config too.
+  // Deduped on the href, so the link PHP printed gains no second copy.
+  ensureWebFont(el.ownerDocument, config.fontUrl);
+
+  // antd renders selects, date pickers and toasts in a portal on <body>, where
+  // the CSS variable set on the wrapper below cannot reach them — the theme
+  // token is what carries the chosen font into those.
+  // The accent the surface chose, read off the cascade: the Elementor control
+  // writes it as a CSS variable and the block as an inline style.
+  const accent = readAccent(el);
+
+  const themed = withAccent(baseThemeConfig, accent);
+
+  const themeConfig = fontFamily
+    ? { ...themed, token: { ...themed.token, fontFamily } }
+    : themed;
+
   createRoot(el).render(
     <StrictMode>
       <ConfigProvider
@@ -90,8 +120,15 @@ const mountRoot = (el) => {
         <div
           className="rox-appointment-booking-frontend"
           data-instance={el.dataset.instance}
+          // Every font-family in the panel stylesheet reads this variable and
+          // falls back to Heebo, so an unset font leaves the panel as it was.
+          style={fontFamily ? { "--rox-font-family": fontFamily } : undefined}
         >
           <BookingService
+            // Decides which store this panel gets, so two single-agent panels
+            // on a page keep their selections apart. Prefixed because every
+            // surface numbers its instances from 1 independently.
+            instanceId={`agent-${el.dataset.instance || "1"}`}
             singleAgentId={agentId}
             singleAgentConfig={config}
             // Frame settings live in the same data-config blob, but the panel

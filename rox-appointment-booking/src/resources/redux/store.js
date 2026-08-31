@@ -20,7 +20,6 @@ export const store = createReduxStore("my-shop", {
   reducer(state = DEFAULT_STATE, action) {
     switch (action.type) {
       case "TOGGLE_MODAL":
-        console.log("called toggle")
         return { ...state, openModal: !state.openModal };
 
       case "FETCH_PRODUCTS_START":

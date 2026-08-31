@@ -1,0 +1,400 @@
+/**
+ * Booking Button styles.
+ *
+ * Shared by the editor preview (edit.jsx) and the published button (view.jsx),
+ * so what an editor arranges in Gutenberg is what a visitor gets.
+ *
+ * Colours come in as custom properties rather than plain declarations. That is
+ * what lets a surface set a hover colour at all — an inline `style` cannot
+ * express `:hover`, so the hover rule lives here and reads the variables the
+ * surface set. Elementor feeds the same variables from its generated CSS, which
+ * keeps the two surfaces out of a specificity fight over `background-color`.
+ *
+ * Variables (all optional; each has a fallback below):
+ *   --rox-btn-bg / --rox-btn-fg / --rox-btn-border            normal colours
+ *   --rox-btn-bg-hover / --rox-btn-fg-hover /
+ *   --rox-btn-border-hover                                    hover colours
+ *   --rox-btn-hover-filter    replaces the default brightness shift
+ *
+ * Two build-time constraints shape this file, both from webpack.config.js's
+ * CSSReplacementPlugin: `:root` is rewritten to `:host`, and a bare `body {}`
+ * rule is stripped. Neither selector may appear here.
+ *
+ * Theme buttons are styled aggressively (`button {}`, `.wp-block-button a`),
+ * so every declaration that matters is set explicitly and scoped under the
+ * wrapper class to win on specificity without reaching for !important.
+ */
+
+.rox-booking-button-wrap {
+	// Themes hand block wrappers a line-height that would pad the row.
+	line-height: 1;
+	// Set through a variable so the stylesheet keeps ownership of the rule and
+	// a theme's own alignment cannot outrank it.
+	text-align: var(--rox-btn-align, left);
+
+	.rox-booking-button {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		box-sizing: border-box;
+		padding:
+			var(--rox-btn-pt, var(--rox-btn-pad-y))
+			var(--rox-btn-pr, var(--rox-btn-pad-x))
+			var(--rox-btn-pb, var(--rox-btn-pad-y))
+			var(--rox-btn-pl, var(--rox-btn-pad-x));
+		margin:
+			var(--rox-btn-mt, 0)
+			var(--rox-btn-mr, 0)
+			var(--rox-btn-mb, 0)
+			var(--rox-btn-ml, 0);
+		background-color: var(--rox-btn-bg);
+		color: var(--rox-btn-fg);
+		border: var(--rox-btn-bw, 1px) solid var(--rox-btn-border);
+		border-radius: var(--rox-btn-br, 6px);
+		font-family: inherit;
+		font-weight: 500;
+		line-height: 1.2;
+		text-align: center;
+		text-decoration: none;
+		white-space: nowrap;
+		cursor: pointer;
+		// Themes love a transform/shadow on :hover; keep ours predictable.
+		box-shadow: none;
+		transition:
+			filter 0.15s ease,
+			background-color 0.15s ease,
+			border-color 0.15s ease,
+			color 0.15s ease;
+
+		&:hover:not([disabled]) {
+			// Each falls back to the normal colour, so a surface that sets only
+			// one hover colour leaves the other two alone.
+			background-color: var(--rox-btn-bg-hover, var(--rox-btn-bg));
+			color: var(--rox-btn-fg-hover, var(--rox-btn-fg));
+			border-color: var(--rox-btn-border-hover, var(--rox-btn-border));
+			// filter, not a hardcoded shade: the button may be any colour. A
+			// surface that sets an explicit hover colour switches this to `none`,
+			// otherwise the shift would tint that colour on top of itself.
+			filter: var(--rox-btn-hover-filter, brightness(1.08));
+		}
+
+		&:active:not([disabled]) {
+			filter: var(--rox-btn-hover-filter, brightness(0.94));
+		}
+
+		&:hover,
+		&:focus,
+		&:active {
+			box-shadow: none;
+			text-decoration: none;
+		}
+
+		// Keyboard users must be able to see where they are, and a theme's
+		// `outline: none` reset would take that away.
+		//
+		// Not currentColor: on a filled button that is the label — white — so the
+		// ring landed white-on-white and a visitor tabbing to the button saw
+		// nothing at all. Each variant names a real colour below.
+		&:focus-visible {
+			outline: 2px solid var(--rox-btn-focus, #3560fb);
+			outline-offset: 2px;
+		}
+
+		&[disabled] {
+			// The editor preview is disabled, but it should still look live.
+			cursor: default;
+			opacity: 1;
+		}
+	}
+
+	// --- Sizes ---------------------------------------------------------------
+	// Padding and text size only. A surface that sets its own padding writes it
+	// per side as an inline declaration, which overrides just the sides it set.
+
+	.rox-booking-button--small {
+		--rox-btn-pad-y: 8px;
+		--rox-btn-pad-x: 16px;
+		font-size: 13px;
+
+		.rox-booking-button__icon svg {
+			width: 16px;
+			height: 16px;
+		}
+	}
+
+	.rox-booking-button--medium {
+		--rox-btn-pad-y: 12px;
+		--rox-btn-pad-x: 24px;
+		font-size: 15px;
+	}
+
+	.rox-booking-button--large {
+		--rox-btn-pad-y: 16px;
+		--rox-btn-pad-x: 32px;
+		font-size: 17px;
+
+		.rox-booking-button__icon svg {
+			width: 22px;
+			height: 22px;
+		}
+	}
+
+	// --- Variants ------------------------------------------------------------
+	// Each variant only declares the variables; the shared rule above consumes
+	// them. A surface overrides a variable inline (or, for Elementor, from its
+	// generated rule) without having to restate the whole declaration.
+
+	.rox-booking-button--filled {
+		--rox-btn-bg: #3560fb;
+		--rox-btn-fg: #fff;
+		// Follows the fill unless a surface sets a border colour of its own.
+		--rox-btn-border: var(--rox-btn-bg);
+		// …and keeps following it on hover, so a hover fill does not leave the
+		// old border behind as a visible ring. A surface that sets its own hover
+		// border overrides this declaration outright.
+		--rox-btn-border-hover: var(--rox-btn-bg-hover, var(--rox-btn-border));
+		// The fill itself reads against the page, unlike the white label.
+		--rox-btn-focus: var(--rox-btn-bg);
+	}
+
+	.rox-booking-button--outline {
+		--rox-btn-bg: transparent;
+		--rox-btn-fg: #3560fb;
+		// No fill to speak of, so the accent is the label and the border follows
+		// it — in both states.
+		--rox-btn-border: var(--rox-btn-fg);
+		--rox-btn-border-hover: var(--rox-btn-fg-hover, var(--rox-btn-border));
+		--rox-btn-focus: var(--rox-btn-fg);
+		// 12% of the current colour, so the tint follows whatever the accent is.
+		// Brightness would do nothing to a transparent fill.
+		--rox-btn-bg-hover: color-mix(in srgb, currentColor 12%, transparent);
+		--rox-btn-hover-filter: none;
+	}
+
+	.rox-booking-button--link {
+		--rox-btn-bg: transparent;
+		--rox-btn-fg: #3560fb;
+		--rox-btn-border: transparent;
+		--rox-btn-hover-filter: none;
+		--rox-btn-focus: var(--rox-btn-fg);
+		--rox-btn-pad-x: 0;
+		--rox-btn-bw: 0;
+
+		&:hover:not([disabled]) {
+			text-decoration: underline;
+		}
+	}
+
+	.rox-booking-button--full {
+		display: flex;
+		width: 100%;
+	}
+
+	.rox-booking-button__icon {
+		display: inline-flex;
+		flex-shrink: 0;
+		align-items: center;
+
+		svg {
+			display: block;
+			width: 20px;
+			height: 20px;
+		}
+	}
+
+	.rox-booking-button__label {
+		display: inline-block;
+	}
+}
+
+
+
+/* ==========================================================================
+   Booking modal
+   ==========================================================================
+   The panel is mounted inside `.rox-booking-modal__body` by the shared frontend
+   bundle. Closing sets `hidden` on the outer element rather than unmounting, so
+   everything below has to survive being display:none and shown again.
+
+   Note: the scroll lock lives in BookingModal.jsx, not here — the build strips
+   a bare `body {}` rule out of the compiled stylesheet.
+   ========================================================================== */
+
+.rox-booking-modal {
+	position: fixed;
+	inset: 0;
+	// Themes routinely park sticky headers at 9999 and cookie bars higher still.
+	z-index: 999999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	box-sizing: border-box;
+
+	// `hidden` is only a weak UA rule, and the display:flex above would override
+	// it. Say it explicitly.
+	&[hidden] {
+		display: none;
+	}
+
+	* {
+		box-sizing: border-box;
+	}
+}
+
+.rox-booking-modal__overlay {
+	position: absolute;
+	inset: 0;
+	background-color: rgba(16, 20, 34, 0.55);
+	animation: rox-booking-modal-fade 0.18s ease-out;
+}
+
+.rox-booking-modal__dialog {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	// Hug the panel rather than stretching to the maximum width. The panel is a
+	// fixed-width layout (`.service-layout` is 840px), so a dialog stretched to
+	// the full max-width just leaves a dead strip down the right-hand side.
+	width: fit-content;
+	// …and a maximum narrower than the panel would only produce a horizontal
+	// scrollbar, since the panel cannot shrink to meet it. `min-width` wins over
+	// `max-width` in the cascade, so this floors the dialog at what the panel
+	// actually needs and the setting behaves as a ceiling, never a squeeze.
+	min-width: min-content;
+	// Never taller than the viewport minus the wrapper padding, so the close
+	// button stays reachable on short screens.
+	max-height: calc(100vh - 48px);
+	background-color: #fff;
+	border-radius: 12px;
+	box-shadow: 0 24px 64px rgba(16, 20, 34, 0.28);
+	animation: rox-booking-modal-rise 0.2s ease-out;
+
+	&:focus {
+		// The dialog takes focus on open purely so the trap has an anchor; that
+		// should not draw a ring around the whole card.
+		outline: none;
+	}
+}
+
+.rox-booking-modal__close {
+	position: absolute;
+	top: 12px;
+	// Sits inside the panel's own padding rather than outside the card, so it
+	// cannot fall off-screen on a narrow viewport.
+	right: 12px;
+	z-index: 2;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	margin: 0;
+	border: 0;
+	border-radius: 50%;
+	background-color: rgba(16, 20, 34, 0.06);
+	color: #151720;
+	cursor: pointer;
+	box-shadow: none;
+	transition: background-color 0.15s ease;
+
+	&:hover {
+		background-color: rgba(16, 20, 34, 0.12);
+	}
+
+	&:focus-visible {
+		outline: 2px solid #3560fb;
+		outline-offset: 2px;
+	}
+
+	svg {
+		display: block;
+	}
+}
+
+.rox-booking-modal__body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: 24px;
+	// Leaves the close button its corner on the first row of panel content.
+	padding-top: 56px;
+	-webkit-overflow-scrolling: touch;
+}
+
+/* Small screens: a centred card wastes the little room there is, so the modal
+   takes the whole viewport instead. */
+@media (max-width: 782px) {
+	.rox-booking-modal {
+		padding: 0;
+	}
+
+	.rox-booking-modal__dialog {
+		max-width: none !important; /* stylelint-disable-line declaration-no-important */
+		// The desktop floor would hold the dialog at the panel's width and push
+		// it off a phone screen; full-screen means filling the viewport instead.
+		min-width: 0;
+		width: 100%;
+		height: 100%;
+		max-height: none;
+		border-radius: 0;
+	}
+
+	.rox-booking-modal__body {
+		padding: 16px;
+		padding-top: 56px;
+	}
+}
+
+@keyframes rox-booking-modal-fade {
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes rox-booking-modal-rise {
+	from {
+		opacity: 0;
+		transform: translateY(12px);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+/* Respect a reduced-motion preference: the modal still appears, just without
+   the slide. */
+@media (prefers-reduced-motion: reduce) {
+	.rox-booking-modal__overlay,
+	.rox-booking-modal__dialog {
+		animation: none;
+	}
+}
+
+/* The booking panel's antd dropdowns, date pickers, tooltips and messages are
+   rendered into <body>, outside the dialog, at antd's own z-index (~1050) —
+   which puts them underneath a modal sitting at 999999. Lift those layers for
+   exactly as long as a booking modal is open; BookingModal.jsx puts the class
+   on <body> and takes it off again on close, so nothing else on the page is
+   affected once the modal is gone. */
+
+.rox-booking-modal-open {
+	.ant-select-dropdown,
+	.ant-picker-dropdown,
+	.ant-tooltip,
+	.ant-popover,
+	.ant-message,
+	.ant-notification,
+	.ant-image-preview-root {
+		z-index: 1000000;
+	}
+}

@@ -41,8 +41,19 @@ class PaymentProcessingService
         // already, so this is a no-op for them.
         $payFullNow = strtolower($params['payment_amount_choice'] ?? 'deposit') === 'full';
         $amount = $payFullNow ? (float) $order->total_amount : (float) $order->amount_due_now;
+
+        // A coupon can wipe out everything due now — a 100% (or >= price)
+        // coupon on the whole order, or one that swallows the entire deposit.
+        // No gateway can take a zero charge (Stripe's minimum is $0.50, PayPal
+        // rejects 0 outright), so settle it here instead of failing the whole
+        // booking. Guarded on a real discount: a zero total with no coupon
+        // behind it is a pricing bug, not a free booking, and is still refused.
         if ($amount <= 0) {
-            return new WP_Error('invalid_amount', esc_html__('Invalid amount', 'rox-appointment-booking'), ['status' => 400]);
+            if ((float) $order->discount_amount <= 0) {
+                return new WP_Error('invalid_amount', esc_html__('Invalid amount', 'rox-appointment-booking'), ['status' => 400]);
+            }
+
+            return $this->handleFreeBooking($customerId, $orderId, $order);
         }
 
         $paymentType = strtolower($params['payment_type'] ?? 'credit');
@@ -66,6 +77,37 @@ class PaymentProcessingService
         }
 
         return $this->handleStripePayment($params, $amount, $customerId, $orderId, $order);
+    }
+
+    /**
+     * Settle an order that has nothing left to pay right now.
+     *
+     * Reported as 'succeeded' so the caller's updatePaymentStatus() applies its
+     * usual rule: 'paid' when the coupon covered the whole order, and
+     * 'partially_paid' when it only covered the deposit and a balance is still
+     * due later. No payment_received e-mail is raised — no money changed hands,
+     * the booking confirmation already tells the customer everything.
+     *
+     * @param int $customerId Customer ID.
+     * @param int $orderId Order ID.
+     * @param OrderModel $order Order the payment belongs to.
+     * @return array|WP_Error
+     */
+    private function handleFreeBooking(int $customerId, int $orderId, OrderModel $order): array|WP_Error
+    {
+        $paymentResult = [
+            'transaction_id' => 'free_' . wp_generate_uuid4(),
+            'status' => 'succeeded',
+            'amount' => 0.0,
+            'payment_method' => 'free'
+        ];
+
+        $paymentId = $this->savePayment($customerId, $orderId, $paymentResult, $order);
+        if (is_wp_error($paymentId)) {
+            return $paymentId;
+        }
+
+        return array_merge($paymentResult, ['payment_id' => $paymentId]);
     }
 
     /**
@@ -184,6 +226,15 @@ class PaymentProcessingService
         $orderTotal = round((float) $order->total_amount, 2);
         $isFullOrderCharge = !empty($appointmentIds) && abs($chargedAmount - $orderTotal) < 0.01;
 
+        // A zero charge has no money to attribute to individual lines, and it
+        // trivially satisfies the full-charge test above on a zero-total order.
+        // Splitting it would copy each appointment's own list price into a
+        // "paid" row — every revenue figure would then report money that was
+        // never collected. Keep it as one order-level row of 0.
+        if ($chargedAmount <= 0) {
+            return $this->savePaymentRow($customerId, $orderId, null, 0.0, $paymentResult);
+        }
+
         if (!$isFullOrderCharge) {
             return $this->savePaymentRow($customerId, $orderId, null, $chargedAmount, $paymentResult);
         }
@@ -227,7 +278,9 @@ class PaymentProcessingService
         $payment->booking_id = $bookingId;
         $payment->amount = $amount;
         $payment->status = $paymentResult['status'] === 'succeeded' ? 'paid' : 'unpaid';
-        $payment->payment_method = isset($paymentResult['transaction_id']) && strpos($paymentResult['transaction_id'], 'pl_') === 0 ? 'pay_later' : 'stripe';
+        $isPayLater = isset($paymentResult['transaction_id']) && strpos($paymentResult['transaction_id'], 'pl_') === 0;
+        $isFree = ($paymentResult['payment_method'] ?? '') === 'free';
+        $payment->payment_method = $isFree ? 'free' : ($isPayLater ? 'pay_later' : 'stripe');
         $payment->transaction_id = $paymentResult['transaction_id'];
         $payment->payment_time = gmdate('Y-m-d H:i:s');
         $payment->save();

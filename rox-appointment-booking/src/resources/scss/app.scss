@@ -1,6 +1,9 @@
 @use "./body.scss";
 @use "./mixins" as *;
 @use "./variables" as *;
+// Toasts portal to <body>, so their rules cannot live inside this file's
+// app-root scope — see _toast.scss.
+@use "./toast.scss";
 
 @import url("https://fonts.googleapis.com/css2?family=Heebo:wght@100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
 @import "leaflet/dist/leaflet.css";
@@ -8,6 +11,11 @@
 #rox-appointment-booking-app-root,
 #rox-appointment-booking-onboarding {
   font-family: "Heebo", sans-serif;
+
+  .ant-btn {
+    box-shadow: none;
+
+  }
 
   .ant-input,
   .ant-input-number,
@@ -199,10 +207,17 @@
     box-shadow:
       0 0 0 1px #3560fb,
       0 0 0 4px rgba(37, 92, 231, 0.12);
+
+    &:hover {
+      border-color: #3560fb;
+      box-shadow:
+        0 0 0 1px #3560fb,
+        0 0 0 4px rgba(37, 92, 231, 0.12);
+    }
   }
 
-  .ant-input-password{
-    &.ant-input-outlined:focus-within{
+  .ant-input-password {
+    &.ant-input-outlined:focus-within {
       box-shadow: 0 0 0 1px #3560fb, 0 0 0 4px rgba(37, 92, 231, 0.12);
     }
   }
@@ -397,7 +412,7 @@
         margin-top: 4px;
       }
 
-      & + .break-item {
+      &+.break-item {
         padding-top: 12px;
         border-top: 1px solid #e2e4ea;
       }
@@ -474,7 +489,8 @@
         border-color: transparent;
       }
     }
-    .ant-btn-icon{
+
+    .ant-btn-icon {
       display: flex;
       align-items: center;
     }
@@ -529,6 +545,21 @@
   /* But re-enable pointer events on the wrapper so badge is clickable */
   .select-pro-locked {
     pointer-events: auto;
+  }
+}
+
+.filter-bar-reset-btn {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  padding: 12px 14px;
+  border-radius: 6px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+
+  &:hover {
+    background: #F3F4F9;
   }
 }
 
@@ -656,10 +687,11 @@
         font-family: "Heebo", sans-serif;
         font-weight: 500;
         box-shadow: none;
-        &:hover{
+
+        &:hover {
           background: #D1D9FF;
           color: #151720;
-          border-color:transparent;
+          border-color: transparent;
         }
       }
 
@@ -846,7 +878,7 @@
   }
 
   .filter-add-menu {
-    max-width: 200px;
+    min-width: 125px;
     padding: 2px 2px 0 2px;
     background: #fff;
     border: 1px solid #ecedef;
@@ -898,8 +930,8 @@
     li {
       display: flex;
       align-items: center;
-      height: 32px;
-      padding: 0 12px 2px;
+      height: 30px;
+      padding: 0 12px;
       border-radius: 5px;
       color: #151720;
       font-family: "Heebo", sans-serif;
@@ -1182,7 +1214,7 @@
       .ant-form-item-label {
         padding-bottom: 10px;
 
-        > label {
+        >label {
           height: auto;
           color: #151720;
           font-family: "Heebo", sans-serif;
@@ -1227,7 +1259,7 @@
           border-radius: 4px;
         }
 
-        .ant-checkbox + span {
+        .ant-checkbox+span {
           padding-inline-start: 10px;
           color: #494a4c;
           font-family: "Heebo", sans-serif;
@@ -2039,6 +2071,51 @@
     }
   }
 
+  .auto-apply-card {
+    background: #f7f8fc;
+    border-radius: 6px;
+    padding: 14px 12px 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+
+    &__text {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    &__title {
+      margin: 0;
+      color: #151720;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1;
+    }
+
+    &__description {
+      margin: 0;
+      color: #494a4c;
+      font-size: 14px;
+      font-weight: 400;
+      line-height: 20px;
+    }
+  }
+
+  .code-chip-tag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: fit-content;
+    padding: 5px 10px;
+    border: 1px dashed #bbbec9;
+    border-radius: 6px;
+    color: #151720;
+    font-size: 14px;
+    font-weight: 400;
+    text-transform: uppercase;
+  }
+
   .scheduler-main-wrapper {
     .scheduler-header-box {
       border-radius: 6px;
@@ -2342,6 +2419,109 @@
     }
   }
 
+  // Current avatar/thumbnail upload design (Figma node 1666-2515) — used by
+  // every Upload instance except Settings > General > Company Logo, which
+  // keeps the `.upload-container` layout above via the `legacy` prop.
+  .upload-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px;
+    border: 1px solid #d5d7db;
+    border-radius: 6px;
+    max-width: 460px;
+    background-color: #fff;
+
+    .upload-control__avatar {
+      width: 42px;
+      height: 42px;
+      flex-shrink: 0;
+      background-color: #e0e3ec;
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .upload-control__avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+
+    .upload-control__body {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .upload-control__title {
+      color: #151720;
+      font-family: "Heebo", sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .upload-control__meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .upload-control__meta-label {
+      color: #494a4c;
+      font-family: "Heebo", sans-serif;
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    .upload-control__info-icon {
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .upload-control__upload-btn,
+    .upload-control__delete-btn {
+      margin-right: 8px;
+      flex-shrink: 0;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: "Heebo", sans-serif;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .upload-control__upload-btn {
+      background-color: #151720;
+      color: white;
+      border: none;
+      padding: 8.5px 8px;
+      line-height: 1;
+    }
+
+    .upload-control__upload-btn:hover {
+      background-color: #49588d;
+    }
+
+    .upload-control__delete-btn {
+      background: #fff;
+      color: #494a4c;
+      border: 1px solid #dbdde1;
+      padding: 8.5px 10.5px;
+    }
+
+    .upload-control__delete-btn:hover {
+      background: #d1d9ff;
+      color: #151720;
+      border: 1px solid transparent;
+    }
+  }
+
   .ant-layout-sider {
     background: #fff;
     box-shadow: 1px 0 0 0 #dbdde1;
@@ -2418,7 +2598,8 @@
           background: #ebefff;
         }
       }
-      .ant-menu-item-group{
+
+      .ant-menu-item-group {
         margin-top: 18px;
         margin-bottom: -2px;
       }
@@ -2629,7 +2810,7 @@
     // — it is shared with the version block, the Pro CTA, the divider and the
     // avatar, which all keep 16px — so the second button pulls back the 8px
     // difference instead.
-    .topbar-icon-button + .topbar-icon-button {
+    .topbar-icon-button+.topbar-icon-button {
       margin-left: -8px;
     }
 
@@ -2698,6 +2879,10 @@
         font-weight: 500;
         line-height: 1;
         margin-bottom: 4px;
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .sub-title {
@@ -3045,6 +3230,28 @@
     &-tag {
       background: rgba(5, 205, 153, 0.14);
       color: #05cd99;
+    }
+  }
+
+  .status-active {
+    td:first-child {
+      border-left: 6px solid #b2dfd3 !important;
+    }
+
+    &-tag {
+      background: rgba(9, 156, 116, 0.1);
+      color: #099c74;
+    }
+  }
+
+  .status-inactive {
+    td:first-child {
+      border-left: 6px solid #d9d9d9 !important;
+    }
+
+    &-tag {
+      background: #ebefff;
+      color: #494a4c;
     }
   }
 
@@ -4206,7 +4413,7 @@
   }
 
   .pro-locked__btn {
-    width: 143px;
+    min-width: 143px;
     height: 36px;
     padding: 12px;
     border: none;
@@ -4380,6 +4587,7 @@
 
 /* Pro Features Modal — hover state only; all layout is inline in the component */
 .pro-features-modal__btn {
+
   // Flat CTA. antd ships a shadow on `.ant-btn` and swaps in another on
   // hover/active, so every state has to be cleared — and with `!important`,
   // since the component's own inline `boxShadow: none` was not winning against
@@ -4398,6 +4606,7 @@
     color: #151720 !important;
   }
 }
+
 /* Empty state for a dashboard card — Recent Activity, Most Booked Services and
    Upcoming Today all render through `Dashboard/CardEmptyState.jsx`.
 

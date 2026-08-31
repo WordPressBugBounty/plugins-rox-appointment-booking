@@ -107,6 +107,24 @@ class SaveAppointment extends AbstractREST
                 // attendee count, all of which the order is priced from.
                 $this->syncRelatedOrderTotals((int) $id, $sanitizedData);
 
+                /**
+                 * Fires after an appointment is created or updated via the admin
+                 * SaveAppointment endpoint (covers edits and status changes,
+                 * including cancellation). Not fired for the public booking panel —
+                 * see `rox_appointment_booking_after_booking_confirmed` for that.
+                 *
+                 * Deliberately BEFORE the notifications below: integrations on
+                 * this hook update or remove what the e-mails then render. On a
+                 * reschedule the meeting has to move before the e-mail quotes it,
+                 * and on a cancellation the meeting has to be gone before the
+                 * e-mail offers a link to it.
+                 *
+                 * @param AppointmentModel $appointment    The saved appointment.
+                 * @param bool             $isNew          False here (update path).
+                 * @param string|null      $previousStatus The appointment's status before this save.
+                 */
+                do_action('rox_appointment_booking_after_appointment_saved', $existing, false, $oldStatus);
+
                 // Fire dashboard notification whenever the appointment status actually changes
                 if (isset($sanitizedData['status']) && $oldStatus !== $sanitizedData['status']) {
                     $appointmentService->sendStatusChangeNotification($existing, $sanitizedData['status']);
@@ -121,18 +139,6 @@ class SaveAppointment extends AbstractREST
                 ) {
                     $appointmentService->sendRescheduleNotification($existing, $oldDate, $oldStartTime, $newDate, $newStartTime);
                 }
-
-                /**
-                 * Fires after an appointment is created or updated via the admin
-                 * SaveAppointment endpoint (covers edits and status changes,
-                 * including cancellation). Not fired for the public booking panel —
-                 * see `rox_appointment_booking_after_booking_confirmed` for that.
-                 *
-                 * @param AppointmentModel $appointment    The saved appointment.
-                 * @param bool             $isNew          False here (update path).
-                 * @param string|null      $previousStatus The appointment's status before this save.
-                 */
-                do_action('rox_appointment_booking_after_appointment_saved', $existing, false, $oldStatus);
 
                 $message = esc_html__('Appointment updated successfully', 'rox-appointment-booking');
                 $order = null;
@@ -189,6 +195,19 @@ class SaveAppointment extends AbstractREST
                         ['status' => 500]
                     );
                 }
+                /**
+                 * Fires after a new appointment is created via the admin
+                 * SaveAppointment endpoint.
+                 *
+                 * Deliberately BEFORE the notifications below: integrations on
+                 * this hook attach things the e-mails then render (a Zoom
+                 * meeting, a Google Meet link, via the
+                 * `rox_appointment_booking_meet_link` filter). Send first and
+                 * those placeholders resolve to nothing. The public booking
+                 * panel orders it the same way — see BookingConfirm.php.
+                 */
+                do_action('rox_appointment_booking_after_appointment_saved', $result, true, null);
+
                 $appointmentService->sendAdminBookingNotification($result);
 
                 // The per-booking "Send notifications" checkbox stays an extra
@@ -196,9 +215,6 @@ class SaveAppointment extends AbstractREST
                 if (!empty($sanitizedData['send_notification'])) {
                     $appointmentService->sendAppointmentNotification($result, (int) $order->id);
                 }
-
-                /** Fires after a new appointment is created via the admin SaveAppointment endpoint. */
-                do_action('rox_appointment_booking_after_appointment_saved', $result, true, null);
 
                 $message = esc_html__('Your appointment has been booked successfully. A confirmation has been sent.', 'rox-appointment-booking');
             }

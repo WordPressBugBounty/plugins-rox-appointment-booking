@@ -21,6 +21,7 @@
 
 namespace RoxAppointmentBooking\Modules\Elementor;
 
+use RoxAppointmentBooking\Supports\BookingButtonAssets;
 use RoxAppointmentBooking\Modules\Elementor\Widgets\BookingPanelWidget;
 use RoxAppointmentBooking\Modules\Elementor\Widgets\LoginFormWidget;
 use RoxAppointmentBooking\Modules\LoginForm\Services\LoginFormShortcode;
@@ -53,6 +54,12 @@ class Provider
      * never loads the booking panel's frontend bundle.
      */
     public const LOGIN_FORM_HANDLER_HANDLE = 'rox-appointment-booking-elementor-login-form-handler';
+
+    /**
+     * Handle for the booking-button equivalent of the handler above. Wires
+     * triggers on widgets Elementor injects after the view bundle has run.
+     */
+    public const BUTTON_HANDLER_HANDLE = 'rox-appointment-booking-elementor-button-handler';
 
     /**
      * Constructor.
@@ -111,6 +118,7 @@ class Provider
     public function registerAssets(): void
     {
         $this->registerHandlerScript();
+        $this->registerButtonHandlerScript();
         $this->registerLoginFormAssets();
 
         // Shared with FrontendApp / the block; register only if nobody else has.
@@ -212,6 +220,35 @@ class Provider
             self::HANDLER_HANDLE,
             ROX_APPOINTMENT_BOOKING_URL . $relative,
             ['elementor-frontend', self::VIEW_HANDLE],
+            file_exists($file) ? (string) filemtime($file) : ROX_APPOINTMENT_BOOKING_VERSION,
+            true
+        );
+    }
+
+    /**
+     * Registers the handler that wires booking-button triggers on widgets
+     * Elementor injects after the view bundle has run. Idempotent.
+     *
+     * The trigger's view bundle is registered through the shared helper, so the
+     * widget and the booking panel block's popup mode run off the one handle.
+     *
+     * @return void
+     */
+    protected function registerButtonHandlerScript(): void
+    {
+        if (wp_script_is(self::BUTTON_HANDLER_HANDLE, 'registered')) {
+            return;
+        }
+
+        BookingButtonAssets::register();
+
+        $relative = 'src/Modules/Elementor/assets/button-handler.js';
+        $file     = ROX_APPOINTMENT_BOOKING_PATH . $relative;
+
+        wp_register_script(
+            self::BUTTON_HANDLER_HANDLE,
+            ROX_APPOINTMENT_BOOKING_URL . $relative,
+            ['elementor-frontend', BookingButtonAssets::VIEW_HANDLE],
             file_exists($file) ? (string) filemtime($file) : ROX_APPOINTMENT_BOOKING_VERSION,
             true
         );

@@ -5,18 +5,24 @@
   "title": "Rox Appointment Booking Panel",
   "category": "widgets",
   "icon": "calendar-alt",
-  "description": "Displays the booking panel.",
+  "description": "Displays the booking panel on the page, or as a button that opens it in a popup.",
   "textdomain": "rox-appointment-booking",
   "keywords": [
     "booking",
     "appointment",
     "panel",
+    "button",
+    "popup",
     "rox"
   ],
   "supports": {
     "html": false
   },
   "attributes": {
+    "displayMode": {
+      "type": "string",
+      "default": "general"
+    },
     "hideNavigation": {
       "type": "boolean",
       "default": false
@@ -33,6 +39,14 @@
       "type": "string",
       "default": ""
     },
+    "accentColor": {
+      "type": "string",
+      "default": ""
+    },
+    "fontFamily": {
+      "type": "string",
+      "default": ""
+    },
     "locationIds": {
       "type": "array",
       "default": [],
@@ -46,6 +60,204 @@
       "items": {
         "type": "number"
       }
+    },
+    "navBackBgColor": {
+      "type": "string",
+      "default": ""
+    },
+    "navBackTextColor": {
+      "type": "string",
+      "default": ""
+    },
+    "navBackBorderColor": {
+      "type": "string",
+      "default": ""
+    },
+    "navBackBgColorHover": {
+      "type": "string",
+      "default": ""
+    },
+    "navBackTextColorHover": {
+      "type": "string",
+      "default": ""
+    },
+    "navBackBorderColorHover": {
+      "type": "string",
+      "default": ""
+    },
+    "navBackPadding": {
+      "type": "object",
+      "default": {}
+    },
+    "navBackMargin": {
+      "type": "object",
+      "default": {}
+    },
+    "navBackBorderStyle": {
+      "type": "string",
+      "default": ""
+    },
+    "navBackBorderWidth": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "navBackBorderRadius": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "navBackFontSize": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "navBackFontWeight": {
+      "type": "string",
+      "default": ""
+    },
+    "navNextBgColor": {
+      "type": "string",
+      "default": ""
+    },
+    "navNextTextColor": {
+      "type": "string",
+      "default": ""
+    },
+    "navNextBorderColor": {
+      "type": "string",
+      "default": ""
+    },
+    "navNextBgColorHover": {
+      "type": "string",
+      "default": ""
+    },
+    "navNextTextColorHover": {
+      "type": "string",
+      "default": ""
+    },
+    "navNextBorderColorHover": {
+      "type": "string",
+      "default": ""
+    },
+    "navNextPadding": {
+      "type": "object",
+      "default": {}
+    },
+    "navNextMargin": {
+      "type": "object",
+      "default": {}
+    },
+    "navNextBorderStyle": {
+      "type": "string",
+      "default": ""
+    },
+    "navNextBorderWidth": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "navNextBorderRadius": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "navNextFontSize": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "navNextFontWeight": {
+      "type": "string",
+      "default": ""
+    },
+    "buttonText": {
+      "type": "string",
+      "default": "Book Appointment"
+    },
+    "buttonAlign": {
+      "type": "string",
+      "default": "left"
+    },
+    "buttonWidth": {
+      "type": "string",
+      "default": "auto"
+    },
+    "buttonSize": {
+      "type": "string",
+      "default": "medium"
+    },
+    "buttonStyle": {
+      "type": "string",
+      "default": "filled"
+    },
+    "buttonIcon": {
+      "type": "string",
+      "default": "calendar"
+    },
+    "buttonBackgroundColor": {
+      "type": "string",
+      "default": "#3560fb"
+    },
+    "buttonTextColor": {
+      "type": "string",
+      "default": "#ffffff"
+    },
+    "buttonBorderColor": {
+      "type": "string",
+      "default": ""
+    },
+    "buttonBackgroundColorHover": {
+      "type": "string",
+      "default": ""
+    },
+    "buttonTextColorHover": {
+      "type": "string",
+      "default": ""
+    },
+    "buttonBorderColorHover": {
+      "type": "string",
+      "default": ""
+    },
+    "buttonBorderWidth": {
+      "type": "number",
+      "default": 1
+    },
+    "buttonBorderStyle": {
+      "type": "string",
+      "default": "solid"
+    },
+    "buttonBorderRadius": {
+      "type": "number",
+      "default": 6
+    },
+    "buttonPadding": {
+      "type": "object",
+      "default": {}
+    },
+    "buttonMargin": {
+      "type": "object",
+      "default": {}
+    },
+    "modalWidth": {
+      "type": "number",
+      "default": 1100
+    },
+    "resetOnClose": {
+      "type": "boolean",
+      "default": false
     }
   },
   "editorScript": "rox-appointment-booking-booking-panel-editor",

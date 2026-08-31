@@ -209,6 +209,7 @@ class EmailTemplateRegistry
             'payment_received'       => self::eventPaymentReceived(),
             'payment_failed'         => self::eventPaymentFailed(),
             'payment_refunded'       => self::eventPaymentRefunded(),
+            'order_status_changed'   => self::eventOrderStatusChanged(),
             'account_credentials'    => self::eventAccountCredentials(),
             'password_reset'         => self::eventPasswordReset(),
             'password_changed'       => self::eventPasswordChanged(),
@@ -284,6 +285,7 @@ class EmailTemplateRegistry
             '{appointment_id}',
             '{appointment_count}',
             '{meet_link}',
+            '{meet_link_block}',
             '{internal_notes}',
             '{appointments_table}',
         ];
@@ -619,7 +621,7 @@ class EmailTemplateRegistry
                         '<p>' . esc_html__('Dear', 'rox-appointment-booking') . ' <strong>{customer_name}</strong>,</p>' .
                         '<p>' . esc_html__('This is a reminder about your upcoming appointment.', 'rox-appointment-booking') . '</p>' .
                         self::appointmentSummaryBlock() .
-                        '<p>{meet_link}</p>' .
+                        '{meet_link_block}' .
                         '<p><a href="{my_bookings_url}">' . esc_html__('View my bookings', 'rox-appointment-booking') . '</a></p>',
                 ],
                 self::RECIPIENT_AGENT    => [
@@ -628,6 +630,7 @@ class EmailTemplateRegistry
                         '<p>' . esc_html__('Hello', 'rox-appointment-booking') . ' <strong>{agent_name}</strong>,</p>' .
                         '<p>' . esc_html__('You have an upcoming appointment.', 'rox-appointment-booking') . '</p>' .
                         self::appointmentSummaryBlock() .
+                        '{meet_link_block}' .
                         self::customerInfoBlock(),
                 ],
             ],
@@ -751,6 +754,59 @@ class EmailTemplateRegistry
     }
 
     /**
+     * An order's status changed (Pending payment -> Processing -> Completed,
+     * On hold, Cancelled, Failed, ...).
+     *
+     * Distinct from `booking_status_changed`, which tracks the APPOINTMENT's own
+     * status. The two vocabularies do not overlap - an order moving to
+     * "Completed" says nothing about whether the appointment was completed.
+     *
+     * No agent recipient: an order is a billing record, and the agent is already
+     * told about anything that touches their schedule by the booking events.
+     *
+     * @return array<string, mixed>
+     */
+    private static function eventOrderStatusChanged(): array
+    {
+        $orderBlock = '<table style="border-collapse: collapse; width: 100%;">' .
+            '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>' . esc_html__('Order Number:', 'rox-appointment-booking') . '</strong></td><td style="padding: 8px; border: 1px solid #ddd;">{order_number}</td></tr>' .
+            '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>' . esc_html__('Order Status:', 'rox-appointment-booking') . '</strong></td><td style="padding: 8px; border: 1px solid #ddd;">{order_status}</td></tr>' .
+            '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>' . esc_html__('Order Total:', 'rox-appointment-booking') . '</strong></td><td style="padding: 8px; border: 1px solid #ddd;">{order_total}</td></tr>' .
+            '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>' . esc_html__('Payment Status:', 'rox-appointment-booking') . '</strong></td><td style="padding: 8px; border: 1px solid #ddd;">{payment_status}</td></tr>' .
+            '</table>';
+
+        return [
+            'label'        => __('Order Status Changed', 'rox-appointment-booking'),
+            'description'  => __('Sent when an order moves to a different status, for example Processing, Completed or Cancelled.', 'rox-appointment-booking'),
+            'placeholders' => array_merge(
+                self::siteTokens(),
+                self::customerTokens(),
+                self::appointmentTokens(),
+                self::orderTokens(),
+                self::linkTokens()
+            ),
+            'recipients'   => [
+                self::RECIPIENT_CUSTOMER => [
+                    'subject' => __('Order {order_number} is now {order_status}', 'rox-appointment-booking'),
+                    'body'    => '<h2>' . esc_html__('Order Update', 'rox-appointment-booking') . '</h2>' .
+                        '<p>' . esc_html__('Dear', 'rox-appointment-booking') . ' <strong>{customer_name}</strong>,</p>' .
+                        '<p>' . esc_html__('The status of your order is now:', 'rox-appointment-booking') . ' <strong>{order_status}</strong></p>' .
+                        $orderBlock .
+                        '<p><a href="{my_bookings_url}">' . esc_html__('View my bookings', 'rox-appointment-booking') . '</a></p>',
+                ],
+                self::RECIPIENT_ADMIN    => [
+                    'subject' => __('Order {order_number} is now {order_status} - {customer_name}', 'rox-appointment-booking'),
+                    'body'    => '<h2>' . esc_html__('Order Update', 'rox-appointment-booking') . '</h2>' .
+                        '<p>' . esc_html__('An order status is now:', 'rox-appointment-booking') . ' <strong>{order_status}</strong></p>' .
+                        $orderBlock .
+                        self::customerInfoBlock() .
+                        '<p><a href="{admin_appointment_url}">' . esc_html__('View in the dashboard', 'rox-appointment-booking') . '</a></p>',
+                ],
+            ],
+        ];
+    }
+
+    /**
      * A WordPress account was auto-created for a customer or an agent.
      *
      * The customer body is the CURRENT credentials e-mail expressed in
@@ -804,6 +860,7 @@ class EmailTemplateRegistry
             'placeholders' => array_merge(
                 self::siteTokens(),
                 self::customerTokens(),
+                self::agentTokens(),
                 ['{username}', '{set_password_url}', '{login_url}']
             ),
             'recipients'   => [
@@ -811,6 +868,14 @@ class EmailTemplateRegistry
                     'locked'  => true,
                     'subject' => __('Password Reset Request', 'rox-appointment-booking'),
                     'body'    => '<p>' . esc_html__('Hello', 'rox-appointment-booking') . ' <strong>{customer_name}</strong>,</p>' .
+                        '<p>' . esc_html__('We received a request to reset the password for your account.', 'rox-appointment-booking') . '</p>' .
+                        '<p><a href="{set_password_url}">' . esc_html__('Reset your password', 'rox-appointment-booking') . '</a></p>' .
+                        '<p>' . esc_html__('If you did not request a password reset, you can safely ignore this email.', 'rox-appointment-booking') . '</p>',
+                ],
+                self::RECIPIENT_AGENT    => [
+                    'locked'  => true,
+                    'subject' => __('Password Reset Request', 'rox-appointment-booking'),
+                    'body'    => '<p>' . esc_html__('Hello', 'rox-appointment-booking') . ' <strong>{agent_name}</strong>,</p>' .
                         '<p>' . esc_html__('We received a request to reset the password for your account.', 'rox-appointment-booking') . '</p>' .
                         '<p><a href="{set_password_url}">' . esc_html__('Reset your password', 'rox-appointment-booking') . '</a></p>' .
                         '<p>' . esc_html__('If you did not request a password reset, you can safely ignore this email.', 'rox-appointment-booking') . '</p>',

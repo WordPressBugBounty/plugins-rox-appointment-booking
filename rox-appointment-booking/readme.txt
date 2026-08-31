@@ -2,9 +2,9 @@
 Contributors: roxnor
 Tags: booking, reservation, appointments, calendar
 Requires at least: 6.5
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.3
+Stable tag: 1.2.4
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -12,7 +12,7 @@ Advanced booking plugin for appointments & events. Control scheduling, calendars
 
 == Description ==
 
-Rox Appointment Booking is a feature-rich, multi-purpose WordPress appointment & booking plugin. The team Wpmet, a credible name in the WordPress industry, has developed this tool for effortless appointment scheduling and service reservations of all sizes.
+[Rox Appointment Booking](https://roxbooking.com/appointment/?utm_source=org&utm_medium=readme) is a feature-rich, multi-purpose WordPress appointment & booking plugin. The team Wpmet, a credible name in the WordPress industry, has developed this tool for effortless appointment scheduling and service reservations of all sizes.
 
 Whether you run a salon, dental clinic, car rental service, or professional practice, Rox Appointment Booking helps you build a modern booking system for your service business. It offers precise appointment controls for both administrators and customers.
 
@@ -28,7 +28,7 @@ From room booking to tour reservations to ticket sales, Rox Appointment Booking 
     
 **✅ Email Notifications** - Automated confirmations and reminders for customers and staff
     
-**✅ Unlimited Resources** - Add unlimited agents, services, and business locations
+**✅ Unlimited Services & Categories ** - Add as many services and categories as your business needs, with no restrictions
     
 **✅ Multi-Location Settings** - Configure unique settings per business location
     
@@ -37,16 +37,24 @@ From room booking to tour reservations to ticket sales, Rox Appointment Booking 
 **✅ Holiday & Day Off Calendar** - Centralized holiday management within one screen.
     
 
-### Advanced Scheduling for Bookings & Appointments
+### [Advanced Scheduling for Bookings & Appointments](https://roxbooking.com/appointment/appointment/?utm_source=org&utm_medium=readme)
 
-**✅ Days Off Management** - Easily refrain customer from scheduling an appointment on off-days
-    
-**✅ Group Bookings** - Handle multiple attendees with capacity management
-    
-**✅ Multi-Service Cart** - Allow customers to book multiple services in one transaction
+✅ Days Off Management – Block specific dates globally or per agent so customers can never book on closed days
+
+✅ Group Bookings – Handle multiple attendees with capacity management (Pro)
+
+✅ Multi-Service Cart – Allow customers to stack multiple services in one checkout with "Add More Item"
+
+✅ Control Which Statuses Block a Time Slot – Choose exactly which appointment statuses (approved, pending, cancelled, etc.) hold a time slot, so cancelled appointments can free up their slot automatically
+
+✅ Date & Time Format Controls – Switch between 12-hour and 24-hour clock, choose your preferred date format (MM/DD/YYYY, DD/MM/YYYY, or YYYY-MM-DD), and toggle whether appointment end times are shown to customers
+
+✅ Auto-Step Skip – When only one category or location is available, the booking flow removes that step automatically so customers are never asked to choose from a list of one
+
+✅ Guided Setup Wizard – First-time setup wizard walks you through category, services, agents, and working hours so you can accept bookings in minutes
     
 
-### 💳 Payment & Pricing of Booking Services
+### 💳 [Payment & Pricing of Booking Services](https://roxbooking.com/appointment/payments/?utm_source=org&utm_medium=readme)
 
 **✅ Flexible Payment Options** - Accept payments via Stripe, or manual/local payment
     
@@ -57,7 +65,38 @@ From room booking to tour reservations to ticket sales, Rox Appointment Booking 
 **✅ Deposits & Refunds** - Configure fixed or percentage deposits with refund policy rules
     
 **✅ Invoices & Taxes** - Generate professional invoices with tax calculations
-    
+
+
+### 🙋 Customer Self-Service Portal
+
+[Every customer gets their own private booking portal](https://roxbooking.com/appointment/customer/?utm_source=org&utm_medium=readme) — completely separate from the WordPress admin. Once logged in, customers can manage everything themselves without contacting you.
+
+**My Bookings** – View upcoming, past, and cancelled appointments. The next appointment is highlighted at the top. From here customers can:
+- Reschedule to another available slot (if you allow it)
+- Cancel an appointment (if you allow it)
+- Pay outstanding balances via Stripe
+- Book again with details pre-filled from a previous booking
+- Open a full booking detail drawer
+
+**Book New** – Start a fresh booking from inside the portal using the same step-by-step flow as the public panel
+
+**Payment History** – A record of all payments with totals and transaction details
+
+**Profile** – Update personal details, contact info, profile photo, and communication preferences
+
+The portal page is created automatically on plugin activation at `/rox-appointment-dashboard`. Customers who land on any wp-admin screen are redirected to their portal automatically. You can also let customers log in and be redirected straight to the portal immediately after booking.
+
+### 👤 Agent Portal
+
+[Staff members get their own focused dashboard](https://roxbooking.com/appointment/agents/?utm_source=org&utm_medium=readme) when they log in to WordPress — a deliberately streamlined view that shows only what they need:
+
+- **Appointments** – Read-only list of their own assigned bookings
+- **Calendar** – Read-only calendar filtered to their bookings
+- **Services** – Read-only list of the services they are assigned to
+- **My Bookings** – Appointments they made for themselves as a customer, where they can reschedule or cancel if you allow it
+- **Profile** – Edit their own agent profile details
+
+Agents never see the main WordPress dashboard, other agents' bookings, customer data, or any admin settings.
 
 ### Easy Business Operations
 
@@ -74,7 +113,7 @@ From room booking to tour reservations to ticket sales, Rox Appointment Booking 
 
 ### 📅 Advanced Calendar View
 
-Track your appointment with an advanced calendar view. Where you can customize the display in day, week, or month basis. Also, filter the calendar with various filter settings like locations, services, and individual customers. Plus, you can activate the display of service hours in the calendar overlay.
+Track every appointment with [a full visual calendar](https://roxbooking.com/appointment/calendar/?utm_source=org&utm_medium=readme) in day, week, or month view. Filter by location, service, agent, or customer to focus on exactly what you need. Drag and drop any appointment to a new date or time slot to reschedule it instantly — no need to open the appointment first. Agents get a read-only version of the calendar showing only their own bookings.
 
 ### Custom Controls of Appointments
 
@@ -87,8 +126,9 @@ Track your appointment with an advanced calendar view. Where you can customize t
 
 ### Customer Management within Booking Plugin
 
-View detailed customer profiles and maintain a customer database from an interactive dashboard with various filter systems.
+Maintain [a full customer database](https://roxbooking.com/appointment/customer/?utm_source=org&utm_medium=readme) with search, filter, add, edit, and bulk delete. Each customer record stores their contact details, booking history, and communication preferences. Auto-create customer accounts at booking time so first-time bookers get a login without any extra steps.
 
+Customers can also log in to their own self-service portal (see Customer Self-Service Portal below) where they manage their own bookings completely independently, without ever touching the WordPress dashboard.
 ### Types of Booking
 
 Rox Appointment Booking supports a wide variety of booking types, making it the ideal booking plugin for WordPress across multiple industries:
@@ -218,6 +258,31 @@ After activation, you can configure the plugin settings from the WordPress admin
 
 
 == Changelog ==
+Version: 1.2.4 // 2026-08-31
+* Added: Popup display mode for the booking panel block and Elementor widget, showing a button that opens the panel.
+* Added: Button controls for the popup mode — label, icon, size, width, alignment, colors, border and spacing.
+* Added: Popup width setting, and an option to reset the booking when the popup is closed.
+* Added: Location filter for the booking panel block and Elementor widget.
+* Added: Font family control for the booking panel block and Elementor widget.
+* Added: Panel color control for the booking panel block and Elementor widget.
+* Added: Back and Next button style controls for the booking panel block and Elementor widget.
+* Added: New "Order Status Changed" e-mail for customers and admins.
+* Added: Password reset e-mail for agents.
+* Improved: Tested up to WordPress 7.1.
+* Improved: New notice and toast design across the booking panel.
+* Improved: The Customer Information step keeps five field rows in view and scrolls the rest, instead of stretching the panel.
+* Improved: Date fields on the booking form now use the plugin's own date picker.
+* Improved: Calendars and date pickers now fit the width of the booking panel.
+* Improved: Clearer message when a time slot no longer has enough spots for the number of attendees.
+* Improved: Max Capacity is now required for group services and cannot be less than 1.
+* Improved: New design for the file upload control in Settings.
+* Improved: Dashboard filters, dropdowns and table columns.
+* Fixed: Bookings that became free after a discount failed to complete.
+* Fixed: Wrong payment details in the confirmation e-mail.
+* Fixed: A paid booking could show as unpaid on the confirmation page.
+* Fixed: Extra service names were missing from the cost breakdown on the booking confirmation.
+* Fixed: "Book Another" showed no categories on sites with only one category.
+
 Version: 1.2.3 // 2026-08-19
 * Added: Category filter for the booking panel block and Elementor widget.
 * Added: Background controls for the booking panel block and Elementor widget.
@@ -387,7 +452,7 @@ Provider: OpenStreetMap Foundation
 * [Nominatim Usage Policy](https://operations.osmfoundation.org/policies/nominatim/)
 
 3. **Google Fonts**
-Used to load the Heebo and Inter fonts for the admin and frontend UI via `https://fonts.googleapis.com` and `https://fonts.gstatic.com`. This may transmit the user's IP address and browser details to Google.
+Used to load the fonts for the admin and frontend UI via `https://fonts.googleapis.com` and `https://fonts.gstatic.com`. Heebo and Inter are always loaded. If you pick a different font family for the booking panel in the Gutenberg block or the Elementor widget, that font is requested from the same service as well. This may transmit the user's IP address and browser details to Google.
 Provider: Google LLC
 * [Google Terms of Service](https://policies.google.com/terms)
 * [Google Privacy Policy](https://policies.google.com/privacy)
@@ -402,8 +467,7 @@ You can embed the Rox Appointment Booking form using the Gutenberg block, the El
 Yes. Rox Appointment Booking integrates with Stripe for online payment processing. You can also enable the "Pay Later" option for customers who prefer to pay at the time of service.
 
 = Is there a limit on the number of staff, services, or locations? =
-No. You can add unlimited agents, services, and business locations with no restrictions.
-
+You can add unlimited services and categories with no restrictions. The free version supports one agent (staff member). If your business has more than one staff member, upgrading to Rox Appointment Booking Pro gives you unlimited agents. Multiple business locations also requires Pro.
 = Does this work with Elementor and Gutenberg? =
 Yes. The plugin provides both a native Gutenberg block and an Elementor widget for embedding the booking panel on your site.
 

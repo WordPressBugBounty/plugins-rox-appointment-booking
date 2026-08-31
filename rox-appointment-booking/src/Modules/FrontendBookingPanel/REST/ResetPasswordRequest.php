@@ -5,6 +5,8 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Modules\Agent\Data\AgentModel;
+use RoxAppointmentBooking\Modules\Email\Services\EmailTemplateRegistry;
 
 /**
  * Class ResetPasswordRequest
@@ -175,18 +177,45 @@ class ResetPasswordRequest extends AbstractREST
 
         $display_name = $wp_user->display_name ? $wp_user->display_name : $wp_user->user_login;
 
-        do_action(
-            'rox_appointment_booking_email_event',
-            'password_reset',
-            [
-                'customer'         => [
+        // This endpoint backs the standalone login form as well as the booking
+        // panel, and that form signs agents in too (LoginForm\REST\Login) — so
+        // the requester is not necessarily a customer. Resolve which they are and
+        // address the matching template, otherwise an agent is greeted through
+        // the customer copy. Mirrors Login::handleRequest(): an email belongs to
+        // at most one of the two tables, so only the agent lookup is needed.
+        $agent = AgentModel::query()
+            ->where('email', $wp_user->user_email)
+            ->orWhere('wp_user_id', $wp_user->ID)
+            ->first();
+
+        if ($agent) {
+            $context   = [
+                'agent' => [
+                    'name'  => $agent->getFullName() ?: $display_name,
+                    'email' => $wp_user->user_email,
+                    'phone' => (string) ($agent->phone ?? ''),
+                ],
+            ];
+            $recipient = EmailTemplateRegistry::RECIPIENT_AGENT;
+        } else {
+            $context   = [
+                'customer' => [
                     'first_name' => $display_name,
                     'last_name'  => '',
                     'email'      => $wp_user->user_email,
                 ],
-                'username'         => $wp_user->user_login,
-                'set_password_url' => $reset_url,
-            ]
+            ];
+            $recipient = EmailTemplateRegistry::RECIPIENT_CUSTOMER;
+        }
+
+        $context['username']         = $wp_user->user_login;
+        $context['set_password_url'] = $reset_url;
+
+        do_action(
+            'rox_appointment_booking_email_event',
+            'password_reset',
+            $context,
+            [$recipient]
         );
     }
 }

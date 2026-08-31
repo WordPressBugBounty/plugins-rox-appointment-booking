@@ -72,6 +72,11 @@ class GetLocation extends AbstractREST
         $data = [
             'id' => $location->getID(),
             'name' => $location->getName(),
+            // In the list shape alongside `name`, not just the detailed one: the
+            // booking panel stores whichever location the customer picked on the
+            // booking item and renders its address on the confirmation receipt,
+            // without ever re-fetching the location by id.
+            'address' => $location->getFormattedAddress(),
             'iconPath' => $location->thumbnail_id ? wp_get_attachment_url($location->thumbnail_id) : '',
             'backgroundColor' => '#FCEFE3',
         ];

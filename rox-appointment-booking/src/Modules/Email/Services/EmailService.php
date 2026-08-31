@@ -30,6 +30,7 @@ class EmailService
         '{payment_details_table}',
         '{custom_fields_table}',
         '{new_password_block}',
+        '{meet_link_block}',
     ];
 
     /**

@@ -172,7 +172,7 @@ class FrontendApp
 
         ob_start();
         ?>
-        <div class="rox-appointment-booking-frontend-root" data-instance="<?php echo esc_attr($instance_count); ?>" data-type="<?php echo esc_attr($atts['type']); ?>"></div>
+        <div class="rox-appointment-booking-frontend-root" data-instance="<?php echo esc_attr('sc-' . $instance_count); ?>" data-type="<?php echo esc_attr($atts['type']); ?>"></div>
         <?php
         return ob_get_clean();
     }

@@ -196,6 +196,10 @@ class SendTestEmail extends AbstractREST
             '{appointment_count}'      => '1',
             '{internal_notes}'         => '',
             '{meet_link}'              => '',
+            // A test e-mail has no real appointment, so there is no meeting to
+            // link to — the block renders as nothing, exactly as it does on a
+            // booking without a video call.
+            '{meet_link_block}'        => '',
             '{order_number}'           => 'SAMPLE-1001',
             '{order_status}'           => esc_html__('Processing', 'rox-appointment-booking'),
             '{order_total}'            => rox_appointment_booking_format_currency(100),

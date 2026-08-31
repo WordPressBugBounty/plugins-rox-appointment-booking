@@ -8,7 +8,7 @@
 
 
 .rox-appointment-booking-frontend {
-  font-family: "Heebo", sans-serif;
+  font-family: var(--rox-font-family, "Heebo", sans-serif);
   box-sizing: border-box;
   
   *, *::before, *::after {

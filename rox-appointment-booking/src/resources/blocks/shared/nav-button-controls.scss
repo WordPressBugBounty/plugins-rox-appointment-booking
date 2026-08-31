@@ -1,0 +1,34 @@
+/**
+ * Inspector styles for the shared Back / Next button controls.
+ *
+ * Imported by NavButtonControls.jsx rather than by a block's editor.scss, so
+ * every block that uses the controls picks the styles up with them.
+ */
+
+// Normal / Hover colour tabs. PanelColorSettings is normally its own
+// collapsible panel; nested inside one it has to drop the frame, or the sidebar
+// shows a panel inside a panel.
+.rox-nav-button-color-tabs {
+	.components-tab-panel__tabs {
+		margin-bottom: 8px;
+	}
+
+	.rox-nav-button-colors {
+		border: 0;
+
+		> .components-panel__body-title {
+			display: none;
+		}
+
+		.components-panel__body {
+			border: 0;
+		}
+	}
+}
+
+.rox-nav-button-colors__help {
+	margin: 4px 0 12px;
+	color: #757575;
+	font-size: 12px;
+	font-style: normal;
+}

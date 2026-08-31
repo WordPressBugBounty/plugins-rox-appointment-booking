@@ -399,14 +399,73 @@ class EmailPlaceholderResolver
             '{appointments_table}'    => self::buildAppointmentsTable($appointments),
             '{payment_details_table}' => self::buildPaymentDetailsTable($order, (array) ($context['payment'] ?? [])),
             '{custom_fields_table}'   => self::buildCustomFieldsTable($order),
+            '{meet_link_block}'       => self::buildMeetLinkBlock($appointments),
         ];
     }
 
     /**
-     * The 8-column appointments table.
+     * The video-call join link as a labelled link, or nothing at all.
      *
-     * Markup is kept byte-for-byte identical to the table the booking
-     * confirmation e-mail has always rendered — do not reformat it.
+     * {meet_link} on its own resolves to a bare URL, which tells the reader
+     * nothing about what they are clicking. This renders it with the name of
+     * whichever integration produced it ("Join Zoom Meeting", "Join Google
+     * Meet"), and returns an empty string when the appointment has no
+     * meeting — so a template can carry the block unconditionally without
+     * leaving an empty paragraph or a dead link on every other booking.
+     *
+     * @param AppointmentModel[] $appointments Appointments in this e-mail.
+     * @return string
+     */
+    private static function buildMeetLinkBlock(array $appointments): string
+    {
+        $link = self::meetLinkAnchor($appointments[0] ?? null);
+
+        return $link === '' ? '' : '<p>' . $link . '</p>';
+    }
+
+    /**
+     * One appointment's join link as an anchor, or an empty string when it has
+     * no meeting.
+     *
+     * target="_blank" is mostly decorative in e-mail — webmail opens links in a
+     * new tab regardless and desktop clients hand off to the system browser —
+     * but the handful of clients that do honour it should not navigate away
+     * from the message. rel goes with it, as always.
+     *
+     * @param AppointmentModel|null $appointment
+     * @return string
+     */
+    private static function meetLinkAnchor($appointment): string
+    {
+        $appointmentId = (int) ($appointment->id ?? 0);
+
+        if ($appointmentId === 0) {
+            return '';
+        }
+
+        $link = (string) apply_filters('rox_appointment_booking_meet_link', '', $appointmentId);
+        if ($link === '') {
+            return '';
+        }
+
+        $label = (string) apply_filters('rox_appointment_booking_meet_link_label', '', $appointmentId);
+        if ($label === '') {
+            $label = __('Join Video Call', 'rox-appointment-booking');
+        }
+
+        return sprintf(
+            '<a href="%s" target="_blank" rel="noopener noreferrer">%s</a>',
+            esc_url($link),
+            esc_html($label)
+        );
+    }
+
+    /**
+     * The 7-column appointments table.
+     *
+     * The old "Video Call" column was dropped: it rendered "N/A" for every
+     * booking that is not a Google Meet one. Templates that need the link
+     * can still use the standalone {meet_link} token.
      *
      * @param AppointmentModel[] $appointments Appointments.
      * @return string
@@ -417,6 +476,15 @@ class EmailPlaceholderResolver
             return '';
         }
 
+        // Only worth a column when something in this e-mail actually has a
+        // link — otherwise every booking e-mail on a site with no video
+        // integration grows a permanently empty eighth column.
+        $meetAnchors = [];
+        foreach ($appointments as $appointment) {
+            $meetAnchors[(int) ($appointment->id ?? 0)] = self::meetLinkAnchor($appointment);
+        }
+        $hasMeetLinks = (bool) array_filter($meetAnchors);
+
         $rows = '';
 
         foreach ($appointments as $appointment) {
@@ -424,11 +492,6 @@ class EmailPlaceholderResolver
             $agent    = AgentModel::find($appointment->agent_id);
             $category = CategoryModel::find($appointment->category_id);
             $location = self::location($appointment);
-
-            $meetLink     = apply_filters('rox_appointment_booking_meet_link', '', $appointment->id ?? 0);
-            $meetLinkHtml = $meetLink
-                ? sprintf('<a href="%1$s">%1$s</a>', esc_url($meetLink))
-                : 'N/A';
 
             $rows .= sprintf(
                 '<tr>' .
@@ -439,7 +502,7 @@ class EmailPlaceholderResolver
                 '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' .
                 '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' .
                 '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' .
-                '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' .
+                '%s' .
                 '</tr>',
                 $service ? $service->title : 'N/A',
                 $category ? $category->title : 'N/A',
@@ -448,7 +511,11 @@ class EmailPlaceholderResolver
                 $appointment->date ?? 'N/A',
                 gmdate('h:i A', strtotime($appointment->start_time)) . ' - ' . gmdate('h:i A', strtotime($appointment->end_time)),
                 ucfirst($appointment->status ?? 'Pending'),
-                $meetLinkHtml
+                // A whole cell, or nothing at all when no appointment in this
+                // e-mail has a meeting — the header below is dropped to match.
+                $hasMeetLinks
+                    ? '<td style="padding: 8px; border: 1px solid #ddd;">' . ($meetAnchors[(int) ($appointment->id ?? 0)] ?? '') . '</td>'
+                    : ''
             );
         }
 
@@ -461,15 +528,24 @@ class EmailPlaceholderResolver
             '<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Date</th>' .
             '<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Time</th>' .
             '<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Status</th>' .
-            '<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Video Call</th>' .
+            ($hasMeetLinks
+                ? '<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">' . esc_html__('Video Call', 'rox-appointment-booking') . '</th>'
+                : '') .
             '</tr>' .
             $rows .
             '</table>';
     }
 
     /**
-     * The payment details table — a plain amount, plus a Deposit Paid / Balance
-     * Due breakdown when the order still has a balance due later.
+     * The payment details table.
+     *
+     * Only a settled payment gets a receipt (transaction id + "Amount Paid").
+     * A booking that has not been paid for yet - pay later, a failed charge, an
+     * admin-created booking with no payment at all - would otherwise print the
+     * synthetic 'pl_' transaction id under an "Amount Paid" label for money the
+     * customer has not handed over, directly under an order status of
+     * "Pending_payment". Those cases show the payment method and what is still
+     * owed instead.
      *
      * @param OrderModel|null $order Order model.
      * @param array $payment Payment result.
@@ -477,26 +553,123 @@ class EmailPlaceholderResolver
      */
     private static function buildPaymentDetailsTable(?OrderModel $order, array $payment): string
     {
-        $paidAmount = (float) ($payment['amount'] ?? ($order?->amount_due_now ?? $order?->total_amount ?? 0));
+        $amount   = (float) ($payment['amount'] ?? ($order?->amount_due_now ?? $order?->total_amount ?? 0));
+        $dueLater = (float) ($order?->amount_due_later ?? 0);
 
-        $rows = sprintf(
-            '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Transaction ID:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">%s</td></tr>' .
-            '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Amount Paid:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">%s</td></tr>',
-            esc_html($payment['transaction_id'] ?? 'N/A'),
-            esc_html(self::formatAmount($order, $paidAmount))
+        if (self::isPaymentSettled($order, $payment)) {
+            $rows = self::paymentRow(
+                __('Transaction ID:', 'rox-appointment-booking'),
+                (string) ($payment['transaction_id'] ?? 'N/A')
+            ) . self::paymentRow(
+                __('Amount Paid:', 'rox-appointment-booking'),
+                self::formatAmount($order, $amount)
+            );
+
+            if ($dueLater > 0) {
+                $rows .= self::paymentRow(
+                    __('Deposit Paid:', 'rox-appointment-booking'),
+                    self::formatAmount($order, (float) ($order?->deposit_amount ?? 0))
+                ) . self::paymentRow(
+                    __('Balance Due:', 'rox-appointment-booking'),
+                    self::formatAmount($order, $dueLater)
+                );
+            }
+
+            return '<table style="border-collapse: collapse; width: 100%;">' . $rows . '</table>';
+        }
+
+        $rows   = '';
+        $method = self::paymentMethodLabel($order, $payment);
+
+        if ($method !== '') {
+            $rows .= self::paymentRow(__('Payment Method:', 'rox-appointment-booking'), $method);
+        }
+
+        $rows .= self::paymentRow(
+            $dueLater > 0
+                ? __('Amount Due Now:', 'rox-appointment-booking')
+                : __('Amount Due:', 'rox-appointment-booking'),
+            self::formatAmount($order, $amount)
         );
 
-        $dueLater = (float) ($order?->amount_due_later ?? 0);
         if ($dueLater > 0) {
-            $rows .= sprintf(
-                '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Deposit Paid:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">%s</td></tr>' .
-                '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Balance Due:</strong></td><td style="padding: 8px; border: 1px solid #ddd;">%s</td></tr>',
-                esc_html(self::formatAmount($order, (float) ($order?->deposit_amount ?? 0))),
-                esc_html(self::formatAmount($order, $dueLater))
+            $rows .= self::paymentRow(
+                __('Balance Due Later:', 'rox-appointment-booking'),
+                self::formatAmount($order, $dueLater)
             );
         }
 
         return '<table style="border-collapse: collapse; width: 100%;">' . $rows . '</table>';
+    }
+
+    /**
+     * One label/value row of the payment details table.
+     *
+     * @param string $label Row label.
+     * @param string $value Row value.
+     * @return string
+     */
+    private static function paymentRow(string $label, string $value): string
+    {
+        return sprintf(
+            '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>%s</strong></td>' .
+            '<td style="padding: 8px; border: 1px solid #ddd;">%s</td></tr>',
+            esc_html($label),
+            esc_html($value)
+        );
+    }
+
+    /**
+     * Whether money has actually been taken for this order.
+     *
+     * The payment result carries its own status on the booking paths
+     * ('succeeded' for a completed charge, 'pending' for pay later). The
+     * payment_received / payment_failed events pass no status, and an
+     * admin-created booking passes no payment at all - the order is then the
+     * source of truth, since each of those paths updates it before the e-mail
+     * event fires.
+     *
+     * @param OrderModel|null $order Order model.
+     * @param array $payment Payment result.
+     * @return bool
+     */
+    private static function isPaymentSettled(?OrderModel $order, array $payment): bool
+    {
+        $status = strtolower((string) ($payment['status'] ?? ''));
+
+        if (in_array($status, ['paid', 'partially_paid', 'succeeded', 'completed'], true)) {
+            return true;
+        }
+
+        if ($status !== '') {
+            return false;
+        }
+
+        return in_array(
+            strtolower((string) ($order?->payment_status ?? '')),
+            ['paid', 'partially_paid'],
+            true
+        );
+    }
+
+    /**
+     * Human-readable payment method for an unpaid order, or '' when unknown.
+     *
+     * @param OrderModel|null $order Order model.
+     * @param array $payment Payment result.
+     * @return string
+     */
+    private static function paymentMethodLabel(?OrderModel $order, array $payment): string
+    {
+        $method = strtolower((string) ($payment['payment_method'] ?? ($order?->payment_method ?? '')));
+
+        return match ($method) {
+            ''                   => '',
+            'later', 'pay_later' => __('Pay later', 'rox-appointment-booking'),
+            'credit', 'stripe'   => __('Card', 'rox-appointment-booking'),
+            'paypal'             => __('PayPal', 'rox-appointment-booking'),
+            default              => ucfirst(str_replace('_', ' ', $method)),
+        };
     }
 
     /**

@@ -143,6 +143,18 @@ class OrderService
             $data['booking_ids'] = json_encode($data['booking_ids']);
         }
 
+        // The frontend booking flow clamps its discount against the subtotal;
+        // this admin path took whatever was typed, so a discount larger than
+        // the order could drive total_amount negative and hand the customer a
+        // credit that no payment row accounts for.
+        $subtotal = (float) ($data['subtotal'] ?? $order->subtotal ?? 0);
+        if (isset($data['discount_amount']) && $subtotal > 0) {
+            $data['discount_amount'] = min(max(0, (float) $data['discount_amount']), $subtotal);
+        }
+        if (isset($data['total_amount'])) {
+            $data['total_amount'] = max(0, (float) $data['total_amount']);
+        }
+
         $order->fill($data);
         $order->save();
 
@@ -163,6 +175,7 @@ class OrderService
 
         if ($id && isset($data['order_status']) && $oldOrderStatus !== $data['order_status']) {
             NotificationService::createOrderStatusNotification($this->buildOrderNotificationData($order));
+            $this->notifyOrderStatusChange($order);
         }
 
         return $order;
@@ -282,6 +295,7 @@ class OrderService
 
         if ($oldStatus !== $status) {
             NotificationService::createOrderStatusNotification($this->buildOrderNotificationData($order));
+            $this->notifyOrderStatusChange($order);
         }
 
         return $order;
@@ -330,6 +344,45 @@ class OrderService
         );
 
         return $order;
+    }
+
+    /**
+     * Raise the `order_status_changed` e-mail for an order whose status has just
+     * moved. Callers are responsible for only calling this when it actually
+     * changed.
+     *
+     * `refunded` is skipped: processRefund() owns that transition and sends the
+     * richer `payment_refunded` e-mail instead, so firing both would double-mail
+     * the customer.
+     *
+     * The order's appointments are passed along so the templates can use the
+     * appointment placeholders too - the resolver reads them off
+     * `appointment_ids`, and without them {service_name} and friends render
+     * empty.
+     *
+     * Note the admin appointment form's own order-status sync
+     * (SaveAppointment::syncRelatedOrderStatus) deliberately does NOT come
+     * through here: that path already sends booking_status_changed, and the two
+     * together would be one status change producing two e-mails.
+     *
+     * @param OrderModel $order The order, already carrying its new status.
+     * @return void
+     */
+    private function notifyOrderStatusChange(OrderModel $order): void
+    {
+        if ($order->order_status === 'refunded') {
+            return;
+        }
+
+        do_action(
+            'rox_appointment_booking_email_event',
+            'order_status_changed',
+            [
+                'customer_id'     => (int) $order->customer_id,
+                'order_id'        => (int) $order->id,
+                'appointment_ids' => $order->getBookingIds(),
+            ]
+        );
     }
 
     /**

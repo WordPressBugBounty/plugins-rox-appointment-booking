@@ -42,7 +42,6 @@ export const NotificationProvider = ({ children, notificationApiUrl }) => {
 
   // Public method to refresh notifications
   const refreshNotifications = useCallback(() => {
-    console.log("Refreshing notifications...");
     fetchNotifications();
   }, [fetchNotifications]);
 

@@ -1,7 +1,18 @@
 import { createReduxStore, register } from "@wordpress/data";
 
-// Session storage key
+// Session storage key. Each panel instance persists under its own suffix so
+// that two booking surfaces on one page cannot restore each other's progress;
+// the bare key stays the default instance's, keeping older saved state valid.
 export const SESSION_STORAGE_KEY = "rox_appointment_booking_service_state";
+
+/**
+ * The sessionStorage key a panel instance persists under.
+ *
+ * @param {string|number} instanceId Panel instance id, or falsy for the default.
+ * @return {string} Storage key.
+ */
+export const sessionKeyFor = (instanceId) =>
+  instanceId ? `${SESSION_STORAGE_KEY}_${instanceId}` : SESSION_STORAGE_KEY;
 
 // Helper function to deserialize dates in bookingProcess
 const deserializeBookingProcess = (bookingProcess) => {
@@ -14,9 +25,9 @@ const deserializeBookingProcess = (bookingProcess) => {
 };
 
 // Load state from sessionStorage
-const loadStateFromSession = () => {
+const loadStateFromSession = (storageKey) => {
   try {
-    const serializedState = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    const serializedState = sessionStorage.getItem(storageKey);
     if (serializedState === null) {
       return null;
     }
@@ -35,8 +46,8 @@ const loadStateFromSession = () => {
 };
 
 // Initial state with defaults
-const getInitialState = () => {
-  const sessionState = loadStateFromSession();
+const getInitialState = (storageKey) => {
+  const sessionState = loadStateFromSession(storageKey);
 
   // Reconcile the persisted login against the real WordPress session. The panel
   // login now establishes a WP session, so if the persisted state says logged in
@@ -226,7 +237,7 @@ const actions = {
 };
 
 // Helper function to save state to sessionStorage
-const saveStateToSession = (state) => {
+const saveStateToSession = (state, storageKey) => {
   try {
     // Only save data that should persist across refreshes
     const stateToPersist = {
@@ -249,14 +260,14 @@ const saveStateToSession = (state) => {
     };
     
     const serializedState = JSON.stringify(stateToPersist);
-    sessionStorage.setItem(SESSION_STORAGE_KEY, serializedState);
+    sessionStorage.setItem(storageKey, serializedState);
   } catch (err) {
     console.error("Error saving state to sessionStorage:", err);
   }
 };
 
 // Reducer
-const reducer = (state = getInitialState(), action) => {
+const createReducer = (storageKey) => (state = getInitialState(storageKey), action) => {
   let newState = state;
   
   switch (action.type) {
@@ -419,6 +430,9 @@ const reducer = (state = getInitialState(), action) => {
     case "RESET_BOOKING_FLOW":
       newState = {
         ...state,
+        selectedLocation: null,
+        selectedLocationId: null,
+        categories: [],
         selectedCategory: null,
         services: [],
         selectedService: null,
@@ -432,8 +446,8 @@ const reducer = (state = getInitialState(), action) => {
       break;
       
     case "CLEAR_SESSION_DATA":
-      sessionStorage.removeItem(SESSION_STORAGE_KEY);
-      newState = getInitialState();
+      sessionStorage.removeItem(storageKey);
+      newState = getInitialState(storageKey);
       break;
       
     default:
@@ -452,7 +466,7 @@ const reducer = (state = getInitialState(), action) => {
       action.type !== "SET_PAY_LATER" &&
       action.type !== "SET_BOOKING_RESPONSE" &&
       action.type !== "SET_SHOW_EXTRA_SERVICES") {
-    saveStateToSession(newState);
+    saveStateToSession(newState, storageKey);
   }
   
   return newState;
@@ -571,10 +585,46 @@ const selectors = {
 };
 
 // Create and register store
-export const bookingServiceStore = createReduxStore("rox-appointment-booking/service", {
-  reducer,
-  actions,
-  selectors,
-});
+//
+// One store per panel instance rather than one for the page. The panel used to
+// share a single registered store, so two booking surfaces on the same page
+// (two blocks, a block plus a shortcode, …) read and wrote the same selections
+// — picking a service in one changed the other. Each instance now gets its own
+// store and its own sessionStorage key, and stores are memoised so a re-mount
+// reuses the one already registered instead of registering the name twice.
+const stores = new Map();
 
-register(bookingServiceStore);
+/**
+ * Returns the store for a panel instance, registering it on first use.
+ *
+ * @param {string|number} instanceId Panel instance id. Falsy gives the shared
+ *                                   default, which is what surfaces that never
+ *                                   appear twice on a page use.
+ * @return {Object} The @wordpress/data store descriptor.
+ */
+export const getBookingServiceStore = (instanceId) => {
+  const key = instanceId ? String(instanceId) : "default";
+
+  if (stores.has(key)) {
+    return stores.get(key);
+  }
+
+  const name = instanceId
+    ? `rox-appointment-booking/service-${key}`
+    : "rox-appointment-booking/service";
+
+  const store = createReduxStore(name, {
+    reducer: createReducer(sessionKeyFor(instanceId)),
+    actions,
+    selectors,
+  });
+
+  register(store);
+  stores.set(key, store);
+
+  return store;
+};
+
+// The default instance, kept as a named export for the surfaces that only ever
+// render one panel and reach for the store directly.
+export const bookingServiceStore = getBookingServiceStore(null);

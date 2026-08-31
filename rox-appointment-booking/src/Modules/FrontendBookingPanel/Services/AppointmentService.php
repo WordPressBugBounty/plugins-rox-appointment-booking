@@ -173,7 +173,11 @@ class AppointmentService
             if ($customer_conflict || $pending_conflict) {
                 return new WP_Error(
                     'customer_time_conflict',
-                    esc_html__('You already have an appointment at this time. If you want to add or change a service, please edit or reschedule this appointment.', 'rox-appointment-booking'),
+                    // __() rather than esc_html__(): this is JSON the panel
+                    // renders as a text node, not markup, so HTML-escaping it
+                    // here is never undone — the apostrophe would reach the
+                    // toast as a literal &#039;.
+                    __('This slot doesn\'t have enough spots. Choose another time or reduce attendees.', 'rox-appointment-booking'),
                     ['status' => 409]
                 );
             }
@@ -590,12 +594,26 @@ class AppointmentService
             );
         }
 
-        // Coupon application is handled by the Pro plugin via this filter.
+        // Coupon application is handled by the Pro plugin via this filter. The
+        // appointment IDs go with it so restrictions can be judged per line —
+        // a coupon limited to one service must not discount the rest of a cart.
         $coupon_result = apply_filters('rox_appointment_booking_apply_coupon', [
             'discount_amount' => 0.0,
             'coupon_id'       => null,
             'coupon_code'     => null,
-        ], $params, $customerId, $subtotal);
+        ], $params, $customerId, $subtotal, $appointmentIds);
+
+        // The customer was shown a discounted total at checkout. If the coupon
+        // stopped being valid in the meantime (expired, someone else took the
+        // last use), charging them the full price without a word is worse than
+        // failing — the booking is rolled back and they are told why.
+        if (!empty($params['coupon_code']) && !empty($coupon_result['error'])) {
+            return new WP_Error(
+                'coupon_no_longer_valid',
+                esc_html($coupon_result['error']),
+                ['status' => 400]
+            );
+        }
 
         $discount_amount = (float) ($coupon_result['discount_amount'] ?? 0);
         $coupon_id       = $coupon_result['coupon_id'] ?? null;
@@ -637,12 +655,21 @@ class AppointmentService
         $order->deposit_amount = $depositBreakdown['deposit_amount'];
         $order->amount_due_now = $amount_due_now;
         $order->amount_due_later = $amount_due_later;
-        $order->currency       = 'USD';
-        $order->payment_method = match ($paymentType) {
-            'later' => 'pay_later',
-            'credit' => 'stripe',
-            default => $paymentType,
-        };
+        // The store's configured currency, not a hardcoded USD — every amount
+        // on this order is charged in whatever the payment settings say.
+        $order->currency       = strtoupper(rox_appointment_booking_payment_settings('payment_currency') ?? 'USD');
+        // A fully discounted order never reaches a gateway — PaymentProcessing
+        // Service settles it directly — so don't stamp it with a method that
+        // was only whatever card happened to be selected on screen. A discount
+        // that merely clears the deposit is NOT free: total_amount is still
+        // owed, and that balance will be collected through the chosen method.
+        $order->payment_method = ($total_amount <= 0 && $discount_amount > 0)
+            ? 'free'
+            : match ($paymentType) {
+                'later' => 'pay_later',
+                'credit' => 'stripe',
+                default => $paymentType,
+            };
         $order->payment_status = rox_appointment_booking_payment_settings('default_payment_status', 'unpaid');
         $order->order_status   = rox_appointment_booking_general_settings('default_order_status') ?? 'pending_payment';
         $order->order_date     = current_time('mysql');

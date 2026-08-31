@@ -120,7 +120,11 @@ class CheckCustomerAvailability extends AbstractREST
                 return rox_appointment_booking_rest_response(
                     data: [
                         'conflict' => true,
-                        'message' => esc_html__('You already have an appointment at this time. If you want to add or change a service, please edit or reschedule this appointment.', 'rox-appointment-booking'),
+                        // __() rather than esc_html__(): this is JSON the panel
+                        // renders as a text node, not markup, so HTML-escaping it
+                        // here is never undone — the apostrophe reached the toast
+                        // as a literal &#039;.
+                        'message' => __('This slot doesn\'t have enough spots. Choose another time or reduce attendees.', 'rox-appointment-booking'),
                     ]
                 );
             }

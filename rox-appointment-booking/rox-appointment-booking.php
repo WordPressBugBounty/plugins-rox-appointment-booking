@@ -7,7 +7,7 @@ defined('ABSPATH') || exit;
  * Description: Appointment booking scheduling solution.
  * Plugin URI: https://wordpress.org/plugins/rox-appointment-booking/
  * Author: roxnor
- * Version: 1.2.3
+ * Version: 1.2.4
  * Author URI: http://roxnor.com
  * Requires PHP: 8.0
  * Text Domain: rox-appointment-booking
@@ -71,7 +71,7 @@ final class RoxAppointmentBooking
 		global $wpdb;
 
 		if (!defined('ROX_APPOINTMENT_BOOKING_VERSION')) {
-			define('ROX_APPOINTMENT_BOOKING_VERSION', '1.2.3');
+			define('ROX_APPOINTMENT_BOOKING_VERSION', '1.2.4');
 		}
 		if (!defined('ROX_APPOINTMENT_BOOKING_PREFIX')) {
 			define('ROX_APPOINTMENT_BOOKING_PREFIX', 'rox_appointment');

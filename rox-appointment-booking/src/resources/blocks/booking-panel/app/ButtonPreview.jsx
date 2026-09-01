@@ -10,19 +10,39 @@
  * which is what makes hover colours previewable here at all.
  */
 
-const ICONS = {
-	calendar: (
-		<>
-			<rect x="3" y="4.5" width="14" height="12.5" rx="2" />
-			<path d="M3 8.5h14M7 2.5v3M13 2.5v3" />
-		</>
-	),
-	clock: (
-		<>
-			<circle cx="10" cy="10" r="7.25" />
-			<path d="M10 5.75V10l2.75 1.75" />
-		</>
-	),
+import icons from "../icons.json";
+
+/**
+ * Draws one icon from the set.
+ *
+ * The set is the same JSON file Supports\BookingButtonMarkup reads, so the
+ * editor can never offer an icon the published page cannot draw. The markup is
+ * the plugin's own, not stored settings, which is why it can be injected.
+ *
+ * @param {Object} props      Component props.
+ * @param {string} props.name Icon key.
+ * @return {JSX.Element|null} The icon, or null when there is none to draw.
+ */
+export const ButtonIcon = ({ name }) => {
+	if (!name || name === "none" || !icons[name]) {
+		return null;
+	}
+
+	return (
+		<span className="rox-booking-button__icon" aria-hidden="true">
+			<svg
+				width="20"
+				height="20"
+				viewBox="0 0 20 20"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+				dangerouslySetInnerHTML={{ __html: icons[name] }}
+			/>
+		</span>
+	);
 };
 
 const SIDES = ["top", "right", "bottom", "left"];
@@ -61,6 +81,31 @@ const applySpacing = (css, property, box) => {
 };
 
 /**
+ * Renders a `{x, y, blur, spread, color, inset}` map as a CSS shadow.
+ * Mirrors BookingButtonMarkup::shadow().
+ *
+ * @param {Object} value Shadow settings.
+ * @return {string} Empty when there is no shadow to draw.
+ */
+const shadowValue = (value) => {
+	// Without a colour there is nothing to draw — the browser would fall back
+	// to the current text colour, which an untouched control never means.
+	if (!value || !value.color) {
+		return "";
+	}
+
+	// Blur is the one length that cannot be negative.
+	const lengths = ["x", "y", "blur", "spread"].map((key) => {
+		const raw = Number(value[key]) || 0;
+		const floor = key === "blur" ? 0 : -200;
+
+		return `${Math.max(floor, Math.min(200, raw))}px`;
+	});
+
+	return `${value.inset ? "inset " : ""}${lengths.join(" ")} ${value.color}`;
+};
+
+/**
  * Builds the button's inline style. Mirrors BookingButtonMarkup::buttonStyle().
  *
  * @param {Object} attrs Block attributes.
@@ -77,6 +122,13 @@ const buttonStyle = ({
 	borderWidth,
 	borderStyle,
 	borderRadius,
+	borderWidthHover,
+	buttonWidthSize,
+	iconSize,
+	iconGap,
+	iconOffsetY,
+	boxShadow,
+	boxShadowHover,
 	padding,
 	margin,
 }) => {
@@ -124,10 +176,44 @@ const buttonStyle = ({
 	applySpacing(css, "padding", padding);
 	applySpacing(css, "margin", margin);
 
+	// Width, icon size, icon gap and the icon's optical nudge, as the same
+	// variables PHP writes. Only the nudge may be negative.
+	const metrics = {
+		"--rox-btn-w": [buttonWidthSize, 2000, false],
+		"--rox-btn-icon": [iconSize, 200, false],
+		"--rox-btn-gap": [iconGap, 200, false],
+		"--rox-btn-icon-y": [iconOffsetY, 100, true],
+	};
+
+	Object.entries(metrics).forEach(([property, [value, max, signed]]) => {
+		if (value === null || value === undefined || value === "") {
+			return;
+		}
+
+		const floor = signed ? -max : 0;
+		css[property] = `${Math.max(floor, Math.min(max, value))}px`;
+	});
+
+	const shadow = shadowValue(boxShadow);
+	const shadowHover = shadowValue(boxShadowHover);
+
+	if (shadow) {
+		css["--rox-btn-shadow"] = shadow;
+	}
+
+	if (shadowHover) {
+		css["--rox-btn-shadow-hover"] = shadowHover;
+	}
+
 	// `link` is a text button — there is no box to draw around it.
 	if (style !== "link") {
 		css.borderStyle = borderStyle || "solid";
 		css.borderWidth = `${Math.max(0, Math.min(20, borderWidth || 0))}px`;
+
+		if (borderWidthHover !== null && borderWidthHover !== undefined) {
+			css["--rox-btn-bw-hover"] =
+				`${Math.max(0, Math.min(20, borderWidthHover))}px`;
+		}
 		css.borderRadius = `${Math.max(0, Math.min(100, borderRadius || 0))}px`;
 	}
 
@@ -178,22 +264,7 @@ const ButtonPreview = (props) => {
 				tabIndex={-1}
 				onClick={(event) => event.preventDefault()}
 			>
-				{ICONS[icon] && (
-					<span className="rox-booking-button__icon" aria-hidden="true">
-						<svg
-							width="20"
-							height="20"
-							viewBox="0 0 20 20"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="1.5"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-						>
-							{ICONS[icon]}
-						</svg>
-					</span>
-				)}
+				<ButtonIcon name={icon} />
 				<span className="rox-booking-button__label">{text}</span>
 			</button>
 		</div>

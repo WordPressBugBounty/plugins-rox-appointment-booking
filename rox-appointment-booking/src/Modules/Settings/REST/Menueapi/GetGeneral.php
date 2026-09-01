@@ -79,7 +79,6 @@ class GetGeneral extends AbstractREST
                 // pass usa
                 'default_phone_country_code' => rox_appointment_booking_general_settings('default_phone_country_code'),
                 'default_appointment_status' => 'pending',
-                'blocking_appointment_statuses' => [],
                 'time_system' => '12_hour',
                 'date_format' => 'MM/DD/YYYY',
                 'show_appointment_end_time' => false,

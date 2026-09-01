@@ -70,6 +70,7 @@ class ServiceModel extends AbstractModel
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'weekly_schedule' => 'json',
+        'special_days' => 'json',
     ];
 
     /**

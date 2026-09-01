@@ -220,9 +220,6 @@ class GetOrder extends AbstractREST
                 if ($customer->thumbnail_id) {
                     $avatarUrl = wp_get_attachment_url($customer->thumbnail_id) ?: '';
                 }
-                if (!$avatarUrl && !empty($customer->email)) {
-                    $avatarUrl = get_avatar_url($customer->email) ?: '';
-                }
                 $customerInfo = [
                     'id'             => $customer->getID(),
                     'name'           => $customer->getFullName(),

@@ -31,6 +31,18 @@
       "type": "boolean",
       "default": false
     },
+    "headingAlign": {
+      "type": "string",
+      "default": ""
+    },
+    "headingMargin": {
+      "type": "object",
+      "default": {}
+    },
+    "contentMargin": {
+      "type": "object",
+      "default": {}
+    },
     "showBackground": {
       "type": "boolean",
       "default": true
@@ -191,6 +203,14 @@
       "type": "string",
       "default": "left"
     },
+    "buttonAlignTablet": {
+      "type": "string",
+      "default": ""
+    },
+    "buttonAlignMobile": {
+      "type": "string",
+      "default": ""
+    },
     "buttonWidth": {
       "type": "string",
       "default": "auto"
@@ -235,6 +255,27 @@
       "type": "number",
       "default": 1
     },
+    "buttonBorderWidthTablet": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "buttonBorderWidthMobile": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "buttonBorderWidthHover": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
     "buttonBorderStyle": {
       "type": "string",
       "default": "solid"
@@ -243,11 +284,133 @@
       "type": "number",
       "default": 6
     },
+    "buttonBorderRadiusTablet": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "buttonBorderRadiusMobile": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
     "buttonPadding": {
       "type": "object",
       "default": {}
     },
+    "buttonPaddingTablet": {
+      "type": "object",
+      "default": {}
+    },
+    "buttonPaddingMobile": {
+      "type": "object",
+      "default": {}
+    },
     "buttonMargin": {
+      "type": "object",
+      "default": {}
+    },
+    "buttonMarginTablet": {
+      "type": "object",
+      "default": {}
+    },
+    "buttonMarginMobile": {
+      "type": "object",
+      "default": {}
+    },
+    "buttonWidthSize": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "buttonWidthSizeTablet": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "buttonWidthSizeMobile": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "buttonIconSize": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "buttonIconSizeTablet": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "buttonIconSizeMobile": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "buttonIconGap": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "buttonIconGapTablet": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "buttonIconGapMobile": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "buttonIconOffsetY": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "buttonIconOffsetYTablet": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "buttonIconOffsetYMobile": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "default": null
+    },
+    "buttonBoxShadow": {
+      "type": "object",
+      "default": {}
+    },
+    "buttonBoxShadowHover": {
       "type": "object",
       "default": {}
     },

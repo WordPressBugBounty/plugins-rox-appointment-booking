@@ -4,11 +4,6 @@ namespace RoxAppointmentBooking\Modules\Payment\Services;
 
 defined('ABSPATH') || exit;
 
-use RoxAppointmentBookingVendors\Stripe\Stripe;
-use RoxAppointmentBookingVendors\Stripe\Account;
-use RoxAppointmentBookingVendors\Stripe\PaymentIntent;
-use RoxAppointmentBookingVendors\Stripe\Exception\ApiErrorException;
-
 /**
  * Class StripePaymentService
  *
@@ -28,6 +23,11 @@ class StripePaymentService
     private const IDEMPOTENCY_EXPIRY = 86400;
     private const ZERO_DECIMAL_CURRENCIES = ['bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga', 'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf'];
     private const THREE_DECIMAL_CURRENCIES = ['bhd', 'jod', 'kwd', 'omr', 'tnd'];
+
+    /**
+     * Metadata keys that tie a PaymentIntent back to something in this database.
+     */
+    private const RELATIONSHIP_KEYS = ['booking_id', 'order_id', 'customer_id'];
 
     private string $secretKey;
     private string $publishableKey;
@@ -50,11 +50,16 @@ class StripePaymentService
             $currency = 'usd';
         }
         $this->currency = $currency;
+    }
 
-        if (!empty($this->secretKey)) {
-            Stripe::setApiKey($this->secretKey);
-            Stripe::setAppInfo('RoxAppointmentBooking', '1.0.0', home_url());
-        }
+    /**
+     * The API client for the stored secret key.
+     *
+     * @return StripeApiClient
+     */
+    private function client(): StripeApiClient
+    {
+        return new StripeApiClient($this->secretKey);
     }
 
     /**
@@ -84,70 +89,251 @@ class StripePaymentService
             return ['success' => false, 'error' => 'Duplicate transaction detected'];
         }
 
-        try {
-            $sanitizedMetadata = $this->sanitizeMetadata($metadata);
-            $sanitizedMetadata['ip_address'] = $this->getClientIp();
-            $userAgent = sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'] ?? ''));
-            $sanitizedMetadata['user_agent'] = $userAgent ? substr($userAgent, 0, 255) : 'Unknown';
-            $sanitizedMetadata['timestamp'] = current_time('mysql');
+        $sanitizedMetadata = $this->sanitizeMetadata($metadata);
+        $relationship = array_intersect_key($sanitizedMetadata, array_flip(self::RELATIONSHIP_KEYS));
 
-            $paymentIntent = PaymentIntent::create([
-                'amount' => $this->convertToSmallestUnit($amount),
+        $sanitizedMetadata['ip_address'] = $this->getClientIp();
+        $userAgent = sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'] ?? ''));
+        $sanitizedMetadata['user_agent'] = $userAgent ? substr($userAgent, 0, 255) : 'Unknown';
+        $sanitizedMetadata['timestamp'] = current_time('mysql');
+
+        $minorAmount = $this->convertToSmallestUnit($amount);
+
+        $response = $this->client()->post(
+            '/payment_intents',
+            [
+                'amount' => $minorAmount,
                 'currency' => $this->currency,
                 'payment_method' => $paymentMethodId,
                 'confirm' => true,
                 'metadata' => $sanitizedMetadata,
                 'automatic_payment_methods' => ['enabled' => true, 'allow_redirects' => 'never'],
                 'description' => sprintf('Booking payment - %s', wp_hash($idempotencyKey)),
-            ], ['idempotency_key' => $idempotencyKey]);
+            ],
+            ['idempotency_key' => $idempotencyKey]
+        );
 
-            $this->storeIdempotencyKey($idempotencyKey, $paymentIntent->id);
-
-            return [
-                'success' => true,
-                'payment_intent_id' => $paymentIntent->id,
-                'status' => $paymentIntent->status,
-                'amount' => $amount,
-            ];
-        } catch (ApiErrorException $e) {
-            $this->logApiError($e, $amount, $paymentMethodId);
+        if (!$response['success']) {
+            $this->logApiError($response['error'], $amount, $paymentMethodId);
 
             return [
                 'success' => false,
-                'error' => $this->buildCustomerFacingError($e),
+                'error' => $this->buildCustomerFacingError($response['error']),
             ];
-        } catch (\Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[ROX STRIPE] Exception: ' . $e->getMessage());
-            }
-            return ['success' => false, 'error' => 'System error occurred'];
         }
+
+        $paymentIntent = $response['data'];
+
+        // Confirm that what Stripe created is what was asked for.
+        $mismatch = $this->intentMismatch($paymentIntent, $minorAmount, $relationship);
+        if ($mismatch !== '') {
+            $this->logMismatch($mismatch, (string) ($paymentIntent['id'] ?? ''));
+
+            return ['success' => false, 'error' => 'Payment could not be verified. Please contact us before trying again.'];
+        }
+
+        $this->storeIdempotencyKey($idempotencyKey, (string) $paymentIntent['id']);
+
+        return [
+            'success' => true,
+            'payment_intent_id' => (string) $paymentIntent['id'],
+            'status' => (string) ($paymentIntent['status'] ?? ''),
+            'amount' => $amount,
+        ];
     }
 
     /**
-     * Log the underlying Stripe failure so the generic customer-facing
-     * message can still be traced back to a real cause.
+     * Retrieve a payment intent.
      *
-     * @param ApiErrorException $e Stripe API exception.
+     * @param string $paymentIntentId Stripe payment intent ID.
+     * @return array ['success' => bool, 'payment_intent' => array, 'error' => string]
+     */
+    public function retrievePaymentIntent(string $paymentIntentId): array
+    {
+        if (!$this->validatePaymentIntentId($paymentIntentId)) {
+            return ['success' => false, 'payment_intent' => [], 'error' => 'Invalid payment reference'];
+        }
+
+        $response = $this->client()->get('/payment_intents/' . rawurlencode($paymentIntentId));
+
+        if (!$response['success']) {
+            $this->logApiError($response['error'], 0.0, '');
+
+            return [
+                'success' => false,
+                'payment_intent' => [],
+                'error' => $this->buildCustomerFacingError($response['error']),
+            ];
+        }
+
+        return ['success' => true, 'payment_intent' => $response['data'], 'error' => ''];
+    }
+
+    /**
+     * Verify server-side that a payment intent really settled, for the expected amount, in the
+     * expected currency, against the expected booking or order.
+     *
+     * @param string $paymentIntentId Stripe payment intent ID.
+     * @param float  $expectedAmount  Amount in major units, as this site stored it.
+     * @param array  $expectedMetadata Relationship keys, e.g. ['booking_id' => 42].
+     * @return array ['success' => bool, 'status' => string, 'payment_intent' => array, 'error' => string]
+     */
+    public function verifyPaymentIntent(string $paymentIntentId, float $expectedAmount, array $expectedMetadata = []): array
+    {
+        $retrieved = $this->retrievePaymentIntent($paymentIntentId);
+
+        if (!$retrieved['success']) {
+            return ['success' => false, 'status' => '', 'payment_intent' => [], 'error' => $retrieved['error']];
+        }
+
+        $paymentIntent = $retrieved['payment_intent'];
+        $status = (string) ($paymentIntent['status'] ?? '');
+
+        $mismatch = $this->intentMismatch(
+            $paymentIntent,
+            $this->convertToSmallestUnit($expectedAmount),
+            $this->sanitizeMetadata($expectedMetadata)
+        );
+
+        if ($mismatch !== '') {
+            $this->logMismatch($mismatch, $paymentIntentId);
+
+            return ['success' => false, 'status' => $status, 'payment_intent' => $paymentIntent, 'error' => 'Payment could not be verified.'];
+        }
+
+        if ($status !== 'succeeded') {
+            return ['success' => false, 'status' => $status, 'payment_intent' => $paymentIntent, 'error' => 'Payment has not completed.'];
+        }
+
+        return ['success' => true, 'status' => $status, 'payment_intent' => $paymentIntent, 'error' => ''];
+    }
+
+    /**
+     * Refund a payment, in full or in part.
+     *
+     * @param string $paymentIntentId Stripe payment intent ID.
+     * @param float|null $amount Amount in major units; null refunds the full charge.
+     * @param string $reason One of duplicate|fraudulent|requested_by_customer.
+     * @return array ['success' => bool, 'refund_id' => string, 'status' => string, 'error' => string]
+     */
+    public function createRefund(string $paymentIntentId, ?float $amount = null, string $reason = ''): array
+    {
+        if (!$this->validatePaymentIntentId($paymentIntentId)) {
+            return ['success' => false, 'refund_id' => '', 'status' => '', 'error' => 'Invalid payment reference'];
+        }
+
+        $params = ['payment_intent' => $paymentIntentId];
+
+        if ($amount !== null) {
+            if ($amount <= 0 || $amount > self::MAX_AMOUNT) {
+                return ['success' => false, 'refund_id' => '', 'status' => '', 'error' => 'Invalid refund amount'];
+            }
+            $params['amount'] = $this->convertToSmallestUnit($amount);
+        }
+
+        if (in_array($reason, ['duplicate', 'fraudulent', 'requested_by_customer'], true)) {
+            $params['reason'] = $reason;
+        }
+
+        // Keyed on the intent and the amount so a retried refund cannot double-refund.
+        $response = $this->client()->post('/refunds', $params, [
+            'idempotency_key' => wp_hash('refund_' . $paymentIntentId . '_' . ($params['amount'] ?? 'full')),
+        ]);
+
+        if (!$response['success']) {
+            $this->logApiError($response['error'], (float) ($amount ?? 0), '');
+
+            return [
+                'success' => false,
+                'refund_id' => '',
+                'status' => '',
+                'error' => $this->buildCustomerFacingError($response['error']),
+            ];
+        }
+
+        return [
+            'success' => true,
+            'refund_id' => (string) ($response['data']['id'] ?? ''),
+            'status' => (string) ($response['data']['status'] ?? ''),
+            'error' => '',
+        ];
+    }
+
+    /**
+     * Compare a Stripe payment intent against what this site expected.
+     *
+     * @param array $paymentIntent Decoded payment intent.
+     * @param int   $expectedMinor Expected amount in the smallest currency unit.
+     * @param array $expectedMetadata Relationship metadata that must match.
+     * @return string Empty when everything matches, otherwise the reason.
+     */
+    private function intentMismatch(array $paymentIntent, int $expectedMinor, array $expectedMetadata): string
+    {
+        $id = (string) ($paymentIntent['id'] ?? '');
+        if (!$this->validatePaymentIntentId($id)) {
+            return 'missing or malformed payment intent id';
+        }
+
+        if ((int) ($paymentIntent['amount'] ?? -1) !== $expectedMinor) {
+            return sprintf('amount mismatch: stripe=%d expected=%d', (int) ($paymentIntent['amount'] ?? -1), $expectedMinor);
+        }
+
+        $currency = strtolower((string) ($paymentIntent['currency'] ?? ''));
+        if ($currency !== $this->currency) {
+            return sprintf('currency mismatch: stripe=%s expected=%s', $currency, $this->currency);
+        }
+
+        $stripeMetadata = isset($paymentIntent['metadata']) && is_array($paymentIntent['metadata'])
+            ? $paymentIntent['metadata']
+            : [];
+
+        foreach (self::RELATIONSHIP_KEYS as $key) {
+            if (!isset($expectedMetadata[$key])) {
+                continue;
+            }
+
+            if ((string) ($stripeMetadata[$key] ?? '') !== (string) $expectedMetadata[$key]) {
+                return sprintf('%s mismatch: stripe=%s expected=%s', $key, (string) ($stripeMetadata[$key] ?? ''), (string) $expectedMetadata[$key]);
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Log a verification mismatch.
+     *
+     * @param string $reason Mismatch reason.
+     * @param string $paymentIntentId Stripe payment intent ID.
+     * @return void
+     */
+    private function logMismatch(string $reason, string $paymentIntentId): void
+    {
+        error_log(sprintf('[ROX STRIPE] payment verification failed | intent=%s | %s', $paymentIntentId, $reason));
+    }
+
+    /**
+     * Log the underlying Stripe failure so the generic customer-facing message can still be
+     * traced back to a real cause.
+     *
+     * @param array $error Normalised error from StripeApiClient.
      * @param float $amount Payment amount.
      * @param string $paymentMethodId Stripe payment method ID.
      * @return void
      */
-    private function logApiError(ApiErrorException $e, float $amount, string $paymentMethodId): void
+    private function logApiError(array $error, float $amount, string $paymentMethodId): void
     {
         if (!defined('WP_DEBUG') || !WP_DEBUG) {
             return;
         }
 
-        $error = $e->getError();
-
         error_log(sprintf(
             '[ROX STRIPE] %s | type=%s code=%s decline_code=%s param=%s | currency=%s amount_minor=%d pm=%s',
-            $e->getMessage(),
-            $error->type ?? '',
-            $error->code ?? '',
-            $error->decline_code ?? '',
-            $error->param ?? '',
+            $error['message'] ?? '',
+            $error['type'] ?? '',
+            $error['code'] ?? '',
+            $error['decline_code'] ?? '',
+            $error['param'] ?? '',
             $this->currency,
             $this->convertToSmallestUnit($amount),
             $paymentMethodId
@@ -157,22 +343,16 @@ class StripePaymentService
     /**
      * Build a customer-facing message from a Stripe API error.
      *
-     * Card declines and amount-range rejections carry a reason the customer
-     * can act on, so those are passed through. Everything else (bad keys,
-     * a currency the account cannot process, connection errors) is a site
-     * configuration problem, so it stays generic and lives in the log only.
-     *
-     * @param ApiErrorException $e Stripe API exception.
+     * @param array $error Normalised error from StripeApiClient.
      * @return string
      */
-    private function buildCustomerFacingError(ApiErrorException $e): string
+    private function buildCustomerFacingError(array $error): string
     {
-        $error = $e->getError();
-        $type = $error->type ?? '';
-        $code = $error->code ?? '';
+        $type = (string) ($error['type'] ?? '');
+        $code = (string) ($error['code'] ?? '');
 
         if ($type === 'card_error') {
-            $message = sanitize_text_field((string) ($error->message ?? ''));
+            $message = sanitize_text_field((string) ($error['message'] ?? ''));
             return $message !== '' ? $message : 'Your card was declined. Please try another card.';
         }
 
@@ -182,6 +362,10 @@ class StripePaymentService
 
         if ($code === 'amount_too_large') {
             return sprintf('The amount is above the maximum payment Stripe accepts in %s.', strtoupper($this->currency));
+        }
+
+        if ($type === 'api_connection_error') {
+            return 'Could not reach the payment provider. Please try again in a moment.';
         }
 
         return 'Payment processing failed. Please try again.';
@@ -204,40 +388,44 @@ class StripePaymentService
             return ['success' => false, 'error' => $validationError];
         }
 
-        try {
-            Stripe::setApiKey($secretKey);
-            Stripe::setAppInfo('RoxAppointmentBooking', '1.0.0', home_url());
+        // The submitted key, not the stored one: this call is what proves the key works before
+        // anything is saved.
+        $response = (new StripeApiClient($secretKey))->get('/account');
 
-            $account = Account::retrieve($secretKey);
-            $settings = rox_appointment_booking_payment_settings() ?? [];
-            $settings['stripe_publishable_key'] = $publishableKey;
-            $settings['stripe_secret_key'] = $secretKey;
-            $settings['stripe_connection_status'] = 'connected';
-            $settings['stripe_account_id'] = sanitize_text_field($account->id ?? '');
-            $settings['stripe_account_email'] = sanitize_email($account->email ?? '');
-            $settings['stripe_account_country'] = sanitize_text_field($account->country ?? '');
-            $settings['stripe_mode'] = str_starts_with($secretKey, 'sk_live_') ? 'live' : 'test';
-            $settings['stripe_connected_at'] = current_time('mysql');
-            $settings['stripe_payment_gateway_enable'] = true;
+        if (!$response['success']) {
+            if (($response['error']['type'] ?? '') === 'api_connection_error') {
+                return ['success' => false, 'error' => 'Unable to reach Stripe. Please try again.'];
+            }
 
-            update_option('rox_appointment_booking_payments_settings', $settings);
-
-            return [
-                'success' => true,
-                'status' => 'connected',
-                'account_id' => $settings['stripe_account_id'],
-                'email' => $settings['stripe_account_email'],
-                'country' => $settings['stripe_account_country'],
-                'mode' => $settings['stripe_mode'],
-            ];
-        } catch (ApiErrorException $e) {
             return [
                 'success' => false,
                 'error' => 'Stripe keys are invalid or Stripe rejected the connection.',
             ];
-        } catch (\Exception $e) {
-            return ['success' => false, 'error' => 'Unable to connect Stripe. Please try again.'];
         }
+
+        $account = $response['data'];
+
+        $settings = rox_appointment_booking_payment_settings() ?? [];
+        $settings['stripe_publishable_key'] = $publishableKey;
+        $settings['stripe_secret_key'] = $secretKey;
+        $settings['stripe_connection_status'] = 'connected';
+        $settings['stripe_account_id'] = sanitize_text_field((string) ($account['id'] ?? ''));
+        $settings['stripe_account_email'] = sanitize_email((string) ($account['email'] ?? ''));
+        $settings['stripe_account_country'] = sanitize_text_field((string) ($account['country'] ?? ''));
+        $settings['stripe_mode'] = str_starts_with($secretKey, 'sk_live_') ? 'live' : 'test';
+        $settings['stripe_connected_at'] = current_time('mysql');
+        $settings['stripe_payment_gateway_enable'] = true;
+
+        update_option('rox_appointment_booking_payments_settings', $settings);
+
+        return [
+            'success' => true,
+            'status' => 'connected',
+            'account_id' => $settings['stripe_account_id'],
+            'email' => $settings['stripe_account_email'],
+            'country' => $settings['stripe_account_country'],
+            'mode' => $settings['stripe_mode'],
+        ];
     }
 
     /**
@@ -264,10 +452,10 @@ class StripePaymentService
     }
 
     /**
-    * Get current Stripe connection status and account details.
-    *
-    * @return array
-    */
+     * Get current Stripe connection status and account details.
+     *
+     * @return array
+     */
     public function getConnectionStatus(): array
     {
         $settings = rox_appointment_booking_payment_settings() ?? [];
@@ -291,10 +479,6 @@ class StripePaymentService
     /**
      * Convert amount to the smallest currency unit.
      *
-     * Most currencies are two-decimal, but Stripe expects zero-decimal
-     * currencies (JPY, KRW, VND, ...) as whole units, and three-decimal
-     * currencies (KWD, BHD, ...) in thousandths rounded to the nearest ten.
-     *
      * @param float $amount Payment amount.
      * @return int
      */
@@ -310,7 +494,7 @@ class StripePaymentService
 
         return (int) round($amount * 100);
     }
-    
+
     /**
      * Check whether Stripe is configured.
      *
@@ -344,8 +528,19 @@ class StripePaymentService
     }
 
     /**
+     * Validate a Stripe payment intent ID.
+     *
+     * @param string $id Stripe payment intent ID.
+     * @return bool
+     */
+    private function validatePaymentIntentId(string $id): bool
+    {
+        return preg_match('/^pi_[a-zA-Z0-9_]{10,}$/', $id) === 1;
+    }
+
+    /**
      * Validate Stripe API keys.
-     * 
+     *
      * @param string $publishableKey Stripe publishable key.
      * @param string $secretKey Stripe secret key.
      * @return string Empty if valid, error message if invalid.

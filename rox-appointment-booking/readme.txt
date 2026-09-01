@@ -4,7 +4,7 @@ Tags: booking, reservation, appointments, calendar
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.4
+Stable tag: 1.2.5
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -258,6 +258,22 @@ After activation, you can configure the plugin settings from the WordPress admin
 
 
 == Changelog ==
+Version: 1.2.5 // 2026-09-01
+* Added: Mobile and tablet responsive layouts for the booking panel.
+* Added: Step indicator on the booking panel for small screens, in place of the step list.
+* Added: Rich text editor for e-mail template bodies, with image insert from the media library.
+* Added: Icon picker for the booking panel popup button.
+* Added: Box shadow controls for the popup button, in normal and hover state.
+* Added: Heading alignment, heading margin and content margin controls for the booking panel block and Elementor widget.
+* Improved: The Customer Information step keeps four field rows in view on phones, so Back and Next stay on screen.
+* Improved: New Month, Week and Day switcher on the calendar.
+* Improved: New design and clearer label for the calendar's "Overlay service hours" toggle.
+* Improved: Customers and agents without a photo now show the same default avatar everywhere.
+* Improved: Drawers now slide closed instead of disappearing.
+* Improved: Internal Note is now always shown on the order form, even when it is empty.
+* Improved: Spacing and text in the booking panel cards, calendar and dashboard.
+* Fixed: Service special days could fail to save on MariaDB.
+
 Version: 1.2.4 // 2026-08-31
 * Added: Popup display mode for the booking panel block and Elementor widget, showing a button that opens the panel.
 * Added: Button controls for the popup mode — label, icon, size, width, alignment, colors, border and spacing.

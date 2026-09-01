@@ -229,6 +229,9 @@ const BookingModal = ({
 		root.dataset.instance = settings.instance || "1";
 		root.dataset.type = "booking-form";
 		root.dataset.hideNavigation = settings.hideNavigation ? "true" : "false";
+		root.dataset.contentMargin = settings.contentMargin || "";
+		root.dataset.headingAlign = settings.headingAlign || "";
+		root.dataset.headingMargin = settings.headingMargin || "";
 		root.dataset.hideInfo = settings.hideInfo ? "true" : "false";
 		// The modal already supplies a card (white surface, padding, shadow), so
 		// the panel's own grey frame is off unless the surface asked for it.

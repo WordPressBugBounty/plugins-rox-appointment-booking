@@ -57,6 +57,22 @@ class BookingPanelWidget extends Widget_Base
     protected const VIEW_HANDLE = 'rox-appointment-booking-frontend';
 
     /**
+     * Shows a control only once one of the layout switches is on.
+     *
+     * Elementor's plain `condition` is an AND, and either switch on its own is
+     * enough here, so this is the `conditions` form with an explicit `or`.
+     *
+     * @var array
+     */
+    protected const HIDDEN_COLUMN_CONDITION = [
+        'relation' => 'or',
+        'terms'    => [
+            ['name' => 'hide_navigation', 'operator' => '===', 'value' => 'yes'],
+            ['name' => 'hide_info', 'operator' => '===', 'value' => 'yes'],
+        ],
+    ];
+
+    /**
      * Widget machine name. Both Elementor handler scripts hook
      * `frontend/element_ready/<name>.default`, so this string is also part of
      * that contract.
@@ -226,11 +242,7 @@ class BookingPanelWidget extends Widget_Base
                 'label'   => esc_html__('Icon', 'rox-appointment-booking'),
                 'type'    => Controls_Manager::SELECT,
                 'default' => 'calendar',
-                'options' => [
-                    'none'     => esc_html__('None', 'rox-appointment-booking'),
-                    'calendar' => esc_html__('Calendar', 'rox-appointment-booking'),
-                    'clock'    => esc_html__('Clock', 'rox-appointment-booking'),
-                ],
+                'options' => $this->getIconOptions(),
             ]
         );
 
@@ -264,7 +276,7 @@ class BookingPanelWidget extends Widget_Base
 
         // The markup carries no inline text-align for Elementor, so this control
         // alone positions the button.
-        $this->add_control(
+        $this->add_responsive_control(
             'button_align',
             [
                 'label'     => esc_html__('Alignment', 'rox-appointment-booking'),
@@ -371,6 +383,58 @@ class BookingPanelWidget extends Widget_Base
                 'description'  => esc_html__('The right info / booking summary appears from the Date & Time step onward, so it is not visible on the first step.', 'rox-appointment-booking'),
             ]
         );
+
+        // Opt-in, and left alone by default: the heading sits where it always
+        // has unless an editor says otherwise. Not conditional on the layout
+        // switches — a heading can be worth moving either way.
+        $this->add_control(
+            'heading_align',
+            [
+                'label'       => esc_html__('Heading alignment', 'rox-appointment-booking'),
+                'type'        => Controls_Manager::SELECT,
+                'default'     => '',
+                'options'     => [
+                    ''       => esc_html__('Default (left)', 'rox-appointment-booking'),
+                    'left'   => esc_html__('Left', 'rox-appointment-booking'),
+                    'center' => esc_html__('Center', 'rox-appointment-booking'),
+                    'right'  => esc_html__('Right', 'rox-appointment-booking'),
+                ],
+                'description' => esc_html__('The step title above each list — Select Location, Available Category, and so on.', 'rox-appointment-booking'),
+            ]
+        );
+
+        // The content control below moves the whole column, heading included;
+        // this moves the heading alone, which is what sets it apart from the
+        // cards under it. Margin rather than padding: the heading has no
+        // surface of its own for padding to show on, and a negative value is
+        // what pulls it back out of the column.
+        $this->add_control(
+            'heading_margin',
+            [
+                'label'      => esc_html__('Heading margin', 'rox-appointment-booking'),
+                'type'       => Controls_Manager::DIMENSIONS,
+                'size_units' => ['px'],
+            ]
+        );
+
+        // Only once a column is gone: with both in place the panel is full and
+        // there is nothing left over to nudge into. Either switch on its own is
+        // enough, which is the `conditions` form with an explicit `or` — the
+        // plain `condition` key is an AND.
+        //
+        // Render arguments rather than `selectors`: the popup's panel is built
+        // client-side and is not inside {{WRAPPER}}.
+        $this->add_control(
+            'content_margin',
+            [
+                'label'       => esc_html__('Content margin', 'rox-appointment-booking'),
+                'type'        => Controls_Manager::DIMENSIONS,
+                'size_units'  => ['px'],
+                'description' => esc_html__('Nudges the step heading and its cards, which sit centred in the room the hidden column freed up.', 'rox-appointment-booking'),
+                'conditions'  => self::HIDDEN_COLUMN_CONDITION,
+            ]
+        );
+
 
         $this->add_control(
             'font_family',
@@ -642,7 +706,7 @@ class BookingPanelWidget extends Widget_Base
             ]
         );
 
-        $this->add_control(
+        $this->add_responsive_control(
             'button_border_width',
             [
                 'label'      => esc_html__('Border width', 'rox-appointment-booking'),
@@ -658,7 +722,25 @@ class BookingPanelWidget extends Widget_Base
             ]
         );
 
+        // Not responsive: this is the odd case of a border that appears or
+        // thickens on hover, and that reads the same on every screen.
         $this->add_control(
+            'button_border_width_hover',
+            [
+                'label'      => esc_html__('Border width — hover', 'rox-appointment-booking'),
+                'type'       => Controls_Manager::DIMENSIONS,
+                'size_units' => ['px'],
+                'selectors'  => [
+                    '{{WRAPPER}} .rox-booking-button:hover' => 'border-top-width: {{TOP}}{{UNIT}}; border-right-width: {{RIGHT}}{{UNIT}}; border-bottom-width: {{BOTTOM}}{{UNIT}}; border-left-width: {{LEFT}}{{UNIT}};',
+                ],
+                'condition'  => [
+                    'button_style!'        => 'link',
+                    'button_border_style!' => 'none',
+                ],
+            ]
+        );
+
+        $this->add_responsive_control(
             'button_border_radius',
             [
                 'label'      => esc_html__('Border radius', 'rox-appointment-booking'),
@@ -679,6 +761,94 @@ class BookingPanelWidget extends Widget_Base
             ]
         );
 
+        // The stylesheet resets the shadow on :hover so a theme cannot leave
+        // one behind, which means a hover shadow has to be stated outright
+        // rather than inherited from the resting one.
+        $this->add_group_control(
+            Group_Control_Box_Shadow::get_type(),
+            [
+                'name'     => 'button_box_shadow_hover',
+                'selector' => '{{WRAPPER}} .rox-booking-button:hover',
+            ]
+        );
+
+        // --- Size ------------------------------------------------------------
+
+        // On top of the Width choice in the Content tab rather than instead of
+        // it: left unset that choice decides, set this wins — which is what
+        // makes it useful for lining a button up with something beside it.
+        $this->add_responsive_control(
+            'button_width_size',
+            [
+                'label'      => esc_html__('Width', 'rox-appointment-booking'),
+                'type'       => Controls_Manager::SLIDER,
+                'size_units' => ['px', '%'],
+                'range'      => [
+                    'px' => ['min' => 60, 'max' => 800],
+                    '%'  => ['min' => 10, 'max' => 100],
+                ],
+                'selectors'  => [
+                    '{{WRAPPER}} .rox-booking-button' => 'width: {{SIZE}}{{UNIT}};',
+                ],
+            ]
+        );
+
+        // --- Icon ------------------------------------------------------------
+
+        $this->add_control(
+            'button_icon_heading',
+            [
+                'label'     => esc_html__('Icon', 'rox-appointment-booking'),
+                'type'      => Controls_Manager::HEADING,
+                'separator' => 'before',
+                'condition' => ['button_icon!' => 'none'],
+            ]
+        );
+
+        $this->add_responsive_control(
+            'button_icon_size',
+            [
+                'label'      => esc_html__('Icon size', 'rox-appointment-booking'),
+                'type'       => Controls_Manager::SLIDER,
+                'size_units' => ['px'],
+                'range'      => ['px' => ['min' => 8, 'max' => 64]],
+                'selectors'  => [
+                    '{{WRAPPER}} .rox-booking-button__icon svg' => 'width: {{SIZE}}{{UNIT}}; height: {{SIZE}}{{UNIT}};',
+                ],
+                'condition'  => ['button_icon!' => 'none'],
+            ]
+        );
+
+        $this->add_responsive_control(
+            'button_icon_gap',
+            [
+                'label'      => esc_html__('Space between', 'rox-appointment-booking'),
+                'type'       => Controls_Manager::SLIDER,
+                'size_units' => ['px'],
+                'range'      => ['px' => ['min' => 0, 'max' => 60]],
+                'selectors'  => [
+                    '{{WRAPPER}} .rox-booking-button' => 'gap: {{SIZE}}{{UNIT}};',
+                ],
+                'condition'  => ['button_icon!' => 'none'],
+            ]
+        );
+
+        // An icon's visual centre rarely lands on the text baseline, and a
+        // pixel either way is what settles it.
+        $this->add_responsive_control(
+            'button_icon_offset_y',
+            [
+                'label'      => esc_html__('Move icon vertically', 'rox-appointment-booking'),
+                'type'       => Controls_Manager::SLIDER,
+                'size_units' => ['px'],
+                'range'      => ['px' => ['min' => -20, 'max' => 20]],
+                'selectors'  => [
+                    '{{WRAPPER}} .rox-booking-button__icon' => 'transform: translateY({{SIZE}}{{UNIT}});',
+                ],
+                'condition'  => ['button_icon!' => 'none'],
+            ]
+        );
+
         // --- Spacing ---------------------------------------------------------
 
         $this->add_control(
@@ -690,7 +860,7 @@ class BookingPanelWidget extends Widget_Base
             ]
         );
 
-        $this->add_control(
+        $this->add_responsive_control(
             'button_padding',
             [
                 'label'      => esc_html__('Padding', 'rox-appointment-booking'),
@@ -702,7 +872,7 @@ class BookingPanelWidget extends Widget_Base
             ]
         );
 
-        $this->add_control(
+        $this->add_responsive_control(
             'button_margin',
             [
                 'label'      => esc_html__('Margin', 'rox-appointment-booking'),
@@ -784,6 +954,49 @@ class BookingPanelWidget extends Widget_Base
         );
 
         $this->end_controls_section();
+    }
+
+    /**
+     * Icon choices for the button, driven by the icon set rather than a list
+     * kept here: an icon added to the JSON shows up without a second edit.
+     *
+     * The labels are spelled out so they can be translated — a name derived
+     * from the JSON key could not be — and any key without one falls back to
+     * a readable version of the key itself.
+     *
+     * @return array<string, string>
+     */
+    protected function getIconOptions(): array
+    {
+        $labels = [
+            'none'         => esc_html__('None', 'rox-appointment-booking'),
+            'calendar'     => esc_html__('Calendar', 'rox-appointment-booking'),
+            'clock'        => esc_html__('Clock', 'rox-appointment-booking'),
+            'user'         => esc_html__('User', 'rox-appointment-booking'),
+            'users'        => esc_html__('Users', 'rox-appointment-booking'),
+            'phone'        => esc_html__('Phone', 'rox-appointment-booking'),
+            'mail'         => esc_html__('Mail', 'rox-appointment-booking'),
+            'chat'         => esc_html__('Chat', 'rox-appointment-booking'),
+            'check'        => esc_html__('Check', 'rox-appointment-booking'),
+            'check-circle' => esc_html__('Check circle', 'rox-appointment-booking'),
+            'star'         => esc_html__('Star', 'rox-appointment-booking'),
+            'heart'        => esc_html__('Heart', 'rox-appointment-booking'),
+            'location'     => esc_html__('Location', 'rox-appointment-booking'),
+            'scissors'     => esc_html__('Scissors', 'rox-appointment-booking'),
+            'ticket'       => esc_html__('Ticket', 'rox-appointment-booking'),
+            'bell'         => esc_html__('Bell', 'rox-appointment-booking'),
+            'arrow-right'  => esc_html__('Arrow', 'rox-appointment-booking'),
+            'plus'         => esc_html__('Plus', 'rox-appointment-booking'),
+            'sparkle'      => esc_html__('Sparkle', 'rox-appointment-booking'),
+        ];
+
+        $options = [];
+
+        foreach (BookingButtonMarkup::iconKeys() as $key) {
+            $options[$key] = $labels[$key] ?? ucfirst(str_replace('-', ' ', $key));
+        }
+
+        return $options;
     }
 
     /**
@@ -893,7 +1106,7 @@ class BookingPanelWidget extends Widget_Base
             // The instance id decides which store the panel gets, so two of
             // these widgets on one page keep their selections apart. Elementor's
             // element id is unique per widget and stable across renders.
-            '<div class="rox-appointment-booking-frontend-root" data-instance="%7$s" data-type="booking-form" data-hide-navigation="%1$s" data-hide-info="%2$s" data-show-background="%3$s" data-background-color="%4$s" data-locations="%5$s" data-categories="%6$s" data-font-family="%8$s" data-font-url="%9$s"></div>',
+            '<div class="rox-appointment-booking-frontend-root" data-instance="%7$s" data-type="booking-form" data-hide-navigation="%1$s" data-hide-info="%2$s" data-show-background="%3$s" data-background-color="%4$s" data-locations="%5$s" data-categories="%6$s" data-font-family="%8$s" data-font-url="%9$s" data-content-margin="%10$s" data-heading-align="%11$s" data-heading-margin="%12$s"></div>',
             esc_attr($hide_navigation),
             esc_attr($hide_info),
             esc_attr($show_background),
@@ -902,8 +1115,64 @@ class BookingPanelWidget extends Widget_Base
             esc_attr($category_ids),
             esc_attr((string) $this->get_id()),
             esc_attr($font_family),
-            esc_url($font_url)
+            esc_url($font_url),
+            esc_attr(BookingButtonMarkup::contentSpacing($this->dimensions($settings, 'content_margin'), true)),
+            esc_attr($this->headingAlign($settings)),
+            esc_attr(BookingButtonMarkup::contentSpacing($this->dimensions($settings, 'heading_margin'), true))
         );
+    }
+
+    /**
+     * Where a step's heading sits, validated against the whitelist.
+     *
+     * Empty is the default and the answer for anything unrecognised: the
+     * value reaches the stylesheet as a class name, and Elementor validates
+     * nothing on the way in.
+     *
+     * @param array $settings Resolved widget settings.
+     * @return string
+     */
+    protected function headingAlign(array $settings): string
+    {
+        $value = (string) ($settings['heading_align'] ?? '');
+
+        return in_array($value, BookingButtonMarkup::HEADING_ALIGNS, true) ? $value : '';
+    }
+
+    /**
+     * Reads an Elementor DIMENSIONS control as the four-sided map the markup
+     * builder expects.
+     *
+     * Elementor keeps the unit apart from the numbers and leaves a side that
+     * was never filled in as an empty string, so each side is stitched back
+     * together here and the blank ones are simply left out.
+     *
+     * @param array  $settings Resolved widget settings.
+     * @param string $key      Control name.
+     * @return array
+     */
+    protected function dimensions(array $settings, string $key): array
+    {
+        $raw = $settings[$key] ?? [];
+
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $unit  = (string) ($raw['unit'] ?? 'px');
+        $sides = [];
+
+        foreach (['top', 'right', 'bottom', 'left'] as $side) {
+            $value = $raw[$side] ?? '';
+
+            if ($value === '' || $value === null) {
+                continue;
+            }
+
+            $sides[$side] = $value . $unit;
+        }
+
+        return $sides;
     }
 
     /**
@@ -937,6 +1206,9 @@ class BookingPanelWidget extends Widget_Base
             'modalWidth'           => (int) ($settings['modal_width'] ?? 1100),
             'hideNavigation'       => ($settings['hide_navigation'] ?? '') === 'yes',
             'hideInfo'             => ($settings['hide_info'] ?? '') === 'yes',
+            'contentMargin'        => $this->dimensions($settings, 'content_margin'),
+            'headingAlign'         => $this->headingAlign($settings),
+            'headingMargin'        => $this->dimensions($settings, 'heading_margin'),
             // Elementor hands SELECT2 values back as strings; IdList normalises.
             'locationIds'          => $settings['location_ids'] ?? [],
             'categoryIds'          => $settings['category_ids'] ?? [],

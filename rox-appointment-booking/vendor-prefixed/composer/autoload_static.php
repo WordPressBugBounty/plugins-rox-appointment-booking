@@ -7,14 +7,12 @@ namespace Composer\Autoload;
 class ComposerStaticInit30d080dea556d63135534bdfb0a72b7c
 {
     public static $files = array (
-        'd92f49fe138fde4e7a3ec6f988960524' => __DIR__ . '/..' . '/stripe/stripe-php/lib/version_check.php',
     );
 
     public static $prefixLengthsPsr4 = array (
         'R' => 
         array (
             'RoxAppointmentBooking\\' => 22,
-            'RoxAppointmentBookingVendors\\Stripe\\' => 36,
             'RoxAppointmentBookingVendors\\Bamarni\\Composer\\Bin\\' => 50,
         ),
     );
@@ -23,10 +21,6 @@ class ComposerStaticInit30d080dea556d63135534bdfb0a72b7c
         'RoxAppointmentBooking\\' => 
         array (
             0 => __DIR__ . '/../..' . '/src',
-        ),
-        'RoxAppointmentBookingVendors\\Stripe\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/stripe/stripe-php/lib',
         ),
         'RoxAppointmentBookingVendors\\Bamarni\\Composer\\Bin\\' => 
         array (

@@ -7,6 +7,5 @@ $baseDir = dirname($vendorDir);
 
 return array(
     'RoxAppointmentBooking\\' => array($baseDir . '/src'),
-    'RoxAppointmentBookingVendors\\Stripe\\' => array($vendorDir . '/stripe/stripe-php/lib'),
     'RoxAppointmentBookingVendors\\Bamarni\\Composer\\Bin\\' => array($vendorDir . '/bamarni/composer-bin-plugin/src'),
 );

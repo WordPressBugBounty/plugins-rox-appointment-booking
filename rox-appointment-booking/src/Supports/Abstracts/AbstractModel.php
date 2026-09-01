@@ -801,19 +801,77 @@ abstract class AbstractModel
             );
 
             $jsonColumns = [];
+            $columnNames = [];
             if (is_array($results)) {
                 foreach ($results as $column) {
+                    if (!isset($column->Field)) {
+                        continue;
+                    }
+
+                    $columnNames[] = (string) $column->Field;
+
                     $type = strtolower((string) ($column->Type ?? ''));
-                    if (str_contains($type, 'json') && isset($column->Field)) {
+                    if (str_contains($type, 'json')) {
                         $jsonColumns[] = (string) $column->Field;
                     }
                 }
             }
 
-            self::$tableJsonColumnsCache[$table] = $jsonColumns;
+            $jsonColumns = array_merge($jsonColumns, $this->getJsonValidCheckColumns($safeTable, $columnNames));
+
+            self::$tableJsonColumnsCache[$table] = array_values(array_unique($jsonColumns));
         }
 
         return self::$tableJsonColumnsCache[$table];
+    }
+
+    /**
+     * Get columns guarded by a json_valid() CHECK constraint.
+     *
+     * @param string $table Table name.
+     * @param array $columns Known table column names.
+     * @return array
+     */
+    protected function getJsonValidCheckColumns(string $table, array $columns): array
+    {
+        global $wpdb;
+
+        // MariaDB stores a JSON column as longtext and enforces it with an auto-generated
+        // json_valid() CHECK, so information_schema never reports the json type there.
+        if ($columns === [] || stripos((string) $wpdb->db_server_info(), 'mariadb') === false) {
+            return [];
+        }
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+        $constraints = $wpdb->get_results(
+            $wpdb->prepare(
+                'SELECT CHECK_CLAUSE AS Clause
+                FROM information_schema.CHECK_CONSTRAINTS
+                WHERE CONSTRAINT_SCHEMA = %s AND TABLE_NAME = %s',
+                DB_NAME,
+                $table
+            )
+        );
+
+        if (!is_array($constraints)) {
+            return [];
+        }
+
+        $jsonColumns = [];
+        foreach ($constraints as $constraint) {
+            $clause = (string) ($constraint->Clause ?? '');
+            if (stripos($clause, 'json_valid') === false) {
+                continue;
+            }
+
+            foreach ($columns as $column) {
+                if (str_contains($clause, '`' . $column . '`')) {
+                    $jsonColumns[] = $column;
+                }
+            }
+        }
+
+        return $jsonColumns;
     }
 
     /**

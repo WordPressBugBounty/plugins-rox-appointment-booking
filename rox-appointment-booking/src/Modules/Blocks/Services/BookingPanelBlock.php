@@ -333,7 +333,7 @@ class BookingPanelBlock
         $category_ids = IdList::toAttr($attributes['categoryIds'] ?? []);
 
         return sprintf(
-            '<div %1$s><div class="rox-appointment-booking-frontend-root"%10$s data-instance="%2$s" data-type="booking-form" data-hide-navigation="%3$s" data-hide-info="%4$s" data-show-background="%5$s" data-background-color="%6$s" data-font-family="%7$s" data-locations="%8$s" data-categories="%9$s"></div></div>',
+            '<div %1$s><div class="rox-appointment-booking-frontend-root"%10$s data-instance="%2$s" data-type="booking-form" data-hide-navigation="%3$s" data-hide-info="%4$s" data-content-margin="%11$s" data-heading-align="%12$s" data-heading-margin="%13$s" data-show-background="%5$s" data-background-color="%6$s" data-font-family="%7$s" data-locations="%8$s" data-categories="%9$s"></div></div>',
             $wrapper_attributes,
             // Prefixed per surface: the instance id keys the panel's store, and
             // every surface counts from 1, so a bare number would let a panel
@@ -346,8 +346,46 @@ class BookingPanelBlock
             esc_attr($font_family),
             esc_attr($location_ids),
             esc_attr($category_ids),
-            $nav_style === '' ? '' : ' style="' . esc_attr($nav_style) . '"'
+            $nav_style === '' ? '' : ' style="' . esc_attr($nav_style) . '"',
+            esc_attr($this->contentSpacing($attributes, 'contentMargin', true)),
+            esc_attr($this->headingAlign($attributes)),
+            esc_attr($this->contentSpacing($attributes, 'headingMargin', true))
         );
+    }
+
+    /**
+     * Where a step's heading sits, validated against the whitelist.
+     *
+     * Empty is the default and the answer for anything unrecognised: the
+     * value reaches the stylesheet as a class name, and block attributes are
+     * whatever was saved in the post.
+     *
+     * @param array $attributes Block attributes.
+     * @return string
+     */
+    protected function headingAlign(array $attributes): string
+    {
+        $value = $this->str($attributes['headingAlign'] ?? '');
+
+        return in_array($value, BookingButtonMarkup::HEADING_ALIGNS, true) ? $value : '';
+    }
+
+    /**
+     * The content column's padding or margin, as the `top,right,bottom,left`
+     * string the mount node carries.
+     *
+     * Delegated to the markup builder so the inline panel and the popup
+     * normalise a length the same way — the popup's copy travels through
+     * BookingButtonMarkup already.
+     *
+     * @param array  $attributes     Block attributes.
+     * @param string $key            Attribute name.
+     * @param bool   $allow_negative Whether a negative length is meaningful.
+     * @return string
+     */
+    protected function contentSpacing(array $attributes, string $key, bool $allow_negative): string
+    {
+        return BookingButtonMarkup::contentSpacing($attributes[$key] ?? [], $allow_negative);
     }
 
     /**
@@ -376,6 +414,8 @@ class BookingPanelBlock
             [
                 'text'                 => $attributes['buttonText'] ?? '',
                 'align'                => $attributes['buttonAlign'] ?? 'left',
+                'alignTablet'          => $attributes['buttonAlignTablet'] ?? '',
+                'alignMobile'          => $attributes['buttonAlignMobile'] ?? '',
                 'width'                => $attributes['buttonWidth'] ?? 'auto',
                 'size'                 => $attributes['buttonSize'] ?? 'medium',
                 'style'                => $attributes['buttonStyle'] ?? 'filled',
@@ -387,13 +427,39 @@ class BookingPanelBlock
                 'textColorHover'       => $attributes['buttonTextColorHover'] ?? '',
                 'borderColorHover'     => $attributes['buttonBorderColorHover'] ?? '',
                 'borderWidth'          => $attributes['buttonBorderWidth'] ?? 1,
+                'borderWidthTablet'    => $attributes['buttonBorderWidthTablet'] ?? null,
+                'borderWidthMobile'    => $attributes['buttonBorderWidthMobile'] ?? null,
+                'borderWidthHover'     => $attributes['buttonBorderWidthHover'] ?? null,
                 'borderStyle'          => $attributes['buttonBorderStyle'] ?? 'solid',
                 'borderRadius'         => $attributes['buttonBorderRadius'] ?? 6,
+                'borderRadiusTablet'   => $attributes['buttonBorderRadiusTablet'] ?? null,
+                'borderRadiusMobile'   => $attributes['buttonBorderRadiusMobile'] ?? null,
                 'padding'              => $attributes['buttonPadding'] ?? [],
+                'paddingTablet'        => $attributes['buttonPaddingTablet'] ?? [],
+                'paddingMobile'        => $attributes['buttonPaddingMobile'] ?? [],
                 'margin'               => $attributes['buttonMargin'] ?? [],
+                'marginTablet'         => $attributes['buttonMarginTablet'] ?? [],
+                'marginMobile'         => $attributes['buttonMarginMobile'] ?? [],
+                'buttonWidthSize'      => $attributes['buttonWidthSize'] ?? null,
+                'buttonWidthSizeTablet' => $attributes['buttonWidthSizeTablet'] ?? null,
+                'buttonWidthSizeMobile' => $attributes['buttonWidthSizeMobile'] ?? null,
+                'iconSize'             => $attributes['buttonIconSize'] ?? null,
+                'iconSizeTablet'       => $attributes['buttonIconSizeTablet'] ?? null,
+                'iconSizeMobile'       => $attributes['buttonIconSizeMobile'] ?? null,
+                'iconGap'              => $attributes['buttonIconGap'] ?? null,
+                'iconGapTablet'        => $attributes['buttonIconGapTablet'] ?? null,
+                'iconGapMobile'        => $attributes['buttonIconGapMobile'] ?? null,
+                'iconOffsetY'          => $attributes['buttonIconOffsetY'] ?? null,
+                'iconOffsetYTablet'    => $attributes['buttonIconOffsetYTablet'] ?? null,
+                'iconOffsetYMobile'    => $attributes['buttonIconOffsetYMobile'] ?? null,
+                'boxShadow'            => $attributes['buttonBoxShadow'] ?? [],
+                'boxShadowHover'       => $attributes['buttonBoxShadowHover'] ?? [],
                 'modalWidth'           => $attributes['modalWidth'] ?? 1100,
                 'hideNavigation'       => !empty($attributes['hideNavigation']),
                 'hideInfo'             => !empty($attributes['hideInfo']),
+                'contentMargin'        => $attributes['contentMargin'] ?? [],
+                'headingAlign'         => $this->headingAlign($attributes),
+                'headingMargin'        => $attributes['headingMargin'] ?? [],
                 // No agent lock from this block: a panel tied to one agent is
                 // what the Single Agent Booking Panel block is for, so the
                 // markup builder's "no lock" default stands.

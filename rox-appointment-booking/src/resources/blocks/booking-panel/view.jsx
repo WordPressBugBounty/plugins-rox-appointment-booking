@@ -53,6 +53,10 @@ const readSettings = (trigger) => ({
 	modalWidth: parseInt(trigger.dataset.modalWidth, 10) || 1100,
 	resetOnClose: trigger.dataset.resetOnClose === "true",
 	hideNavigation: trigger.dataset.hideNavigation === "true",
+	// Four comma-separated lengths each, top/right/bottom/left.
+	contentMargin: trigger.dataset.contentMargin || "",
+	headingAlign: trigger.dataset.headingAlign || "",
+	headingMargin: trigger.dataset.headingMargin || "",
 	hideInfo: trigger.dataset.hideInfo === "true",
 	locations: trigger.dataset.locations || "",
 	categories: trigger.dataset.categories || "",

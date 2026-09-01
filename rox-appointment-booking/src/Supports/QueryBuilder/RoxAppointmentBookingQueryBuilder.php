@@ -672,6 +672,13 @@ class RoxAppointmentBookingQueryBuilder
         $setSqlParts = [];
         $setBindings = [];
         foreach ($normalized as $column => $value) {
+            // A literal, not a placeholder: prepare() casts null to an empty string, which a
+            // JSON column rejects and a DATETIME column stores as 0000-00-00.
+            if ($value === null) {
+                $setSqlParts[] = $this->wrap($column) . ' = NULL';
+                continue;
+            }
+
             $setSqlParts[] = $this->wrap($column) . ' = ' . $this->placeholderFor($value);
             $setBindings[] = $value;
         }

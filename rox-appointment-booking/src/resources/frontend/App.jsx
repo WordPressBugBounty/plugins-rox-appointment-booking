@@ -67,6 +67,9 @@ const App = ({
   instanceId,
   type,
   hideNavigation,
+  contentMargin,
+  headingAlign,
+  headingMargin,
   hideInfo,
   showBackground,
   backgroundColor,
@@ -108,6 +111,9 @@ const App = ({
           instanceId={instanceId}
           type={type}
           hideNavigation={hideNavigation}
+          contentMargin={contentMargin}
+          headingAlign={headingAlign}
+          headingMargin={headingMargin}
           hideInfo={hideInfo}
           showBackground={showBackground}
           backgroundColor={backgroundColor}
@@ -143,6 +149,11 @@ const mountRoot = (rootElement) => {
   const instanceId = rootElement.dataset.instance;
   const type = rootElement.dataset.type;
   const hideNavigation = rootElement.dataset.hideNavigation === "true";
+  // Four comma-separated lengths each, top/right/bottom/left. Only read once
+  // a column is hidden; the stylesheet is what enforces that.
+  const contentMargin = rootElement.dataset.contentMargin || "";
+  const headingAlign = rootElement.dataset.headingAlign || "";
+  const headingMargin = rootElement.dataset.headingMargin || "";
   const hideInfo = rootElement.dataset.hideInfo === "true";
   // Absent attribute (the plain shortcode) keeps the frame — only an explicit
   // "false" from a surface that offers the toggle removes it.
@@ -169,6 +180,9 @@ const mountRoot = (rootElement) => {
         instanceId={instanceId}
         type={type}
         hideNavigation={hideNavigation}
+        contentMargin={contentMargin}
+        headingAlign={headingAlign}
+        headingMargin={headingMargin}
         hideInfo={hideInfo}
         showBackground={showBackground}
         backgroundColor={backgroundColor}

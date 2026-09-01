@@ -7,8 +7,8 @@ import {
 	PanelColorSettings,
 } from "@wordpress/block-editor";
 import * as components from "@wordpress/components";
-import { useEffect, useRef } from "@wordpress/element";
-import { __ } from "@wordpress/i18n";
+import { useEffect, useRef, useState } from "@wordpress/element";
+import { __, sprintf } from "@wordpress/i18n";
 
 import SelectionSidebar from "../../components/BookingService/SelectionSidebar.jsx";
 import CategoryCards from "../../components/BookingService/CategoryCards.jsx";
@@ -17,7 +17,8 @@ import NavButtonControls from "../shared/NavButtonControls.jsx";
 import NavButtonsPreview from "../shared/NavButtonsPreview.jsx";
 import { navButtonVars } from "../../lib/navButtonVars.js";
 
-import ButtonPreview from "./app/ButtonPreview.jsx";
+import ButtonPreview, { ButtonIcon } from "./app/ButtonPreview.jsx";
+import iconSet from "./icons.json";
 import {
 	useAvailabilityOptions,
 	idsToTokens,
@@ -61,6 +62,82 @@ const fontOptions = window?.rox_appointment_booking?.fontFamilies || [];
 
 const ALIGNMENTS = ["left", "center", "right"];
 
+// Icon names are shown as tooltips in the picker. Kept as an explicit map so
+// they can be translated — a name derived from the JSON key could not be.
+const ICON_LABELS = () => ({
+	none: __("None", "rox-appointment-booking"),
+	calendar: __("Calendar", "rox-appointment-booking"),
+	clock: __("Clock", "rox-appointment-booking"),
+	user: __("User", "rox-appointment-booking"),
+	users: __("Users", "rox-appointment-booking"),
+	phone: __("Phone", "rox-appointment-booking"),
+	mail: __("Mail", "rox-appointment-booking"),
+	chat: __("Chat", "rox-appointment-booking"),
+	check: __("Check", "rox-appointment-booking"),
+	"check-circle": __("Check circle", "rox-appointment-booking"),
+	star: __("Star", "rox-appointment-booking"),
+	heart: __("Heart", "rox-appointment-booking"),
+	location: __("Location", "rox-appointment-booking"),
+	scissors: __("Scissors", "rox-appointment-booking"),
+	ticket: __("Ticket", "rox-appointment-booking"),
+	bell: __("Bell", "rox-appointment-booking"),
+	"arrow-right": __("Arrow", "rox-appointment-booking"),
+	plus: __("Plus", "rox-appointment-booking"),
+	sparkle: __("Sparkle", "rox-appointment-booking"),
+});
+
+const iconLabel = (name) => ICON_LABELS()[name] || name;
+
+
+// Devices the block can style separately. The suffix is appended to the base
+// attribute name (`padding` -> `paddingTablet`), matching what block.json
+// declares and what Supports\BookingButtonMarkup reads.
+//
+// Breakpoints live in the stylesheet: tablet is ≤1024px, mobile ≤767px. An
+// attribute left empty on a device inherits the device above it, so an editor
+// only fills in what actually differs.
+const DEVICES = [
+	{ value: "desktop", suffix: "" },
+	{ value: "tablet", suffix: "Tablet" },
+	{ value: "mobile", suffix: "Mobile" },
+];
+
+const deviceLabelFor = (device) =>
+	({
+		desktop: __("Desktop", "rox-appointment-booking"),
+		tablet: __("Tablet", "rox-appointment-booking"),
+		mobile: __("Mobile", "rox-appointment-booking"),
+	})[device] || device;
+
+const deviceSuffix = (device) =>
+	DEVICES.find((item) => item.value === device)?.suffix ?? "";
+
+/**
+ * The value in force on a device: its own, or the nearest one set above it.
+ *
+ * @param {Object} attributes Block attributes.
+ * @param {string} base       Base attribute name.
+ * @param {string} device     Active device.
+ * @return {*} Resolved value.
+ */
+const resolved = (attributes, base, device) => {
+	const chain =
+		device === "mobile"
+			? ["Mobile", "Tablet", ""]
+			: device === "tablet"
+				? ["Tablet", ""]
+				: [""];
+
+	for (const suffix of chain) {
+		const value = attributes[base + suffix];
+		if (value !== "" && value !== null && value !== undefined) {
+			return value;
+		}
+	}
+
+	return undefined;
+};
+
 const SPACING_UNITS = [
 	{ value: "px", label: "px", default: 0 },
 	{ value: "em", label: "em", default: 0 },
@@ -74,6 +151,60 @@ const SPACING_UNITS = [
 // is all the published page shows until a visitor clicks. Either way the
 // interactive panel itself is mounted on the public side by
 // BookingPanelBlock::renderBlock().
+/**
+ * The five parts of a CSS shadow, as one control group.
+ *
+ * Stored as a single object attribute rather than five, because that is what
+ * it is — one shadow — and it keeps the block's attribute list readable.
+ *
+ * @param {Object}   props          Component props.
+ * @param {string}   props.label    Group heading.
+ * @param {Object}   props.value    Current shadow.
+ * @param {Function} props.onChange Receives the next shadow.
+ * @return {JSX.Element} The control group.
+ */
+const ShadowControl = ({ label, value, onChange }) => {
+	const shadow = value || {};
+	const set = (key) => (next) => onChange({ ...shadow, [key]: next });
+
+	return (
+		<div className="rox-booking-button-shadow">
+			<BaseControl.VisualLabel>{label}</BaseControl.VisualLabel>
+			<ColorPalette
+				value={shadow.color || undefined}
+				onChange={(color) => onChange({ ...shadow, color: color || "" })}
+				clearable
+			/>
+			{[
+				["x", __("Horizontal", "rox-appointment-booking"), -100, 100],
+				["y", __("Vertical", "rox-appointment-booking"), -100, 100],
+				["blur", __("Blur", "rox-appointment-booking"), 0, 100],
+				["spread", __("Spread", "rox-appointment-booking"), -100, 100],
+			].map(([key, title, min, max]) => (
+				<RangeControl
+					key={key}
+					label={title}
+					value={shadow[key] ?? 0}
+					onChange={(next) => set(key)(next ?? 0)}
+					min={min}
+					max={max}
+					// Nothing is drawn until a colour is picked, so the
+					// distances would be adjusting an invisible shadow.
+					disabled={!shadow.color}
+					__nextHasNoMarginBottom
+				/>
+			))}
+			<ToggleControl
+				label={__("Inset", "rox-appointment-booking")}
+				checked={!!shadow.inset}
+				onChange={set("inset")}
+				disabled={!shadow.color}
+				__nextHasNoMarginBottom
+			/>
+		</div>
+	);
+};
+
 const Edit = ({ attributes, setAttributes }) => {
 	const {
 		displayMode,
@@ -144,6 +275,18 @@ const Edit = ({ attributes, setAttributes }) => {
 		loading,
 	} = useAvailabilityOptions();
 
+	// Which device the responsive button controls are editing. Editor-only:
+	// nothing about it is saved, it just decides which attribute a control
+	// reads and writes.
+	const [device, setDevice] = useState("desktop");
+	const isDesktop = device === "desktop";
+	const suffix = deviceSuffix(device);
+	const deviceLabel = deviceLabelFor(device);
+
+	// Eighteen icon tiles push every control below them off the screen, and
+	// the icon is picked once and then left alone.
+	const [iconPickerOpen, setIconPickerOpen] = useState(false);
+
 	// Width and alignment used to share `buttonAlign`, which meant touching one
 	// silently reset the other. They are separate attributes now; blocks saved
 	// under the old scheme still carry "full" here, so read through these two
@@ -152,8 +295,16 @@ const Edit = ({ attributes, setAttributes }) => {
 	const align = isLegacyFull ? "left" : buttonAlign || "left";
 	const width = isLegacyFull ? "full" : buttonWidth || "auto";
 
+	// On tablet and mobile the control shows what is actually in force — the
+	// device's own value or the inherited one — and writes to that device only.
+	const deviceAlign = isDesktop
+		? align
+		: resolved(attributes, "buttonAlign", device) || align;
+
 	const setAlign = (value) =>
-		setAttributes({ buttonAlign: value || "left", buttonWidth: width });
+		isDesktop
+			? setAttributes({ buttonAlign: value || "left", buttonWidth: width })
+			: setAttributes({ [`buttonAlign${suffix}`]: value || "" });
 
 	const setWidth = (value) =>
 		setAttributes({ buttonWidth: value, buttonAlign: align });
@@ -268,6 +419,42 @@ const Edit = ({ attributes, setAttributes }) => {
 
 				{isPopup && (
 					<PanelBody title={__("Button", "rox-appointment-booking")}>
+						{/* Alignment, spacing, border and icon metrics can differ per
+						    device; everything else applies everywhere. */}
+						{ToggleGroupControl && ToggleGroupControlOption && (
+							<ToggleGroupControl
+								label={__("Editing for", "rox-appointment-booking")}
+								value={device}
+								onChange={setDevice}
+								isBlock
+								help={
+									isDesktop
+										? __(
+												"Alignment, spacing, border and icon settings below apply to every device unless you override them here.",
+												"rox-appointment-booking",
+											)
+										: __(
+												"Only alignment, spacing, border and icon metrics are editable per device. Leave a field empty to inherit the larger screen.",
+												"rox-appointment-booking",
+											)
+								}
+								__next40pxDefaultSize
+								__nextHasNoMarginBottom
+							>
+								<ToggleGroupControlOption
+									value="desktop"
+									label={__("Desktop", "rox-appointment-booking")}
+								/>
+								<ToggleGroupControlOption
+									value="tablet"
+									label={__("Tablet", "rox-appointment-booking")}
+								/>
+								<ToggleGroupControlOption
+									value="mobile"
+									label={__("Mobile", "rox-appointment-booking")}
+								/>
+							</ToggleGroupControl>
+						)}
 						<TextControl
 							label={__("Button text", "rox-appointment-booking")}
 							value={buttonText}
@@ -314,13 +501,43 @@ const Edit = ({ attributes, setAttributes }) => {
 							onChange={setWidth}
 							__nextHasNoMarginBottom
 						/>
+						{/* On top of the choice above rather than instead of it: left
+						    unset the choice decides, set it wins — which is what makes
+						    it useful for lining a button up with something beside it. */}
+						<RangeControl
+							label={
+								isDesktop
+									? __("Width (px)", "rox-appointment-booking")
+									: sprintf(
+										/* translators: %s: device name, e.g. Tablet. */
+										__("Width (px) — %s", "rox-appointment-booking"),
+										deviceLabel,
+									)
+							}
+							value={attributes[`buttonWidthSize${suffix}`] ?? undefined}
+							onChange={(value) =>
+								setAttributes({ [`buttonWidthSize${suffix}`]: value ?? null })
+							}
+							min={60}
+							max={800}
+							allowReset
+							__nextHasNoMarginBottom
+						/>
 						{/* Also on the block toolbar, but an alignment nobody can find
 						    is an alignment nobody has. */}
 						{width === "auto" &&
 							(ToggleGroupControl && ToggleGroupControlOption ? (
 								<ToggleGroupControl
-									label={__("Alignment", "rox-appointment-booking")}
-									value={align}
+									label={
+										isDesktop
+											? __("Alignment", "rox-appointment-booking")
+											: sprintf(
+												/* translators: %s: device name, e.g. Tablet. */
+												__("Alignment — %s", "rox-appointment-booking"),
+												deviceLabel,
+											)
+									}
+									value={deviceAlign}
 									onChange={setAlign}
 									isBlock
 									__next40pxDefaultSize
@@ -342,7 +559,7 @@ const Edit = ({ attributes, setAttributes }) => {
 							) : (
 								<SelectControl
 									label={__("Alignment", "rox-appointment-booking")}
-									value={align}
+									value={deviceAlign}
 									options={[
 										{ label: __("Left", "rox-appointment-booking"), value: "left" },
 										{ label: __("Center", "rox-appointment-booking"), value: "center" },
@@ -352,17 +569,73 @@ const Edit = ({ attributes, setAttributes }) => {
 									__nextHasNoMarginBottom
 								/>
 							))}
-						<SelectControl
+						<BaseControl
 							label={__("Icon", "rox-appointment-booking")}
-							value={buttonIcon}
-							options={[
-								{ label: __("None", "rox-appointment-booking"), value: "none" },
-								{ label: __("Calendar", "rox-appointment-booking"), value: "calendar" },
-								{ label: __("Clock", "rox-appointment-booking"), value: "clock" },
-							]}
-							onChange={(value) => setAttributes({ buttonIcon: value })}
+							id="rox-booking-button-icon"
 							__nextHasNoMarginBottom
-						/>
+						>
+							{/* Folded, the picker is a single row showing the current
+							    choice; open, it is the whole set. */}
+							<button
+								type="button"
+								className="rox-booking-button-icons__toggle"
+								id="rox-booking-button-icon"
+								aria-expanded={iconPickerOpen}
+								onClick={() => setIconPickerOpen((open) => !open)}
+							>
+								<span className="rox-booking-button-icons__preview">
+									{buttonIcon === "none" ? (
+										<span className="rox-booking-button-icons__none">—</span>
+									) : (
+										<ButtonIcon name={buttonIcon} />
+									)}
+								</span>
+								<span className="rox-booking-button-icons__name">
+									{iconLabel(buttonIcon)}
+								</span>
+								<svg
+									className="rox-booking-button-icons__chevron"
+									width="16"
+									height="16"
+									viewBox="0 0 16 16"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="1.5"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									aria-hidden={true}
+								>
+									<path d="M4 6l4 4 4-4" />
+								</svg>
+							</button>
+
+							{iconPickerOpen && (
+								<div className="rox-booking-button-icons">
+									{["none", ...Object.keys(iconSet)].map((name) => (
+										<button
+											key={name}
+											type="button"
+											className={`rox-booking-button-icons__item${
+												buttonIcon === name ? " is-selected" : ""
+											}`}
+											aria-pressed={buttonIcon === name}
+											aria-label={iconLabel(name)}
+											title={iconLabel(name)}
+											onClick={() => {
+												setAttributes({ buttonIcon: name });
+												setIconPickerOpen(false);
+											}}
+										>
+											{name === "none" ? (
+												<span className="rox-booking-button-icons__none">—</span>
+											) : (
+												<ButtonIcon name={name} />
+											)}
+										</button>
+									))}
+								</div>
+							)}
+						</BaseControl>
 					</PanelBody>
 				)}
 
@@ -374,19 +647,35 @@ const Edit = ({ attributes, setAttributes }) => {
 						{BoxControl ? (
 							<>
 								<BoxControl
-									label={__("Padding", "rox-appointment-booking")}
-									values={attributes.buttonPadding || {}}
+									label={
+										isDesktop
+											? __("Padding", "rox-appointment-booking")
+											: sprintf(
+												/* translators: %s: device name, e.g. Tablet. */
+												__("Padding — %s", "rox-appointment-booking"),
+												deviceLabel,
+											)
+									}
+									values={attributes[`buttonPadding${suffix}`] || {}}
 									onChange={(value) =>
-										setAttributes({ buttonPadding: value || {} })
+										setAttributes({ [`buttonPadding${suffix}`]: value || {} })
 									}
 									units={SPACING_UNITS}
 									__next40pxDefaultSize
 								/>
 								<BoxControl
-									label={__("Margin", "rox-appointment-booking")}
-									values={attributes.buttonMargin || {}}
+									label={
+										isDesktop
+											? __("Margin", "rox-appointment-booking")
+											: sprintf(
+												/* translators: %s: device name, e.g. Tablet. */
+												__("Margin — %s", "rox-appointment-booking"),
+												deviceLabel,
+											)
+									}
+									values={attributes[`buttonMargin${suffix}`] || {}}
 									onChange={(value) =>
-										setAttributes({ buttonMargin: value || {} })
+										setAttributes({ [`buttonMargin${suffix}`]: value || {} })
 									}
 									units={SPACING_UNITS}
 									allowReset
@@ -426,24 +715,64 @@ const Edit = ({ attributes, setAttributes }) => {
 								/>
 								{buttonBorderStyle !== "none" && (
 									<RangeControl
-										label={__("Border width", "rox-appointment-booking")}
-										value={buttonBorderWidth ?? 0}
+										label={
+											isDesktop
+												? __("Border width", "rox-appointment-booking")
+												: sprintf(
+													/* translators: %s: device name, e.g. Tablet. */
+													__("Border width — %s", "rox-appointment-booking"),
+													deviceLabel,
+												)
+										}
+										value={resolved(attributes, "buttonBorderWidth", device) ?? 0}
 										onChange={(value) =>
-											setAttributes({ buttonBorderWidth: value ?? 0 })
+											setAttributes({
+												[`buttonBorderWidth${suffix}`]:
+													value ?? (isDesktop ? 0 : null),
+											})
 										}
 										min={0}
 										max={20}
+										allowReset={!isDesktop}
+										__nextHasNoMarginBottom
+									/>
+								)}
+								{buttonBorderStyle !== "none" && (
+									/* No per-device twin: this is the odd case of a border that
+									   appears or thickens on hover, and that reads the same on
+									   every screen. Left unset the resting width stands. */
+									<RangeControl
+										label={__("Border width — hover", "rox-appointment-booking")}
+										value={attributes.buttonBorderWidthHover ?? undefined}
+										onChange={(value) =>
+											setAttributes({ buttonBorderWidthHover: value ?? null })
+										}
+										min={0}
+										max={20}
+										allowReset
 										__nextHasNoMarginBottom
 									/>
 								)}
 								<RangeControl
-									label={__("Corner radius", "rox-appointment-booking")}
-									value={buttonBorderRadius ?? 0}
+									label={
+										isDesktop
+											? __("Corner radius", "rox-appointment-booking")
+											: sprintf(
+												/* translators: %s: device name, e.g. Tablet. */
+												__("Corner radius — %s", "rox-appointment-booking"),
+												deviceLabel,
+											)
+									}
+									value={resolved(attributes, "buttonBorderRadius", device) ?? 0}
 									onChange={(value) =>
-										setAttributes({ buttonBorderRadius: value ?? 0 })
+										setAttributes({
+											[`buttonBorderRadius${suffix}`]:
+												value ?? (isDesktop ? 0 : null),
+										})
 									}
 									min={0}
 									max={100}
+									allowReset={!isDesktop}
 									__nextHasNoMarginBottom
 								/>
 							</>
@@ -455,6 +784,97 @@ const Edit = ({ attributes, setAttributes }) => {
 								)}
 							</Notice>
 						)}
+					</PanelBody>
+				)}
+
+				{isPopup && (
+					<PanelBody
+						title={__("Button shadow", "rox-appointment-booking")}
+						initialOpen={false}
+					>
+						<ShadowControl
+							label={__("Box shadow", "rox-appointment-booking")}
+							value={attributes.buttonBoxShadow}
+							onChange={(value) => setAttributes({ buttonBoxShadow: value })}
+						/>
+						<ShadowControl
+							label={__("Box shadow — hover", "rox-appointment-booking")}
+							value={attributes.buttonBoxShadowHover}
+							onChange={(value) =>
+								setAttributes({ buttonBoxShadowHover: value })
+							}
+						/>
+					</PanelBody>
+				)}
+
+				{isPopup && buttonIcon !== "none" && (
+					<PanelBody
+						title={__("Button icon", "rox-appointment-booking")}
+						initialOpen={false}
+					>
+						<RangeControl
+							label={
+								isDesktop
+									? __("Icon size", "rox-appointment-booking")
+									: sprintf(
+										/* translators: %s: device name, e.g. Tablet. */
+										__("Icon size — %s", "rox-appointment-booking"),
+										deviceLabel,
+									)
+							}
+							value={attributes[`buttonIconSize${suffix}`] ?? undefined}
+							onChange={(value) =>
+								setAttributes({ [`buttonIconSize${suffix}`]: value ?? null })
+							}
+							min={8}
+							max={64}
+							allowReset
+							__nextHasNoMarginBottom
+						/>
+						<RangeControl
+							label={
+								isDesktop
+									? __("Space between", "rox-appointment-booking")
+									: sprintf(
+										/* translators: %s: device name, e.g. Tablet. */
+										__("Space between — %s", "rox-appointment-booking"),
+										deviceLabel,
+									)
+							}
+							value={attributes[`buttonIconGap${suffix}`] ?? undefined}
+							onChange={(value) =>
+								setAttributes({ [`buttonIconGap${suffix}`]: value ?? null })
+							}
+							min={0}
+							max={60}
+							allowReset
+							__nextHasNoMarginBottom
+						/>
+						<RangeControl
+							label={
+								isDesktop
+									? __("Move icon vertically", "rox-appointment-booking")
+									: sprintf(
+										/* translators: %s: device name, e.g. Tablet. */
+										__("Move icon vertically — %s", "rox-appointment-booking"),
+										deviceLabel,
+									)
+							}
+							value={attributes[`buttonIconOffsetY${suffix}`] ?? undefined}
+							onChange={(value) =>
+								setAttributes({
+									[`buttonIconOffsetY${suffix}`]: value ?? null,
+								})
+							}
+							min={-20}
+							max={20}
+							allowReset
+							help={__(
+								"An icon's visual centre rarely lands on the text baseline; a pixel either way settles it.",
+								"rox-appointment-booking",
+							)}
+							__nextHasNoMarginBottom
+						/>
 					</PanelBody>
 				)}
 
@@ -571,6 +991,70 @@ const Edit = ({ attributes, setAttributes }) => {
 									)
 						}
 					/>
+					{/* Opt-in, and left alone by default: the heading sits where it
+					    always has unless an editor says otherwise. */}
+					<SelectControl
+						label={__("Heading alignment", "rox-appointment-booking")}
+						value={attributes.headingAlign || ""}
+						options={[
+							{
+								label: __("Default (left)", "rox-appointment-booking"),
+								value: "",
+							},
+							{ label: __("Left", "rox-appointment-booking"), value: "left" },
+							{
+								label: __("Center", "rox-appointment-booking"),
+								value: "center",
+							},
+							{ label: __("Right", "rox-appointment-booking"), value: "right" },
+						]}
+						onChange={(value) =>
+							setAttributes({ headingAlign: value || "" })
+						}
+						help={__(
+							"The step title above each list — Select Location, Available Category, and so on.",
+							"rox-appointment-booking",
+						)}
+						__nextHasNoMarginBottom
+					/>
+
+					{/* The content control below moves the whole column, heading
+					    included; this moves the heading alone, which is what sets it
+					    apart from the cards under it. Margin rather than padding: the
+					    heading has no surface of its own for padding to show on, and a
+					    negative value is what pulls it back out of the column. */}
+					{BoxControl && (
+						<BoxControl
+							label={__("Heading margin", "rox-appointment-booking")}
+							values={attributes.headingMargin || {}}
+							onChange={(value) =>
+								setAttributes({ headingMargin: value || {} })
+							}
+							units={SPACING_UNITS}
+							allowReset
+							__next40pxDefaultSize
+						/>
+					)}
+
+					{/* Only once a column is gone: with both in place the panel is
+					    full and there is nothing left over to nudge into. The content
+					    is centred in that room already; this shifts it from there. */}
+					{BoxControl && (hideNavigation || hideInfo) && (
+						<BoxControl
+							label={__("Content margin", "rox-appointment-booking")}
+							values={attributes.contentMargin || {}}
+							onChange={(value) =>
+								setAttributes({ contentMargin: value || {} })
+							}
+							units={SPACING_UNITS}
+							allowReset
+							__next40pxDefaultSize
+							help={__(
+								"Nudges the step heading and its cards, which sit centred in the room the hidden column freed up. Negative values pull the other way.",
+								"rox-appointment-booking",
+							)}
+						/>
+					)}
 				</PanelBody>
 
 				<PanelBody
@@ -726,7 +1210,7 @@ const Edit = ({ attributes, setAttributes }) => {
 					   the published button, so the editor shows the trigger alone. */
 					<ButtonPreview
 						text={buttonText || __("Book Appointment", "rox-appointment-booking")}
-						align={align}
+						align={deviceAlign}
 						width={width}
 						size={buttonSize}
 						style={buttonStyle}
@@ -738,10 +1222,17 @@ const Edit = ({ attributes, setAttributes }) => {
 						textColorHover={buttonTextColorHover}
 						borderColorHover={buttonBorderColorHover}
 						borderStyle={buttonBorderStyle}
-						padding={attributes.buttonPadding || {}}
-						margin={attributes.buttonMargin || {}}
-						borderWidth={buttonBorderWidth ?? 1}
-						borderRadius={buttonBorderRadius ?? 6}
+						padding={resolved(attributes, "buttonPadding", device) || {}}
+						margin={resolved(attributes, "buttonMargin", device) || {}}
+						borderWidth={resolved(attributes, "buttonBorderWidth", device) ?? 1}
+						borderRadius={resolved(attributes, "buttonBorderRadius", device) ?? 6}
+						borderWidthHover={attributes.buttonBorderWidthHover}
+						buttonWidthSize={resolved(attributes, "buttonWidthSize", device)}
+						iconSize={resolved(attributes, "buttonIconSize", device)}
+						iconGap={resolved(attributes, "buttonIconGap", device)}
+						iconOffsetY={resolved(attributes, "buttonIconOffsetY", device)}
+						boxShadow={attributes.buttonBoxShadow}
+						boxShadowHover={attributes.buttonBoxShadowHover}
 					/>
 				) : (
 					/* Static preview: clicks are disabled so the editor stays inert. */

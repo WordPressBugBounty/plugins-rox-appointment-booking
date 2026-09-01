@@ -28,15 +28,16 @@
 .rox-booking-button-wrap {
 	// Themes hand block wrappers a line-height that would pad the row.
 	line-height: 1;
-	// Set through a variable so the stylesheet keeps ownership of the rule and
-	// a theme's own alignment cannot outrank it.
+	// Set through a variable so the per-device rules at the foot of this file
+	// can override it; an inline `text-align` would outrank every media query.
 	text-align: var(--rox-btn-align, left);
 
 	.rox-booking-button {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		gap: 8px;
+		gap: var(--rox-btn-gap, 8px);
+		width: var(--rox-btn-w, auto);
 		box-sizing: border-box;
 		padding:
 			var(--rox-btn-pt, var(--rox-btn-pad-y))
@@ -59,8 +60,9 @@
 		text-decoration: none;
 		white-space: nowrap;
 		cursor: pointer;
-		// Themes love a transform/shadow on :hover; keep ours predictable.
-		box-shadow: none;
+		// Themes love a transform/shadow on :hover; keep ours predictable — the
+		// variable is the only way one gets drawn.
+		box-shadow: var(--rox-btn-shadow, none);
 		transition:
 			filter 0.15s ease,
 			background-color 0.15s ease,
@@ -73,6 +75,10 @@
 			background-color: var(--rox-btn-bg-hover, var(--rox-btn-bg));
 			color: var(--rox-btn-fg-hover, var(--rox-btn-fg));
 			border-color: var(--rox-btn-border-hover, var(--rox-btn-border));
+			// Both fall back to the resting value, so a surface that sets only
+			// one of the pair leaves the other alone.
+			border-width: var(--rox-btn-bw-hover, var(--rox-btn-bw, 1px));
+			box-shadow: var(--rox-btn-shadow-hover, var(--rox-btn-shadow, none));
 			// filter, not a hardcoded shade: the button may be any colour. A
 			// surface that sets an explicit hover colour switches this to `none`,
 			// otherwise the shift would tint that colour on top of itself.
@@ -83,10 +89,13 @@
 			filter: var(--rox-btn-hover-filter, brightness(0.94));
 		}
 
+		// Defeats a theme's own focus/active shadow without discarding the one
+		// the surface asked for. The `:hover:not([disabled])` rule above is more
+		// specific, so a hover shadow still wins over this.
 		&:hover,
 		&:focus,
 		&:active {
-			box-shadow: none;
+			box-shadow: var(--rox-btn-shadow, none);
 			text-decoration: none;
 		}
 
@@ -116,16 +125,13 @@
 		--rox-btn-pad-y: 8px;
 		--rox-btn-pad-x: 16px;
 		font-size: 13px;
-
-		.rox-booking-button__icon svg {
-			width: 16px;
-			height: 16px;
-		}
+		--rox-btn-icon-d: 16px;
 	}
 
 	.rox-booking-button--medium {
 		--rox-btn-pad-y: 12px;
 		--rox-btn-pad-x: 24px;
+		--rox-btn-icon-d: 20px;
 		font-size: 15px;
 	}
 
@@ -133,11 +139,7 @@
 		--rox-btn-pad-y: 16px;
 		--rox-btn-pad-x: 32px;
 		font-size: 17px;
-
-		.rox-booking-button__icon svg {
-			width: 22px;
-			height: 22px;
-		}
+		--rox-btn-icon-d: 22px;
 	}
 
 	// --- Variants ------------------------------------------------------------
@@ -188,18 +190,25 @@
 
 	.rox-booking-button--full {
 		display: flex;
-		width: 100%;
+		// An explicit width still wins, the way it does in Elementor: asking
+		// for both is a contradiction and the measured one is the later answer.
+		width: var(--rox-btn-w, 100%);
 	}
 
 	.rox-booking-button__icon {
 		display: inline-flex;
 		flex-shrink: 0;
 		align-items: center;
+		// Optical alignment: an icon's visual centre rarely lands on the text
+		// baseline, and a pixel either way is what settles it.
+		transform: translateY(var(--rox-btn-icon-y, 0));
 
 		svg {
 			display: block;
-			width: 20px;
-			height: 20px;
+			// The size class publishes the default; a surface that sets its own
+			// overrides it without having to know which size class is on.
+			width: var(--rox-btn-icon, var(--rox-btn-icon-d, 20px));
+			height: var(--rox-btn-icon, var(--rox-btn-icon-d, 20px));
 		}
 	}
 
@@ -209,6 +218,99 @@
 }
 
 
+
+/* --- Per-device overrides -------------------------------------------------
+   The Gutenberg block stores a value per device, and an inline style cannot
+   carry a media query — so the surfaces publish `--rox-btn-*-t` / `-m`
+   variables and these two rules pick them up. An unset device falls through
+   to the one above it, which is why each fallback nests.
+
+   Elementor is untouched here: its own responsive controls generate rules
+   with a higher specificity than these.
+   ------------------------------------------------------------------------ */
+
+@media (max-width: 1024px) {
+	.rox-booking-button-wrap {
+		text-align: var(--rox-btn-align-t, var(--rox-btn-align, left));
+
+		.rox-booking-button {
+			padding:
+				var(--rox-btn-pt-t, var(--rox-btn-pt, var(--rox-btn-pad-y)))
+				var(--rox-btn-pr-t, var(--rox-btn-pr, var(--rox-btn-pad-x)))
+				var(--rox-btn-pb-t, var(--rox-btn-pb, var(--rox-btn-pad-y)))
+				var(--rox-btn-pl-t, var(--rox-btn-pl, var(--rox-btn-pad-x)));
+			margin:
+				var(--rox-btn-mt-t, var(--rox-btn-mt, 0))
+				var(--rox-btn-mr-t, var(--rox-btn-mr, 0))
+				var(--rox-btn-mb-t, var(--rox-btn-mb, 0))
+				var(--rox-btn-ml-t, var(--rox-btn-ml, 0));
+			border-width: var(--rox-btn-bw-t, var(--rox-btn-bw, 1px));
+			border-radius: var(--rox-btn-br-t, var(--rox-btn-br, 6px));
+			width: var(--rox-btn-w-t, var(--rox-btn-w, auto));
+			gap: var(--rox-btn-gap-t, var(--rox-btn-gap, 8px));
+		}
+
+		.rox-booking-button--full {
+			width: var(--rox-btn-w-t, var(--rox-btn-w, 100%));
+		}
+
+		.rox-booking-button__icon {
+			transform: translateY(var(--rox-btn-icon-y-t, var(--rox-btn-icon-y, 0)));
+
+			svg {
+				width: var(--rox-btn-icon-t, var(--rox-btn-icon, var(--rox-btn-icon-d, 20px)));
+				height: var(--rox-btn-icon-t, var(--rox-btn-icon, var(--rox-btn-icon-d, 20px)));
+			}
+		}
+	}
+}
+
+@media (max-width: 767px) {
+	.rox-booking-button-wrap {
+		text-align: var(
+			--rox-btn-align-m,
+			var(--rox-btn-align-t, var(--rox-btn-align, left))
+		);
+
+		.rox-booking-button {
+			padding:
+				var(--rox-btn-pt-m, var(--rox-btn-pt-t, var(--rox-btn-pt, var(--rox-btn-pad-y))))
+				var(--rox-btn-pr-m, var(--rox-btn-pr-t, var(--rox-btn-pr, var(--rox-btn-pad-x))))
+				var(--rox-btn-pb-m, var(--rox-btn-pb-t, var(--rox-btn-pb, var(--rox-btn-pad-y))))
+				var(--rox-btn-pl-m, var(--rox-btn-pl-t, var(--rox-btn-pl, var(--rox-btn-pad-x))));
+			margin:
+				var(--rox-btn-mt-m, var(--rox-btn-mt-t, var(--rox-btn-mt, 0)))
+				var(--rox-btn-mr-m, var(--rox-btn-mr-t, var(--rox-btn-mr, 0)))
+				var(--rox-btn-mb-m, var(--rox-btn-mb-t, var(--rox-btn-mb, 0)))
+				var(--rox-btn-ml-m, var(--rox-btn-ml-t, var(--rox-btn-ml, 0)));
+			border-width: var(--rox-btn-bw-m, var(--rox-btn-bw-t, var(--rox-btn-bw, 1px)));
+			border-radius: var(--rox-btn-br-m, var(--rox-btn-br-t, var(--rox-btn-br, 6px)));
+			width: var(--rox-btn-w-m, var(--rox-btn-w-t, var(--rox-btn-w, auto)));
+			gap: var(--rox-btn-gap-m, var(--rox-btn-gap-t, var(--rox-btn-gap, 8px)));
+		}
+
+		.rox-booking-button--full {
+			width: var(--rox-btn-w-m, var(--rox-btn-w-t, var(--rox-btn-w, 100%)));
+		}
+
+		.rox-booking-button__icon {
+			transform: translateY(
+				var(--rox-btn-icon-y-m, var(--rox-btn-icon-y-t, var(--rox-btn-icon-y, 0)))
+			);
+
+			svg {
+				width: var(
+					--rox-btn-icon-m,
+					var(--rox-btn-icon-t, var(--rox-btn-icon, var(--rox-btn-icon-d, 20px)))
+				);
+				height: var(
+					--rox-btn-icon-m,
+					var(--rox-btn-icon-t, var(--rox-btn-icon, var(--rox-btn-icon-d, 20px)))
+				);
+			}
+		}
+	}
+}
 
 /* ==========================================================================
    Booking modal

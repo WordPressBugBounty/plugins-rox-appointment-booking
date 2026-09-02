@@ -28,22 +28,77 @@
     box-sizing: border-box;
   }
 
-  // Shown instead of the form when a WordPress session is already active.
+  // Shown instead of the form when a WordPress session is already active: the
+  // same avatar / account / Logout row the booking panel's customer step uses
+  // (`bookingstyle.scss`), copied in so the two surfaces read identically.
   .logged-in-banner {
-    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-sizing: border-box;
+    padding: 3px 2px 3px 3px;
+    border: 1px solid #e2e4ea;
+    border-radius: 6px;
+    background: #fff;
     font-family: "Heebo", sans-serif;
-    color: #646970;
-    line-height: 1.4;
+
+    .logged-in-avatar {
+      flex-shrink: 0;
+      width: 42px;
+      height: 42px;
+    }
+
+    // Takes the slack so Logout stays pinned right, and gives the email
+    // something to ellipsis against instead of pushing the row wider.
+    .logged-in-text {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .logged-in-label {
+      color: #727377;
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 1.4;
+    }
+
+    .logged-in-email {
+      color: #151720;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.4;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
     .logout-link {
-      cursor: pointer;
+      display: flex;
+      align-items: center;
+      height: 26px;
+      margin-right: 7px;
+      padding: 6px 9px;
+      border: 1px solid #dddfe6;
+      border-radius: 6px;
+      background: #fff;
+      color: #494a4c;
+      font-family: "Heebo", sans-serif;
+      font-size: 13px;
       font-weight: 500;
-      color: var(--rlf-link, #3560fb);
-      text-decoration: none;
+      line-height: 1;
+      // The theme styles bare buttons on the page; reset what would leak in.
+      appearance: none;
+      box-shadow: none;
+      text-transform: none;
+      cursor: pointer;
+      transition: border-color 0.2s ease, background-color 0.2s ease;
 
       &:hover {
-        color: var(--rlf-link-hover, #3560fb);
-        text-decoration: underline;
+        border-color: transparent;
+        background: #f0f1f6;
+        color: #151720;
       }
     }
   }

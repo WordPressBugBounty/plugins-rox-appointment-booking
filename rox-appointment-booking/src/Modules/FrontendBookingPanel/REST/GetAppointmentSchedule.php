@@ -37,4 +37,14 @@ class GetAppointmentSchedule extends AppointmentGetAppointmentSchedule
     {
         return true;
     }
+
+    /**
+     * Visitors can only book an agent that already provides the service.
+     *
+     * @return bool
+     */
+    protected function enforcesAgentServiceRelation(): bool
+    {
+        return true;
+    }
 }

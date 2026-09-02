@@ -67,6 +67,30 @@ const CancelButton = ({ onClick }) => (
 );
 
 /**
+ * The avatar shown beside the signed-in account. Inlined rather than pulled from
+ * the shared icon set so this bundle stays self-contained; `preserveAspectRatio`
+ * is released because the 66x70 viewBox would otherwise letterbox the square box.
+ */
+const AvatarIcon = () => (
+  <svg
+    className="logged-in-avatar"
+    xmlns="http://www.w3.org/2000/svg"
+    width="42"
+    height="42"
+    viewBox="0 0 66 70"
+    preserveAspectRatio="none"
+    fill="none"
+    aria-hidden="true"
+  >
+    <rect width="66" height="70" fill="#E0E3EC" rx="8" />
+    <path
+      fill="#AEB3C7"
+      d="M37.478 36.95c2.482 0 4.868 1.1 6.267 2.756.71.84 1.209 1.88 1.252 3.032.044 1.177-.393 2.326-1.295 3.328C41.505 48.508 37.996 50 33.001 50c-4.996 0-8.505-1.491-10.703-3.934-.902-1.002-1.34-2.15-1.295-3.328.044-1.152.542-2.192 1.252-3.032 1.399-1.656 3.785-2.756 6.267-2.757zM33 21c4.122 0 7.463 3.246 7.463 7.25S37.121 35.5 33 35.5s-7.463-3.246-7.463-7.25S28.878 21 33 21"
+    />
+  </svg>
+);
+
+/**
  * Bespoke standalone login form (customers and agents).
  *
  * Three states — `login` (Step 1.3, `POST /public/login`), `forgot`
@@ -287,10 +311,16 @@ export default function LoginFormApp({ config = {} }) {
     return (
       <div className="form-wrapper">
         <div className="logged-in-banner">
-          You're currently logged in as {config.userEmail}{" "}
-          <span className="logout-link" onClick={handleLogout}>
-            (Logout)
-          </span>
+          <AvatarIcon />
+          <div className="logged-in-text">
+            <span className="logged-in-label">
+              {__("Currently logged in as", "rox-appointment-booking")}
+            </span>
+            <span className="logged-in-email">{config.userEmail}</span>
+          </div>
+          <button type="button" className="logout-link" onClick={handleLogout}>
+            {__("Logout", "rox-appointment-booking")}
+          </button>
         </div>
       </div>
     );

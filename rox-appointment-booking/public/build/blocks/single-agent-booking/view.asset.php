@@ -1,1 +1,1 @@
-<?php return array('dependencies' => array('react', 'react-dom', 'react-jsx-runtime', 'wp-api-fetch', 'wp-data', 'wp-element', 'wp-i18n'), 'version' => 'e45a1ece792d4e3393e2', 'handle' => 'undefined-blocks/single-agent-booking/view');
+<?php return array('dependencies' => array('react', 'react-dom', 'react-jsx-runtime', 'wp-api-fetch', 'wp-data', 'wp-element', 'wp-i18n'), 'version' => '02c86aef83dcf817d3eb', 'handle' => 'undefined-blocks/single-agent-booking/view');

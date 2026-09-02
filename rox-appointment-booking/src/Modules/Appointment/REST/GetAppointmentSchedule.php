@@ -6,10 +6,10 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceAgentRelationModel;
 use RoxAppointmentBooking\Modules\Agent\Services\AgentService;
 use RoxAppointmentBooking\Modules\Service\Services\ServiceService;
 use RoxAppointmentBooking\Modules\Settings\Services\SettingsService;
-use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceAgentRelationModel;
 use RoxAppointmentBooking\Modules\Appointment\Data\AppointmentModel;
 
 /**
@@ -904,6 +904,20 @@ class GetAppointmentSchedule extends AbstractREST
     }
 
     /**
+     * Whether an agent must already provide the service to return its slots.
+     *
+     * False on this admin-only route: the admin booking form offers every agent, and
+     * saving the booking assigns the service to the one picked, so slots have to load
+     * before that relation exists. The public subclass keeps it on.
+     *
+     * @return bool
+     */
+    protected function enforcesAgentServiceRelation(): bool
+    {
+        return false;
+    }
+
+    /**
      * Updated handler with merge logic for schedules and holidays
      * 
      * @param WP_REST_Request $request REST request object
@@ -965,7 +979,10 @@ class GetAppointmentSchedule extends AbstractREST
                 }
 
                 // Validate agent provides this service
-                if (!ServiceAgentRelationModel::relationExists((int)$agent_id, (int)$service_id)) {
+                if (
+                    $this->enforcesAgentServiceRelation()
+                    && !ServiceAgentRelationModel::relationExists((int)$agent_id, (int)$service_id)
+                ) {
                     return rox_appointment_booking_rest_response(
                         data: ['error' => 'The selected agent does not provide this service'],
                         status: 'error',

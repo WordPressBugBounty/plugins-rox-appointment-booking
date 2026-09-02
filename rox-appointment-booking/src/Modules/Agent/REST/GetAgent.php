@@ -205,22 +205,30 @@ class GetAgent extends AbstractREST
         $mode = $request->get_param('mode') ?? 'default';
         $service_id =  $request->get_param('service') ?? $request->get_param('service_id') ?? null;
         $with_avatar = filter_var($request->get_param('with_avatar'), FILTER_VALIDATE_BOOLEAN);
-        
+        // Keeps agents that don't provide the service in the list instead of filtering
+        // them out; each one is flagged with `assigned` so the caller can tell them apart.
+        $include_unassigned = filter_var($request->get_param('include_unassigned'), FILTER_VALIDATE_BOOLEAN);
+
         $query = AgentModel::query();
-        
+
+        // Agents already related to the requested service.
+        $assignedIds = [];
+
         // Filter by service if service_id is provided
         if (!empty($service_id)) {
             // Get agent IDs that belong to the specified service
-            $agentIds = ServiceAgentRelationModel::where('service_id', $service_id)
+            $assignedIds = array_map('intval', ServiceAgentRelationModel::where('service_id', $service_id)
                 ->pluck('agent_id')
-                ->toArray();
-            
-            // Filter agents by the IDs found in the service relation
-            if (!empty($agentIds)) {
-                $query->whereIn('id', $agentIds);
-            } else {
-                // If no agents found for this service, return empty result
-                $query->where('id', 0);
+                ->toArray());
+
+            if (!$include_unassigned) {
+                // Filter agents by the IDs found in the service relation
+                if (!empty($assignedIds)) {
+                    $query->whereIn('id', $assignedIds);
+                } else {
+                    // If no agents found for this service, return empty result
+                    $query->where('id', 0);
+                }
             }
         }
         
@@ -243,7 +251,19 @@ class GetAgent extends AbstractREST
         // If mode is list, return minimal data for dropdowns, otherwise return detailed data
         if ($mode === 'list') {
             foreach ($agents as $agent) {
-                $data[] = $this->getAgentData($agent, false, 'list', $with_avatar);
+                $row = $this->getAgentData($agent, false, 'list', $with_avatar);
+                if (!empty($service_id)) {
+                    $row['assigned'] = in_array((int) $agent->getID(), $assignedIds, true);
+                }
+                $data[] = $row;
+            }
+
+            // Agents who already provide the service come first; the sort is stable, so
+            // each group keeps its created_at order.
+            if (!empty($service_id) && $include_unassigned) {
+                usort($data, function ($a, $b) {
+                    return $b['assigned'] <=> $a['assigned'];
+                });
             }
         } else {
             foreach ($agents as $agent) {

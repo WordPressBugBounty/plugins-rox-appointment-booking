@@ -13,6 +13,7 @@ use RoxAppointmentBooking\Modules\Service\Data\ServiceModel;
 use RoxAppointmentBooking\Modules\Payment\Data\PaymentModel;
 use RoxAppointmentBooking\Modules\Payment\Services\PaymentStatusSyncService;
 use RoxAppointmentBooking\Modules\Appointment\Services\AppointmentService;
+use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceAgentRelationModel;
 
 /**
  * Class SaveAppointment
@@ -70,6 +71,10 @@ class SaveAppointment extends AbstractREST
         $sanitizedData = $validationResult;
 
         try {
+            // The admin form offers every agent, so the selected one may not provide
+            // the selected service yet — assign it before the booking is saved.
+            $this->assignServiceToAgent($sanitizedData);
+
             $model = new AppointmentModel();
             $appointmentService = new AppointmentService();
             $userId = get_current_user_id();
@@ -561,6 +566,35 @@ class SaveAppointment extends AbstractREST
         }
         
         return true;
+    }
+
+    /**
+     * Relates the selected agent to the selected service when they aren't related yet.
+     *
+     * Mirrors what the agent form's "Services" field would have done, so an admin can
+     * book any agent for any service without editing the agent first. A missing agent
+     * or service is left to the save itself to reject.
+     *
+     * @param array $data Sanitized appointment payload.
+     * @return void
+     */
+    private function assignServiceToAgent(array $data): void
+    {
+        $agentId   = (int) ($data['agent_id'] ?? 0);
+        $serviceId = (int) ($data['service_id'] ?? 0);
+
+        if ($agentId <= 0 || $serviceId <= 0) {
+            return;
+        }
+
+        if (ServiceAgentRelationModel::relationExists($agentId, $serviceId)) {
+            return;
+        }
+
+        try {
+            ServiceAgentRelationModel::createRelation($agentId, $serviceId);
+        } catch (\Exception $e) {
+        }
     }
 
     /**

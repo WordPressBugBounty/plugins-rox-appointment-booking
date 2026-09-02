@@ -4,7 +4,7 @@ Tags: booking, reservation, appointments, calendar
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.5
+Stable tag: 1.2.6
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -12,11 +12,29 @@ Advanced booking plugin for appointments & events. Control scheduling, calendars
 
 == Description ==
 
-[Rox Appointment Booking](https://roxbooking.com/appointment/?utm_source=org&utm_medium=readme) is a feature-rich, multi-purpose WordPress appointment & booking plugin. The team Wpmet, a credible name in the WordPress industry, has developed this tool for effortless appointment scheduling and service reservations of all sizes.
+[Rox Appointment Booking](https://wpmet.com/plugin/rox-appointment-booking/?utm_source=org&utm_medium=readme) is a feature-rich, multi-purpose WordPress appointment & booking plugin. The team Wpmet, a credible name in the WordPress industry, has developed this tool for effortless appointment scheduling and service reservations of all sizes.
 
-Whether you run a salon, dental clinic, car rental service, or professional practice, Rox Appointment Booking helps you build a modern booking system for your service business. It offers precise appointment controls for both administrators and customers.
+Whether you run a salon, dental clinic, or professional practice, Rox Appointment Booking helps you build a modern booking system for your service business. It offers precise appointment controls for both administrators and customers.
 
 From room booking to tour reservations to ticket sales, Rox Appointment Booking is designed to replace multiple single-purpose tools with one unified, free booking plugin for WordPress that scales as your business grows. Built by the Wpmet team — the same developers behind ElementsKit, ShopEngine, and MetForm, trusted by over 1,000,000 WordPress users worldwide — Rox Appointment Booking brings that same reliability to your scheduling workflow.
+
+🏆 A complete appointment booking solution! Check [**Appointments**](https://wpmet.com/plugin/elementskit/elements/?utm_source=org&utm_medium=readme) for a dedicated service building.
+
+
+https://youtu.be/WYmVzxfpq6Y?si=S11UGz77T2E6JMKt
+
+| [Rox Appointment Booking Home Page](https://wpmet.com/plugin/rox-appointment-booking/?utm_source=org&utm_medium=readme) | [Service Booking](https://wpmet.com/plugin/rox-appointment-booking/services/?utm_source=org&utm_medium=readme) | [Agent Booking](https://wpmet.com/plugin/rox-appointment-booking/agents/?utm_source=org&utm_medium=readme) | [Customer Dashboard](https://wpmet.com/plugin/rox-appointment-booking/customer/?utm_source=org&utm_medium=readme) | [Booking Calendar](https://wpmet.com/plugin/rox-appointment-booking/calendar/?utm_source=org&utm_medium=readme) | [Appointment Booking Payments](https://wpmet.com/plugin/rox-appointment-booking/payments/?utm_source=org&utm_medium=readme)| [Appointment Booking Custom Forms](https://wpmet.com/plugin/rox-appointment-booking/payments/?utm_source=org&utm_medium=readme)| [Appointment Booking Coupon Setup](https://wpmet.com/plugin/rox-appointment-booking/payments/?utm_source=org&utm_medium=readme)|
+
+
+| [Blog](https://wpmet.com/blog/?utm_source=org&utm_medium=readme) | [Documentation](https://wpmet.com/doc/rox-appointment-booking/?utm_source=org&utm_medium=readme) | [Need Support?](https://wpmet.com/support-ticket-form/?utm_source=org&utm_medium=readme) | [How to get started with Rox Appointment Booking Pro](https://wpmet.com/doc/how-to-purchase-install-and-activate-rox-appointment-booking-pro/?utm_source=org&utm_medium=readme) |
+
+### Appointment Booking Templates
+
+**🌟** [Doctors & Healthcare Booking](https://wpmet.com/plugin/rox-appointment-booking/doctors-and-healthcare/?utm_source=org&utm_medium=readme) **🌟**
+**🌟** [Yoga Class Appointment](https://wpmet.com/plugin/rox-appointment-booking/yoga-studios/?utm_source=org&utm_medium=readme) **🌟**
+**🌟** [Beauty & Spa Salon Booking](https://wpmet.com/plugin/rox-appointment-booking/beauty-and-spa-salons/?utm_source=org&utm_medium=readme) **🌟**
+**🌟** [Event Booking](https://wpmet.com/plugin/rox-appointment-booking/event-agencies-and-hosts/?utm_source=org&utm_medium=readme) **🌟**
+
 
 ## Key Features
 
@@ -28,7 +46,7 @@ From room booking to tour reservations to ticket sales, Rox Appointment Booking 
     
 **✅ Email Notifications** - Automated confirmations and reminders for customers and staff
     
-**✅ Unlimited Services & Categories ** - Add as many services and categories as your business needs, with no restrictions
+**✅ Unlimited Services & Categories** - Add as many services and categories as your business needs, with no restrictions
     
 **✅ Multi-Location Settings** - Configure unique settings per business location
     
@@ -36,8 +54,9 @@ From room booking to tour reservations to ticket sales, Rox Appointment Booking 
     
 **✅ Holiday & Day Off Calendar** - Centralized holiday management within one screen.
     
+https://youtu.be/e4zK0ziDQEw?si=gmqQ0jGaqareBZEO
 
-### [Advanced Scheduling for Bookings & Appointments](https://roxbooking.com/appointment/appointment/?utm_source=org&utm_medium=readme)
+### [Advanced Scheduling for Bookings & Appointments](https://wpmet.com/plugin/rox-appointment-booking/appointment/?utm_source=org&utm_medium=readme)
 
 ✅ Days Off Management – Block specific dates globally or per agent so customers can never book on closed days
 
@@ -147,9 +166,6 @@ Ideal for fitness trainers, yoga studios, massage therapists, and wellness cente
 
 #### Vehicle & Transportation
 
-**🔶 Car Rentals**  
-As a car booking plugin for WordPress, manage vehicle fleet reservations with date ranges, pickup/return locations, and insurance add-ons. The car booking plugin WordPress free base version includes essential rental features.
-
 **🔶 Transportation Services**  
 Schedule shuttle services, chauffeur bookings, and ride reservations with driver assignments and route management.
 
@@ -160,9 +176,6 @@ The WordPress plugin for booking classes manages educational sessions, training 
 
 **🔶 Professional Services**  
 The service booking WordPress plugin handles consulting, repair services, home services, and maintenance appointments with technician dispatch.
-
-**🔶 Equipment Rentals**  
-Manage tool libraries, equipment lending, and gear rental services with inventory tracking and damage deposits.
 
 **🔶 Table Reservations**  
 Restaurant and dining reservations with party size, seating preferences, and special occasion notes.
@@ -258,6 +271,17 @@ After activation, you can configure the plugin settings from the WordPress admin
 
 
 == Changelog ==
+Version: 1.2.6 // 2026-09-02
+* Added: Appointment Status row on the appointment view drawer.
+* Added: New design for the logged in notice on the login form.
+* Improved: The admin booking form now lists every agent, marking the ones not assigned to the service.
+* Improved: Booking an unassigned agent assigns the service to them on save.
+* Improved: The e-mail template body is now the width an e-mail renders at.
+* Improved: Card fields on the payment step now use the panel's own focus highlight.
+* Improved: The group attendees sheet now sizes to its content.
+* Improved: Spacing and alignment on the payment step and the booking summary.
+* Fixed: The Confirm Payment button was live before the payment methods had loaded.
+
 Version: 1.2.5 // 2026-09-01
 * Added: Mobile and tablet responsive layouts for the booking panel.
 * Added: Step indicator on the booking panel for small screens, in place of the step list.
@@ -487,9 +511,6 @@ You can add unlimited services and categories with no restrictions. The free ver
 = Does this work with Elementor and Gutenberg? =
 Yes. The plugin provides both a native Gutenberg block and an Elementor widget for embedding the booking panel on your site.
 
-= Can I use this plugin for salon, clinic, or car rental bookings? =
-Absolutely. Rox Appointment Booking is a multi-purpose WordPress booking plugin that works for salons, clinics, car rentals, consulting, fitness, education, events, and any service-based business.
-
 = How do I prevent double bookings? =
 The plugin automatically checks availability based on your configured working hours, existing bookings, holidays, and buffer times. Once a time slot is booked, it becomes unavailable to other customers.
 
@@ -504,4 +525,3 @@ Yes. All booking and customer data is stored in your WordPress database. No data
 
 = Can I customize the booking form fields? =
 Yes. The plugin supports custom fields so you can collect specific information from customers during the booking process, such as special requests, notes, or preferences.
-

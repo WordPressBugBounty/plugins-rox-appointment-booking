@@ -38,6 +38,7 @@ class CustomerModel extends AbstractModel
         'wp_user_id',
         'send_notifications',
         'internal_notes',
+        'language',
     ];
 
     /**

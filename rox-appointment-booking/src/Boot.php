@@ -25,6 +25,9 @@ class Boot
 		}
 
         new Modules\Core\Provider();
+        // Boots before every content module so translation filters are in place
+        // before any REST route is registered or any view is rendered.
+        new Modules\Multilingual\Provider();
         new Modules\CustomerPanel\Provider();
         new Modules\Agent\Provider();
         new Modules\Appointment\Provider();

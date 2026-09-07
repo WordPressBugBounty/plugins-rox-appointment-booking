@@ -18,6 +18,7 @@ import NavButtonsPreview from "../shared/NavButtonsPreview.jsx";
 import { navButtonVars } from "../../lib/navButtonVars.js";
 
 import ButtonPreview, { ButtonIcon } from "./app/ButtonPreview.jsx";
+import PanelContentControls from "./app/PanelContentControls.jsx";
 import iconSet from "./icons.json";
 import {
 	useAvailabilityOptions,
@@ -219,6 +220,7 @@ const Edit = ({ attributes, setAttributes }) => {
 		fontFamily,
 		locationIds,
 		categoryIds,
+		panelContent,
 		buttonText,
 		buttonAlign,
 		buttonWidth,
@@ -338,6 +340,11 @@ const Edit = ({ attributes, setAttributes }) => {
 			},
 		].filter(Boolean);
 
+	// The copy overrides, read once for the controls and the preview below.
+	// Named apart from `content` in the panel components, which is the panel's
+	// own structure — this is only what the editor rewrote.
+	const content = panelContent || {};
+
 	// What the preview's category step will actually offer. Ids left over from a
 	// deleted category resolve to nothing, and an empty result means the panel
 	// falls back to showing everything — mirrored here so the preview matches.
@@ -417,8 +424,26 @@ const Edit = ({ attributes, setAttributes }) => {
 					)}
 				</PanelBody>
 
+				<PanelBody
+					title={__("Panel content", "rox-appointment-booking")}
+					initialOpen={false}
+					className="rox-panel-content"
+				>
+					<PanelContentControls
+						content={content}
+						// The same answer the location picker is offered on:
+						// more than one location is exactly when the panel
+						// shows a Location step to rename.
+						hasLocationStep={canRestrictLocations}
+						onChange={(value) => setAttributes({ panelContent: value })}
+					/>
+				</PanelBody>
+
 				{isPopup && (
-					<PanelBody title={__("Button", "rox-appointment-booking")}>
+					<PanelBody
+						title={__("Button", "rox-appointment-booking")}
+						initialOpen={false}
+					>
 						{/* Alignment, spacing, border and icon metrics can differ per
 						    device; everything else applies everywhere. */}
 						{ToggleGroupControl && ToggleGroupControlOption && (
@@ -967,7 +992,7 @@ const Edit = ({ attributes, setAttributes }) => {
 
 				<PanelBody
 					title={__("Layout", "rox-appointment-booking")}
-					initialOpen={!isPopup}
+					initialOpen={false}
 				>
 					<ToggleControl
 						label={__("Hide left navigation", "rox-appointment-booking")}
@@ -1265,7 +1290,22 @@ const Edit = ({ attributes, setAttributes }) => {
 							{!hideNavigation && (
 								<div className="service-sidebar selection-step">
 									{structure ? (
-										<SelectionSidebar sidebarDetails={structure} />
+										<SelectionSidebar
+											sidebarDetails={{
+												...structure,
+												icon: content.sidebarImage || structure.icon,
+												imageWidth: content.sidebarImageWidth,
+												title: content.sidebarTitle || structure.title,
+												subTitle:
+													content.sidebarSubtitle || structure.subTitle,
+											}}
+											help={{
+												title: content.helpTitle,
+												buttonText: content.helpButtonText,
+												url: content.helpButtonUrl,
+												note: content.helpNote,
+											}}
+										/>
 									) : null}
 								</div>
 							)}
@@ -1281,6 +1321,7 @@ const Edit = ({ attributes, setAttributes }) => {
 											categories={previewCategories}
 											onCategorySelect={() => {}}
 											selectedCategoryId={null}
+											heading={content.categoryHeading}
 										/>
 									)}
 								</div>

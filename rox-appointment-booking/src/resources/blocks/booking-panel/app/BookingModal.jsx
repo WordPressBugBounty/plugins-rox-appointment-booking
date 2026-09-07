@@ -240,6 +240,7 @@ const BookingModal = ({
 		root.dataset.fontFamily = settings.fontFamily || "";
 		root.dataset.locations = settings.locations || "";
 		root.dataset.categories = settings.categories || "";
+		root.dataset.panelContent = settings.panelContent || "";
 		// Locks the panel to one agent; "0" leaves the normal multi-step flow.
 		root.dataset.agentId = settings.agentId || "0";
 

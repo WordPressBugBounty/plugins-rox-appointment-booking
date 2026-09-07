@@ -72,6 +72,10 @@ class CustomerService
 
         $customer = new CustomerModel();
         $customer->fill(array_intersect_key($params, array_flip($customer->getFillable())));
+        // The language the booking was made in is the best signal we have for
+        // how to write this customer's e-mails later — a frontend customer
+        // often has no WordPress user whose locale we could read instead.
+        $customer->language = rox_appointment_booking_current_language();
         $customer->save();
 
         $this->handleAutoUserCreation($customer);
@@ -101,6 +105,9 @@ class CustomerService
 
         $customer = new CustomerModel();
         $customer->fill(array_intersect_key($profile, array_flip($customer->getFillable())));
+        // Same reasoning as saveCustomer(): record the language they signed up
+        // in, since a social sign-in carries no locale of its own.
+        $customer->language = rox_appointment_booking_current_language();
         $customer->save();
 
         $this->handleAutoUserCreation($customer);

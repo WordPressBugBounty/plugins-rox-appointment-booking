@@ -45,6 +45,7 @@ class AgentModel extends AbstractModel
         'bio',
         'social_profiles',
         'status',
+        'language',
     ];
 
 	/**

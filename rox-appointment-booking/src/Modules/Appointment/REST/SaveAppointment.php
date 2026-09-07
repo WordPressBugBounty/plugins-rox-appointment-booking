@@ -10,6 +10,7 @@ use RoxAppointmentBooking\Modules\Appointment\Data\AppointmentModel;
 use RoxAppointmentBooking\Modules\Order\Services\OrderService;
 use RoxAppointmentBooking\Modules\Order\Data\OrderModel;
 use RoxAppointmentBooking\Modules\Service\Data\ServiceModel;
+use RoxAppointmentBooking\Modules\Service\Services\ServiceService;
 use RoxAppointmentBooking\Modules\Payment\Data\PaymentModel;
 use RoxAppointmentBooking\Modules\Payment\Services\PaymentStatusSyncService;
 use RoxAppointmentBooking\Modules\Appointment\Services\AppointmentService;
@@ -422,6 +423,41 @@ class SaveAppointment extends AbstractREST
      */
     private function checkSlotAvailability($data)
     {
+        // BOOKING WINDOW:
+        // A service can be restricted to slots no sooner than X and no further out
+        // than Y. The slot picker already hides everything outside that window, but
+        // a stale drawer or a direct API call can still post one, so both ends are
+        // re-checked here.
+        $advance_service = !empty($data['service_id']) ? ServiceModel::find($data['service_id']) : null;
+        $slot_time = strtotime((string) ($data['start_time'] ?? ''));
+        $now_time = strtotime(current_time('mysql'));
+
+        $minimum_advance = ServiceService::minimumAdvanceMinutes($advance_service);
+        if ($minimum_advance > 0 && (!$slot_time || $slot_time < $now_time + $minimum_advance * 60)) {
+            return new WP_Error(
+                'minimum_advance_required',
+                sprintf(
+                    // translators: %s = the minimum window, e.g. "5 days 4 hours"
+                    esc_html__('This service must be booked at least %s before it starts. Please choose a later date or time.', 'rox-appointment-booking'),
+                    esc_html(ServiceService::formatAdvanceWindow($minimum_advance))
+                ),
+                ['status' => 409]
+            );
+        }
+
+        $maximum_advance = ServiceService::maximumAdvanceMinutes($advance_service);
+        if ($maximum_advance > 0 && (!$slot_time || $slot_time > $now_time + $maximum_advance * 60)) {
+            return new WP_Error(
+                'maximum_advance_exceeded',
+                sprintf(
+                    // translators: %s = the maximum window, e.g. "90 days"
+                    esc_html__('This service can only be booked up to %s ahead. Please choose an earlier date or time.', 'rox-appointment-booking'),
+                    esc_html(ServiceService::formatAdvanceWindow($maximum_advance))
+                ),
+                ['status' => 409]
+            );
+        }
+
         // CUSTOMER DOUBLE-BOOKING CHECK:
         // The same customer cannot hold two appointments that overlap in time,
         // regardless of service or agent.

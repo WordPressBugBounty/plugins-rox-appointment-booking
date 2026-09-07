@@ -85,6 +85,7 @@ class DeleteCategory extends AbstractREST
                     
                     try {
                         $category->delete();
+                        do_action('rox_appointment_booking_after_entity_deleted', 'category', $singleId);
                         $deleted[] = $singleId;
                     } catch (\Exception $e) {
                         $errors[] = $e->getMessage();
@@ -125,6 +126,7 @@ class DeleteCategory extends AbstractREST
         
         try {
             $category->delete();
+            do_action('rox_appointment_booking_after_entity_deleted', 'category', $id);
             return rox_appointment_booking_rest_response(
                 data : null,
                 message : esc_html__('Category deleted successfully', 'rox-appointment-booking'),

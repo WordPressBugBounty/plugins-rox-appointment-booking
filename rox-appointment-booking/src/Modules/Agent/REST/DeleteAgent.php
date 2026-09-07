@@ -93,6 +93,7 @@ class DeleteAgent extends AbstractREST
                     
                     try {
                         $agent->delete();
+                        do_action('rox_appointment_booking_after_entity_deleted', 'agent', $singleId);
                         $deleted[] = $singleId;
                     } catch (\Exception $e) {
                         $errors[] = $e->getMessage();
@@ -133,6 +134,7 @@ class DeleteAgent extends AbstractREST
         
         try {
             $agent->delete();
+            do_action('rox_appointment_booking_after_entity_deleted', 'agent', $id);
             return rox_appointment_booking_rest_response(
                 data : null,
                 message : esc_html__('Agent deleted successfully', 'rox-appointment-booking'),

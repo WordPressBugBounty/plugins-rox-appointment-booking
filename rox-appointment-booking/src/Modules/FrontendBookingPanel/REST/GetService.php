@@ -81,7 +81,7 @@ class GetService extends AbstractREST
 
         $data = [
             'id' => $service->getID(),
-            'name' => $service->title,
+            'name' => rox_appointment_booking_translate('service', $service->getID(), 'title', (string) $service->title),
             'price' => $service->price,
             'hide_price_booking_panel' => (bool) $service->hide_price_booking_panel,
             'duration' => (int) $service->duration,
@@ -110,7 +110,7 @@ class GetService extends AbstractREST
                 // Group booking is a Pro feature — degrade to 'alone' if Pro isn't active.
                 'capacity' => $isPro ? $service->capacity : 'alone',
                 'max_capacity' => $service->max_capacity,
-                'description' => $service->description,
+                'description' => rox_appointment_booking_translate('service', $service->getID(), 'description', (string) $service->description),
                 'thumbnail_id' => $service->thumbnail_id,
                 'thumbnail_url' => $service->thumbnail_id ? wp_get_attachment_url($service->thumbnail_id) : '',
                 'deposit' => ($isPro && $service->deposit) ? ['1'] : [],
@@ -367,7 +367,14 @@ class GetService extends AbstractREST
         $category = CategoryModel::find($categoryId);
 
         if ($category) {
-            return $category->title;
+            // Reads the category table directly, so it needs the same
+            // translation the public category endpoint applies.
+            return rox_appointment_booking_translate(
+                'category',
+                $category->getID(),
+                'title',
+                (string) $category->title
+            );
         }
         return '';
     }

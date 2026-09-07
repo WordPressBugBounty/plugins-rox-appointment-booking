@@ -1117,7 +1117,13 @@ class GetAppointmentSchedule extends AbstractREST
                 'holidays' => $final_holidays,
                 'booked_timeslots' => $booked_timeslots,
                 'special_days' => $special_days,
-                'slot_duration' => (int)$service_duration
+                'slot_duration' => (int)$service_duration,
+                // The weekly schedule is a per-weekday template with no notion of
+                // "now", so the panels apply this window on top of it to hide slots
+                // that are too soon or too far out. Both ends are re-checked by the
+                // write paths on submit. 0 means that end is unbounded.
+                'minimum_advance_minutes' => ServiceService::minimumAdvanceMinutes($service_exists),
+                'maximum_advance_minutes' => ServiceService::maximumAdvanceMinutes($service_exists)
             ];
 
             return rox_appointment_booking_rest_response(

@@ -73,7 +73,28 @@ class EmailService
             return false;
         }
 
-        $rendered = self::render($eventKey, $recipientType, $context);
+        // Rendered in the recipient's own language, not the language of whoever
+        // triggered the send. One booking e-mails the customer, the agent and
+        // the admin, who need not share a language, so the switch is per
+        // recipient and is always unwound — see rox_appointment_booking_with_language().
+        $rendered = rox_appointment_booking_with_language(
+            EmailRecipientResolver::resolveLanguage($recipientType, $context),
+            static function () use ($eventKey, $recipientType, $context) {
+                $rendered = self::render($eventKey, $recipientType, $context);
+
+                if (!$rendered) {
+                    return false;
+                }
+
+                // Built inside the switch too: the From name comes from the
+                // e-mail settings, which WPML also translates, and it is as
+                // customer-facing as the subject.
+                $rendered['headers'] = self::headers();
+
+                return $rendered;
+            }
+        );
+
         if (!$rendered) {
             return false;
         }
@@ -84,7 +105,7 @@ class EmailService
             'body'        => $rendered['body'],
             // The body is HTML — without this header wp_mail() defaults to
             // text/plain and the recipient sees the raw markup.
-            'headers'     => self::headers(),
+            'headers'     => $rendered['headers'],
             'attachments' => [],
         ];
 

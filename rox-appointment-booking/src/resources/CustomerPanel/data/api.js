@@ -1,4 +1,5 @@
 import apiFetch from "@wordpress/api-fetch";
+import { registerLanguageMiddleware } from "../../lib/apiLanguage.js";
 
 // Thin fetch helper for the Customer Panel's own REST endpoints
 // (/customer-panel/…). Uses the nonce + apiBaseUrl injected by
@@ -14,6 +15,11 @@ const cfg =
 if (cfg.nonce) {
   apiFetch.use(apiFetch.createNonceMiddleware(cfg.nonce));
 }
+
+// Same idea for the panel's language: registered once here, so every view's
+// request carries `lang` and service names come back in the language the
+// customer is reading the panel in.
+registerLanguageMiddleware(cfg.language);
 
 // Plugin REST base, e.g. https://site/wp-json/rox-appointment-booking/v1
 const BASE = (cfg.apiBaseUrl || "/wp-json/rox-appointment-booking/v1/").replace(

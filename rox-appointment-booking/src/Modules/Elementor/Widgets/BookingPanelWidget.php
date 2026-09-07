@@ -40,8 +40,9 @@ use Elementor\Group_Control_Typography;
 use Elementor\Group_Control_Box_Shadow;
 use RoxAppointmentBooking\Modules\Elementor\NavButtonSection;
 use RoxAppointmentBooking\Modules\Elementor\Provider;
-use RoxAppointmentBooking\Supports\BookingButtonAssets;
-use RoxAppointmentBooking\Supports\BookingButtonMarkup;
+use RoxAppointmentBooking\Supports\BookingPanel\BookingButtonAssets;
+use RoxAppointmentBooking\Supports\BookingPanel\BookingButtonMarkup;
+use RoxAppointmentBooking\Supports\BookingPanel\PanelContent;
 use RoxAppointmentBooking\Supports\Color;
 use RoxAppointmentBooking\Supports\FontFamily;
 use RoxAppointmentBooking\Supports\IdList;
@@ -70,6 +71,42 @@ class BookingPanelWidget extends Widget_Base
             ['name' => 'hide_navigation', 'operator' => '===', 'value' => 'yes'],
             ['name' => 'hide_info', 'operator' => '===', 'value' => 'yes'],
         ],
+    ];
+
+    /**
+     * The panel copy controls that hold plain text, as control name => the
+     * override key the panel reads it under.
+     *
+     * Elementor stores a widget's settings flat, one control at a time, so the
+     * two names are kept side by side here and nowhere else: the section below
+     * registers the left column, {@see panelContent()} rebuilds the right one.
+     *
+     * @var array<string, string>
+     */
+    protected const PANEL_CONTENT_TEXT = [
+        // Step 1's sidebar: its title and subtitle, and the help box under them.
+        'panel_sidebar_title'          => 'sidebarTitle',
+        'panel_sidebar_subtitle'       => 'sidebarSubtitle',
+        'panel_help_title'             => 'helpTitle',
+        'panel_help_button_text'       => 'helpButtonText',
+        'panel_help_button_url'        => 'helpButtonUrl',
+        'panel_help_note'              => 'helpNote',
+        // The heading above each step's cards.
+        'panel_location_heading'       => 'locationHeading',
+        'panel_category_heading'       => 'categoryHeading',
+        'panel_services_heading'       => 'servicesHeading',
+        'panel_agents_heading'         => 'agentsHeading',
+        'panel_datetime_heading'       => 'dateTimeHeading',
+        'panel_information_heading'    => 'informationHeading',
+        // The left step list, from the second step onward.
+        'panel_step_location_label'    => 'stepLocationLabel',
+        'panel_step_category_label'    => 'stepCategoryLabel',
+        'panel_step_services_label'    => 'stepServicesLabel',
+        'panel_step_agents_label'      => 'stepAgentsLabel',
+        'panel_step_datetime_label'    => 'stepDateTimeLabel',
+        'panel_step_information_label' => 'stepInformationLabel',
+        'panel_step_payment_label'     => 'stepPaymentLabel',
+        'panel_step_complete_label'    => 'stepCompleteLabel',
     ];
 
     /**
@@ -159,7 +196,8 @@ class BookingPanelWidget extends Widget_Base
 
     /**
      * Registers the widget controls, mirroring the Gutenberg block: a display
-     * mode, the trigger button's own sections (popup only), a "Layout" section
+     * mode, a "Panel content" section rewriting the panel's own wording, the
+     * trigger button's own sections (popup only), a "Layout" section
      * (visibility switchers + the panel frame), an "Availability" section
      * restricting which locations / categories the visitor is offered, and a
      * Style-tab section per navigation button.
@@ -169,6 +207,7 @@ class BookingPanelWidget extends Widget_Base
     protected function register_controls(): void
     {
         $this->registerDisplaySection();
+        $this->registerPanelContentSection();
         $this->registerButtonContentSection();
         $this->registerPopupSection();
         $this->registerLayoutSection();
@@ -208,6 +247,252 @@ class BookingPanelWidget extends Widget_Base
         );
 
         $this->end_controls_section();
+    }
+
+    /**
+     * Panel content: the panel's own wording, as far as an editor rewrites it.
+     *
+     * The booking panel's copy lives in its React components — the first step's
+     * sidebar, the heading above each step's cards, and the step list down the
+     * left from the second step onward. This is where an editor rewrites it,
+     * and it applies to both modes: the popup carries the same copy to the
+     * panel the modal builds.
+     *
+     * @return void
+     */
+    protected function registerPanelContentSection(): void
+    {
+        $this->start_controls_section(
+            'panel_content',
+            ['label' => esc_html__('Panel content', 'rox-appointment-booking')]
+        );
+
+        $this->add_control(
+            'panel_sidebar_group',
+            [
+                'label' => esc_html__('First step sidebar', 'rox-appointment-booking'),
+                'type'  => Controls_Manager::HEADING,
+            ]
+        );
+
+        $this->add_control(
+            'panel_sidebar_image',
+            [
+                'label'       => esc_html__('Illustration', 'rox-appointment-booking'),
+                'type'        => Controls_Manager::MEDIA,
+                'media_types' => ['image'],
+                'default'     => ['url' => ''],
+                'description' => esc_html__('Leave empty to keep the panel\'s own illustration.', 'rox-appointment-booking'),
+            ]
+        );
+
+        // Sits with the picker because it sizes what the picker chose. Offered
+        // even with no image of its own: the panel's default illustration is
+        // sized by the same value, so it opens on that width rather than on the
+        // slider's floor.
+        $width = PanelContent::INT_RANGES['sidebarImageWidth'];
+
+        $this->add_control(
+            'panel_sidebar_image_width',
+            [
+                'label'       => esc_html__('Illustration width', 'rox-appointment-booking'),
+                'type'        => Controls_Manager::SLIDER,
+                'size_units'  => ['px'],
+                'range'       => ['px' => ['min' => $width['min'], 'max' => $width['max']]],
+                'default'     => ['unit' => 'px', 'size' => $width['default']],
+                'description' => sprintf(
+                    /* translators: %d: sidebar column width in pixels */
+                    esc_html__('The sidebar column is %d px wide, so the image is scaled down to fit rather than past it.', 'rox-appointment-booking'),
+                    $width['max']
+                ),
+            ]
+        );
+
+        $this->contentField(
+            'panel_sidebar_title',
+            esc_html__('Title', 'rox-appointment-booking'),
+            __('Location Selection', 'rox-appointment-booking'),
+            esc_html__('Shown whichever step comes first, so a panel that starts on Category or Services uses this too.', 'rox-appointment-booking')
+        );
+
+        $this->contentField(
+            'panel_sidebar_subtitle',
+            esc_html__('Subtitle', 'rox-appointment-booking'),
+            __('Select the location where you\'d like to book your appointment.', 'rox-appointment-booking')
+        );
+
+        $this->contentField(
+            'panel_help_title',
+            esc_html__('Help box title', 'rox-appointment-booking'),
+            __('Need Help?', 'rox-appointment-booking')
+        );
+
+        $this->contentField(
+            'panel_help_button_text',
+            esc_html__('Help button text', 'rox-appointment-booking'),
+            __('Help', 'rox-appointment-booking')
+        );
+
+        // A plain field rather than Elementor's link picker: the panel renders
+        // the help box as a bare anchor, so the picker's target and nofollow
+        // options would be controls that do nothing.
+        $this->contentField(
+            'panel_help_button_url',
+            esc_html__('Help button link', 'rox-appointment-booking'),
+            '/help'
+        );
+
+        $this->contentField(
+            'panel_help_note',
+            esc_html__('Help box note', 'rox-appointment-booking'),
+            __('If you have any questions', 'rox-appointment-booking')
+        );
+
+        $this->add_control(
+            'panel_headings_group',
+            [
+                'label'     => esc_html__('Step headings', 'rox-appointment-booking'),
+                'type'      => Controls_Manager::HEADING,
+                'separator' => 'before',
+            ]
+        );
+
+        // The Location step is Pro's, and it only reaches the visitor with the
+        // module on and more than one location to choose between — with one the
+        // panel auto-selects it and drops the step. Anything less and this
+        // heading is never rendered, so the field would rewrite nothing.
+        if (rox_appointment_booking_location_choice_available()) {
+            $this->contentField(
+                'panel_location_heading',
+                esc_html__('Location step', 'rox-appointment-booking'),
+                __('Select Location', 'rox-appointment-booking')
+            );
+        }
+
+        $this->contentField(
+            'panel_category_heading',
+            esc_html__('Category step', 'rox-appointment-booking'),
+            __('Available Category', 'rox-appointment-booking')
+        );
+
+        $this->contentField(
+            'panel_services_heading',
+            esc_html__('Services step', 'rox-appointment-booking'),
+            __('Services', 'rox-appointment-booking'),
+            esc_html__('Follows the chosen category\'s name, as in "Haircut Services".', 'rox-appointment-booking')
+        );
+
+        $this->contentField(
+            'panel_agents_heading',
+            esc_html__('Agents step', 'rox-appointment-booking'),
+            __('Select Agent', 'rox-appointment-booking')
+        );
+
+        $this->contentField(
+            'panel_datetime_heading',
+            esc_html__('Date & Time step', 'rox-appointment-booking'),
+            __('Date & Time Selection', 'rox-appointment-booking')
+        );
+
+        $this->contentField(
+            'panel_information_heading',
+            esc_html__('Information step', 'rox-appointment-booking'),
+            __('Customer Information', 'rox-appointment-booking')
+        );
+
+        $this->add_control(
+            'panel_steps_group',
+            [
+                'label'     => esc_html__('Step list', 'rox-appointment-booking'),
+                'type'      => Controls_Manager::HEADING,
+                'separator' => 'before',
+            ]
+        );
+
+        // Same gate as the heading above: no Location step, no row in the list.
+        if (rox_appointment_booking_location_choice_available()) {
+            $this->contentField(
+                'panel_step_location_label',
+                esc_html__('Location', 'rox-appointment-booking'),
+                __('Location', 'rox-appointment-booking')
+            );
+        }
+
+        $this->contentField(
+            'panel_step_category_label',
+            esc_html__('Category', 'rox-appointment-booking'),
+            __('Category', 'rox-appointment-booking')
+        );
+
+        $this->contentField(
+            'panel_step_services_label',
+            esc_html__('Services', 'rox-appointment-booking'),
+            __('Services', 'rox-appointment-booking')
+        );
+
+        $this->contentField(
+            'panel_step_agents_label',
+            esc_html__('Agents', 'rox-appointment-booking'),
+            __('Agents', 'rox-appointment-booking')
+        );
+
+        $this->contentField(
+            'panel_step_datetime_label',
+            esc_html__('Date & Time', 'rox-appointment-booking'),
+            __('Date & Time', 'rox-appointment-booking')
+        );
+
+        $this->contentField(
+            'panel_step_information_label',
+            esc_html__('Information', 'rox-appointment-booking'),
+            __('Information', 'rox-appointment-booking')
+        );
+
+        $this->contentField(
+            'panel_step_payment_label',
+            esc_html__('Payment', 'rox-appointment-booking'),
+            __('Payment', 'rox-appointment-booking')
+        );
+
+        $this->contentField(
+            'panel_step_complete_label',
+            esc_html__('Complete', 'rox-appointment-booking'),
+            __('Complete', 'rox-appointment-booking')
+        );
+
+        $this->end_controls_section();
+    }
+
+    /**
+     * One copy override, as the field an editor rewrites it in.
+     *
+     * The field opens on the panel's own text as its value, not just as a
+     * placeholder, so an editor edits the real wording instead of retyping it.
+     * Clearing it drops the override and brings the default straight back.
+     *
+     * The default is the panel's text as it renders, not an escaped copy of it:
+     * it is content on its way to the frontend, escaped where it is printed, so
+     * an escaped default would ship "Date &amp; Time" as the visible label.
+     *
+     * @param string $name        Control name.
+     * @param string $label       Field label.
+     * @param string $default     The panel's own wording, unescaped.
+     * @param string $description Optional note under the field.
+     * @return void
+     */
+    protected function contentField(string $name, string $label, string $default, string $description = ''): void
+    {
+        $this->add_control(
+            $name,
+            [
+                'label'       => $label,
+                'type'        => Controls_Manager::TEXT,
+                'default'     => $default,
+                'placeholder' => $default,
+                'label_block' => true,
+                'description' => $description,
+            ]
+        );
     }
 
     /**
@@ -1106,7 +1391,7 @@ class BookingPanelWidget extends Widget_Base
             // The instance id decides which store the panel gets, so two of
             // these widgets on one page keep their selections apart. Elementor's
             // element id is unique per widget and stable across renders.
-            '<div class="rox-appointment-booking-frontend-root" data-instance="%7$s" data-type="booking-form" data-hide-navigation="%1$s" data-hide-info="%2$s" data-show-background="%3$s" data-background-color="%4$s" data-locations="%5$s" data-categories="%6$s" data-font-family="%8$s" data-font-url="%9$s" data-content-margin="%10$s" data-heading-align="%11$s" data-heading-margin="%12$s"></div>',
+            '<div class="rox-appointment-booking-frontend-root" data-instance="%7$s" data-type="booking-form" data-hide-navigation="%1$s" data-hide-info="%2$s" data-show-background="%3$s" data-background-color="%4$s" data-locations="%5$s" data-categories="%6$s" data-font-family="%8$s" data-font-url="%9$s" data-content-margin="%10$s" data-heading-align="%11$s" data-heading-margin="%12$s" data-panel-content="%13$s"></div>',
             esc_attr($hide_navigation),
             esc_attr($hide_info),
             esc_attr($show_background),
@@ -1118,7 +1403,10 @@ class BookingPanelWidget extends Widget_Base
             esc_url($font_url),
             esc_attr(BookingButtonMarkup::contentSpacing($this->dimensions($settings, 'content_margin'), true)),
             esc_attr($this->headingAlign($settings)),
-            esc_attr(BookingButtonMarkup::contentSpacing($this->dimensions($settings, 'heading_margin'), true))
+            esc_attr(BookingButtonMarkup::contentSpacing($this->dimensions($settings, 'heading_margin'), true)),
+            // The panel's own copy, as far as the editor rewrote it. Empty when
+            // every field was left alone, which keeps the panel's own wording.
+            esc_attr(PanelContent::toAttr($this->panelContent($settings)))
         );
     }
 
@@ -1137,6 +1425,36 @@ class BookingPanelWidget extends Widget_Base
         $value = (string) ($settings['heading_align'] ?? '');
 
         return in_array($value, BookingButtonMarkup::HEADING_ALIGNS, true) ? $value : '';
+    }
+
+    /**
+     * Collects the copy controls back into the override map the panel reads.
+     *
+     * Elementor stores each control on its own, so the flat settings are folded
+     * back into the shape {@see PanelContent} normalises — which is also what
+     * drops a field left on the panel's own wording.
+     *
+     * @param array $settings Resolved widget settings.
+     * @return array
+     */
+    protected function panelContent(array $settings): array
+    {
+        $content = [];
+
+        foreach (self::PANEL_CONTENT_TEXT as $control => $key) {
+            $content[$key] = $settings[$control] ?? '';
+        }
+
+        // MEDIA hands back an id / url pair; only the URL reaches the panel.
+        $image = $settings['panel_sidebar_image'] ?? [];
+        $content['sidebarImage'] = is_array($image) ? ($image['url'] ?? '') : '';
+
+        // SLIDER keeps the number apart from its unit, and the panel only ever
+        // reads pixels, so the size is all that travels.
+        $size = $settings['panel_sidebar_image_width'] ?? [];
+        $content['sidebarImageWidth'] = is_array($size) ? ($size['size'] ?? '') : $size;
+
+        return $content;
     }
 
     /**
@@ -1209,6 +1527,7 @@ class BookingPanelWidget extends Widget_Base
             'contentMargin'        => $this->dimensions($settings, 'content_margin'),
             'headingAlign'         => $this->headingAlign($settings),
             'headingMargin'        => $this->dimensions($settings, 'heading_margin'),
+            'panelContent'         => $this->panelContent($settings),
             // Elementor hands SELECT2 values back as strings; IdList normalises.
             'locationIds'          => $settings['location_ids'] ?? [],
             'categoryIds'          => $settings['category_ids'] ?? [],

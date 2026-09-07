@@ -6,13 +6,34 @@ import { createReduxStore, register } from "@wordpress/data";
 export const SESSION_STORAGE_KEY = "rox_appointment_booking_service_state";
 
 /**
+ * The active language, or "" on a single-language site (PHP leaves it empty
+ * unless a multilingual plugin is actually driving translations).
+ *
+ * @return {string}
+ */
+const panelLanguage = () =>
+  window?.rox_appointment_booking?.config?.frontend?.language || "";
+
+/**
  * The sessionStorage key a panel instance persists under.
+ *
+ * Also keyed by language: a visitor who switches language mid-booking would
+ * otherwise have the previous language's saved service/agent names restored on
+ * top of the new page. Starting a fresh key is the honest behaviour — the names
+ * held in that state were rendered in the old language. On a single-language
+ * site `panelLanguage()` is empty, so the key is unchanged and older saved
+ * state stays valid.
  *
  * @param {string|number} instanceId Panel instance id, or falsy for the default.
  * @return {string} Storage key.
  */
-export const sessionKeyFor = (instanceId) =>
-  instanceId ? `${SESSION_STORAGE_KEY}_${instanceId}` : SESSION_STORAGE_KEY;
+export const sessionKeyFor = (instanceId) => {
+  const base = instanceId
+    ? `${SESSION_STORAGE_KEY}_${instanceId}`
+    : SESSION_STORAGE_KEY;
+  const language = panelLanguage();
+  return language ? `${base}__${language}` : base;
+};
 
 // Helper function to deserialize dates in bookingProcess
 const deserializeBookingProcess = (bookingProcess) => {

@@ -112,6 +112,85 @@ export const siteLocale = data;
 export const getLocaleTag = () => data.bcp47 || "en";
 
 /**
+ * The current moment on the site's clock, in the wire formats slots use.
+ *
+ * Schedules, slots and bookings are all naive site-local wall time, so "now"
+ * has to be read in the site's zone rather than the visitor's — a customer
+ * browsing from another timezone would otherwise get the cutoff shifted by
+ * their own offset. Settings > General can leave `wp_timezone_string()` as a
+ * bare GMT offset ("+06:00"), which `Intl` will not accept as a zone, so those
+ * are applied by hand against UTC.
+ *
+ * Note this reads the DEVICE clock and only corrects its timezone; it cannot
+ * detect a device whose clock is simply wrong. That is why the server has to
+ * re-check the slot on submit rather than trusting what the panel offered.
+ *
+ * @param {number} [offsetMinutes] Minutes to advance past now, e.g. a
+ *                                 minimum-notice window.
+ * @return {{date: string, time: string}} `YYYY-MM-DD` and 24-hour `HH:MM:SS`.
+ */
+export const getSiteNow = (offsetMinutes = 0) => {
+  const now = new Date();
+  const offset = /^([+-])(\d{2}):(\d{2})$/.exec(data.timezone || "");
+
+  const read = (at, timeZone) =>
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).formatToParts(at);
+
+  let parts;
+  try {
+    parts = offset
+      ? read(
+          new Date(
+            now.getTime() +
+              (offset[1] === "-" ? -1 : 1) *
+                (parseInt(offset[2], 10) * 60 + parseInt(offset[3], 10)) *
+                60000,
+          ),
+          "UTC",
+        )
+      : read(now, data.timezone);
+  } catch (error) {
+    // An unrecognised zone name throws; the visitor's own clock is a better
+    // answer than none.
+    parts = read(now, undefined);
+  }
+
+  const part = (type) => (parts.find((p) => p.type === type) || {}).value || "00";
+  // `hour12: false` reports midnight as "24" in some engines.
+  const hour = part("hour") === "24" ? "00" : part("hour");
+
+  // These are already site wall-clock fields, so the offset is applied through
+  // UTC — the one zone that cannot add or drop an hour underneath the
+  // arithmetic — and the same round trip normalises any rollover.
+  const at = new Date(
+    Date.UTC(
+      Number(part("year")),
+      Number(part("month")) - 1,
+      Number(part("day")),
+      Number(hour),
+      Number(part("minute")) + (Number(offsetMinutes) || 0),
+      Number(part("second")),
+    ),
+  );
+
+  const pad = (value) => String(value).padStart(2, "0");
+
+  return {
+    date: `${at.getUTCFullYear()}-${pad(at.getUTCMonth() + 1)}-${pad(at.getUTCDate())}`,
+    time: `${pad(at.getUTCHours())}:${pad(at.getUTCMinutes())}:${pad(at.getUTCSeconds())}`,
+  };
+};
+
+/**
  * Month names in the site's language.
  *
  * @param {boolean} [short] Return the abbreviated names.

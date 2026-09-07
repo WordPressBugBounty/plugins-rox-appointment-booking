@@ -28,12 +28,13 @@
 namespace RoxAppointmentBooking\Modules\Blocks\Services;
 
 use RoxAppointmentBooking\Supports\Assets;
-use RoxAppointmentBooking\Supports\BookingButtonAssets;
-use RoxAppointmentBooking\Supports\BookingButtonMarkup;
+use RoxAppointmentBooking\Supports\BookingPanel\BookingButtonAssets;
+use RoxAppointmentBooking\Supports\BookingPanel\BookingButtonMarkup;
 use RoxAppointmentBooking\Supports\Color;
 use RoxAppointmentBooking\Supports\FontFamily;
 use RoxAppointmentBooking\Supports\IdList;
-use RoxAppointmentBooking\Supports\NavButtons;
+use RoxAppointmentBooking\Supports\BookingPanel\NavButtons;
+use RoxAppointmentBooking\Supports\BookingPanel\PanelContent;
 
 if (! defined('ABSPATH')) exit; // Exit if accessed directly
 
@@ -259,6 +260,15 @@ class BookingPanelBlock
             'version'           => ROX_APPOINTMENT_BOOKING_VERSION,
             'appTitle'          => ROX_APPOINTMENT_BOOKING_NAME,
             'defaultLocale'     => determine_locale(),
+            // The language the visitor is reading this page in. The panel is a
+            // JS app calling /wp-json directly, so it passes this back as `lang`
+            // on every request instead of relying on the REST URL carrying it.
+            // Empty when no multilingual plugin is active, which keeps a
+            // single-language site byte-identical to before: no `lang` on
+            // requests, no language suffix on its saved panel state.
+            'language'          => rox_appointment_booking_multilingual()->isActive()
+                ? rox_appointment_booking_current_language()
+                : '',
             'timezone'          => get_option('timezone_string') ?: 'UTC',
             'dateFormat'        => get_option('date_format') ?: 'Y-m-d',
             'timeFormat'        => get_option('time_format') ?: 'H:i:s',
@@ -332,8 +342,12 @@ class BookingPanelBlock
         $location_ids = IdList::toAttr($attributes['locationIds'] ?? []);
         $category_ids = IdList::toAttr($attributes['categoryIds'] ?? []);
 
+        // The panel's own copy, as far as the editor rewrote it. Empty when
+        // every field was left alone, which keeps the panel's own wording.
+        $panel_content = PanelContent::toAttr($attributes['panelContent'] ?? []);
+
         return sprintf(
-            '<div %1$s><div class="rox-appointment-booking-frontend-root"%10$s data-instance="%2$s" data-type="booking-form" data-hide-navigation="%3$s" data-hide-info="%4$s" data-content-margin="%11$s" data-heading-align="%12$s" data-heading-margin="%13$s" data-show-background="%5$s" data-background-color="%6$s" data-font-family="%7$s" data-locations="%8$s" data-categories="%9$s"></div></div>',
+            '<div %1$s><div class="rox-appointment-booking-frontend-root"%10$s data-instance="%2$s" data-type="booking-form" data-hide-navigation="%3$s" data-hide-info="%4$s" data-content-margin="%11$s" data-heading-align="%12$s" data-heading-margin="%13$s" data-show-background="%5$s" data-background-color="%6$s" data-font-family="%7$s" data-locations="%8$s" data-categories="%9$s" data-panel-content="%14$s"></div></div>',
             $wrapper_attributes,
             // Prefixed per surface: the instance id keys the panel's store, and
             // every surface counts from 1, so a bare number would let a panel
@@ -349,7 +363,8 @@ class BookingPanelBlock
             $nav_style === '' ? '' : ' style="' . esc_attr($nav_style) . '"',
             esc_attr($this->contentSpacing($attributes, 'contentMargin', true)),
             esc_attr($this->headingAlign($attributes)),
-            esc_attr($this->contentSpacing($attributes, 'headingMargin', true))
+            esc_attr($this->contentSpacing($attributes, 'headingMargin', true)),
+            esc_attr($panel_content)
         );
     }
 
@@ -460,6 +475,7 @@ class BookingPanelBlock
                 'contentMargin'        => $attributes['contentMargin'] ?? [],
                 'headingAlign'         => $this->headingAlign($attributes),
                 'headingMargin'        => $attributes['headingMargin'] ?? [],
+                'panelContent'         => $attributes['panelContent'] ?? [],
                 // No agent lock from this block: a panel tied to one agent is
                 // what the Single Agent Booking Panel block is for, so the
                 // markup builder's "no lock" default stands.

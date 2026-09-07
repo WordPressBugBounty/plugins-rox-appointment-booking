@@ -84,6 +84,14 @@ class GetGeneral extends AbstractREST
                 'show_appointment_end_time' => false,
                 'thousand_separator' => 'comma',
                 'hide_price_breakdown_for_free_services' => false,
+                // Site-wide booking window. A service can switch on its own and
+                // override either end — see ServiceService::advanceWindow().
+                'minimum_advance_enable' => false,
+                'minimum_advance_days' => 0,
+                'minimum_advance_hours' => 0,
+                'maximum_advance_enable' => false,
+                'maximum_advance_days' => 0,
+                'maximum_advance_hours' => 0,
                 // Booking Permissions — same keys BookingSettingsForm.jsx's
                 // GetBooking.php defaults to false for; duplicated here so a
                 // fresh install renders identically on both settings menus.

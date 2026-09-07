@@ -8,6 +8,153 @@
 @import url("https://fonts.googleapis.com/css2?family=Heebo:wght@100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
 @import "leaflet/dist/leaflet.css";
 
+// Everything below applies ONLY while WPML is the active multilingual plugin.
+// `MultilingualService::addAdminBodyClass()` puts `rox-multilingual-wpml` on
+// <body> in exactly that case, so with no multilingual plugin — or with
+// Polylang, which ships no interfering stylesheet — not one of these rules
+// matches and the admin UI is what it always was. The class sits on <body>
+// because antd portals modals, drawers, dropdowns and tooltips there.
+.rox-multilingual-wpml {
+  // ---------------------------------------------------------------------------
+  // WPML compatibility guard
+  //
+  // WPML builds its admin UI with Ant Design, the same library this plugin uses,
+  // and ships `sitepress-multilingual-cms/res/css/style.css` — 257 unscoped
+  // `.ant-*` selectors — on EVERY wp-admin page, ours included. It wins because
+  // antd v5 emits its own rules through CSS-in-JS wrapped in `:where(...)`
+  // (specificity 0,1,0, the same as WPML's plain classes) and inserts them at the
+  // top of <head>; WPML's file loads later, so it takes every tie.
+  //
+  // SHAPE OF THIS BLOCK — three deliberate decisions:
+  //
+  // 1. NOT scoped to `#rox-appointment-booking-app-root`. antd portals Modal,
+  //    Drawer, Select dropdowns, Tooltips and Message to <body>, outside that
+  //    root, so an id-scoped guard never reached them and WPML's colours survived
+  //    inside every modal. This stylesheet is only ever enqueued on our own admin
+  //    screen, so leaving these unscoped cannot touch any other page.
+  //
+  // 2. Class doubled (`.ant-btn.ant-btn`) to reach specificity 0,2,0. That beats
+  //    WPML's 0,1,0, while every rule this plugin writes inside
+  //    `#rox-appointment-booking-app-root` is 1,x,0 and still wins — so nothing
+  //    here can override a decision made elsewhere in this file.
+  //
+  // 3. PLACED FIRST, so that even at equal specificity our own later rules win.
+  //
+  // ONLY WHAT WPML ACTUALLY SETS. Add a property here after seeing WPML set it,
+  // not before: an earlier version restated `justify-content` on every button on
+  // the assumption that WPML broke button layout, and that is what collapsed
+  // `.open-slot-picker-button`'s `space-between` and pushed its label and arrow
+  // together. Main-axis alignment is each button's own business.
+  //
+  // Two broader fixes were tried and reverted; do not reach for them again
+  // without new information. `StyleProvider hashPriority="high"` lifted antd to
+  // 0,2,0 and beat WPML everywhere, but changed the specificity contract this
+  // whole stylesheet is written against. Dequeuing WPML's sheet in PHP fixed all
+  // 257 at once and touched no CSS, but caused its own problems in practice.
+  //
+  // KNOWN LIMIT: covers button, tag and checkbox — what has actually been seen to
+  // break. Select (73 rules), modal (65), alert (54), popover, notification,
+  // radio, picker, input, upload, tooltip, form and spin are still WPML's here.
+  // They get fixed one at a time, as they are spotted.
+  // ---------------------------------------------------------------------------
+
+  // --- Buttons ---------------------------------------------------------------
+  // Counters `.ant-btn { border-radius: 3px }` and restores the flex layout antd
+  // would have applied. Without `display`, the block-level label these buttons
+  // render drops below the icon: "+" above "Add Category", arrow under "Check
+  // Availability".
+  .ant-btn.ant-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 5px;
+  }
+
+  // Counters `.ant-btn { color: #2f7d92; border-color: #2f7d92 }`.
+  //
+  // Danger variants are excluded from every colour rule here: antd paints them
+  // red through `.ant-btn-dangerous` / `.ant-btn-color-dangerous`, and without
+  // the exclusion this would drain the red out of the "Cancel booking" and
+  // "Disconnect" buttons, with or without WPML installed.
+  .ant-btn.ant-btn:not(.ant-btn-dangerous):not(.ant-btn-color-dangerous) {
+    color: #151720;
+    border-color: #dfdfe4;
+  }
+
+  // Counters `.ant-btn-primary { color: #fff; background-color: #2f7d92 }`.
+  // Values mirror the antd theme tokens in App.jsx (`colorPrimary: #3560fb`).
+  .ant-btn-primary.ant-btn-primary:not(.ant-btn-dangerous):not(.ant-btn-color-dangerous) {
+    background-color: #3560fb;
+    border-color: #3560fb;
+    color: #fff;
+
+    &:hover,
+    &:focus,
+    &:active {
+      background-color: rgb(81, 117, 248);
+      border-color: rgb(81, 117, 248);
+      color: #fff;
+    }
+  }
+
+  // Counters `.ant-btn-link { color: #2f7d92 }`.
+  .ant-btn-link.ant-btn-link:not(.ant-btn-dangerous):not(.ant-btn-color-dangerous) {
+    color: #3560fb;
+
+    &:hover,
+    &:focus {
+      color: rgb(81, 117, 248);
+    }
+  }
+
+  // --- Tags ------------------------------------------------------------------
+  // Counters `.ant-tag { display: flex }`, which turns each status pill into a
+  // block-level flex box stretching across its whole table column.
+  .ant-tag.ant-tag {
+    display: inline-block;
+  }
+
+  // Counters `.ant-tag { background-color: #ebf3f5; color: #2f7d92 }`, but only
+  // for colourless tags: antd adds a colour class (`ant-tag-green`, …) when
+  // `color` is set, and repainting every tag from here would flatten the green
+  // "Active" pill too.
+  .ant-tag.ant-tag:not([class*="ant-tag-"]) {
+    background-color: rgba(0, 0, 0, 0.02);
+    color: rgba(0, 0, 0, 0.88);
+  }
+
+  // --- Checkboxes ------------------------------------------------------------
+  // Counters WPML leaving a ticked box white with a teal outline:
+  //   .ant-checkbox-checked .ant-checkbox-inner { background-color: #fff;
+  //                                               border-color: rgba(47,125,146,.5) }
+  // antd fills a checked box with `colorPrimary` and draws the tick in white, so
+  // under WPML a ticked Location or Service reads as unticked at a glance.
+  .ant-checkbox-checked .ant-checkbox-inner.ant-checkbox-inner {
+    background-color: #3560fb;
+    border-color: #3560fb;
+  }
+
+  // The tick itself is a rotated pseudo-element drawn with a border.
+  .ant-checkbox-checked .ant-checkbox-inner.ant-checkbox-inner::after {
+    border-color: #fff;
+  }
+
+  .ant-checkbox-indeterminate .ant-checkbox-inner.ant-checkbox-inner::after {
+    background-color: #3560fb;
+  }
+
+  .ant-checkbox-input + .ant-checkbox-inner.ant-checkbox-inner {
+    border-color: rgb(219, 221, 225);
+  }
+
+  .ant-checkbox:hover .ant-checkbox-inner.ant-checkbox-inner,
+  .ant-checkbox-wrapper:hover .ant-checkbox-inner.ant-checkbox-inner {
+    border-color: #3560fb;
+  }
+
+
+}
+
 #rox-appointment-booking-app-root,
 #rox-appointment-booking-onboarding {
   font-family: "Heebo", sans-serif;
@@ -1456,7 +1603,7 @@
   .view-wrapper {
     border-radius: 10px;
     background: #f1f2f7;
-    padding: 10px 18px;
+    padding: 23px 18px;
     min-height: calc(100vh - 82px);
   }
 
@@ -2663,9 +2810,9 @@
 
     .free-to-pro-btn {
       border-radius: 6px;
-      // Swapped with the hover fill below — the deeper yellow is now the
+      // Swapped with the hover fill below — the deeper pink is now the
       // resting state and the paler one is the hover.
-      background: #ffef79;
+      background: #FFB9FF;
       display: flex;
       width: 143px;
       padding: 10px 12px;
@@ -2683,7 +2830,7 @@
       }
 
       &:hover {
-        background: #fff4a2;
+        background: #FFE0FF;
       }
     }
 
@@ -3320,7 +3467,7 @@
     .title {
       color: #151720;
       font-family: "Heebo", sans-serif;
-      font-size: 30px;
+      font-size: 24px;
       font-weight: 600;
     }
 
@@ -4184,7 +4331,7 @@
     justify-content: center;
     align-items: center;
     gap: 4px;
-    background-color: rgba(225, 131, 8, 0.1);
+    background-color: rgba(217, 64, 217, 0.1);
     padding: 4px 8px;
     margin-top: 4px;
     border-radius: 5px;
@@ -4198,7 +4345,7 @@
     font-weight: 600;
     margin-top: 2px;
     display: flex;
-    color: #E18308;
+    color: #D940D9;
     line-height: 1.2;
     white-space: nowrap;
   }
@@ -4240,7 +4387,7 @@
 
   .upgrade-plan-btn {
     height: 36px;
-    background-color: #ffd640;
+    background-color: #FFB9FF;
     border: none;
     border-radius: 6px;
     padding: 12px;
@@ -4258,7 +4405,7 @@
     box-shadow: none;
 
     &:hover {
-      background-color: #FFE482;
+      background-color: #FFE0FF;
       box-shadow: none;
     }
   }
@@ -4380,8 +4527,8 @@
     gap: 4px;
     padding: 4px 8px;
     border-radius: 5px;
-    background: rgba(225, 131, 8, 0.1);
-    color: #e18308;
+    background: rgba(217, 64, 217, 0.1);
+    color: #D940D9;
     font-family: "Heebo", sans-serif;
     font-size: 14px;
     font-weight: 600;
@@ -4425,14 +4572,14 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    background: #FFD640;
+    background: #FFB9FF;
     // antd gives every Button a default drop shadow; this is a flat CTA.
     box-shadow: none;
 
     &:hover,
     &:focus {
       color: #151720 !important;
-      background: #FFE482 !important;
+      background: #FFE0FF !important;
       box-shadow: none;
     }
   }
@@ -4507,8 +4654,8 @@
   // currentColor), so one declaration recolours the whole control.
   &:hover,
   &:focus {
-    background: #ffe482;
-    border-color: #ffe482;
+    background: #FFE0FF;
+    border-color: #FFE0FF;
     color: #151720;
     text-decoration: none;
   }
@@ -4603,7 +4750,7 @@
 
   &:hover,
   &:focus {
-    background: #ffe482 !important;
+    background: #FFE0FF !important;
     color: #151720 !important;
   }
 }
@@ -4671,3 +4818,4 @@
     max-width: 290px;
   }
 }
+

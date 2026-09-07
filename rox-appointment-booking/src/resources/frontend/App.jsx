@@ -12,7 +12,15 @@ import { getAntdLocale, siteLocale } from "../lib/locale.js";
 import { dispatch } from "@wordpress/data";
 import { getBookingServiceStore } from "../redux/booking-service-slice.js";
 import { parseIdList } from "../lib/idList.js";
+import { parsePanelContent } from "../lib/panelContent.js";
 import { readAccent, withAccent } from "../lib/accentTheme.js";
+import { registerLanguageMiddleware } from "../lib/apiLanguage.js";
+
+// Registered at module scope, before any component can fire a request, so every
+// public call carries the page's language. No-op on a single-language site.
+registerLanguageMiddleware(
+  window?.rox_appointment_booking?.config?.frontend?.language
+);
 
 const baseThemeConfig = {
   token: {
@@ -78,6 +86,7 @@ const App = ({
   allowedLocationIds,
   allowedCategoryIds,
   singleAgentId,
+  panelContent,
 }) => {
   // Access frontend config from window object
   const config = window?.rox_appointment_booking?.config?.frontend || {};
@@ -119,6 +128,7 @@ const App = ({
           backgroundColor={backgroundColor}
           allowedLocationIds={allowedLocationIds}
           allowedCategoryIds={allowedCategoryIds}
+          panelContent={panelContent}
           // Locking the panel to one agent skips the location/category/agent
           // steps entirely and opens on that agent's services. Absent on every
           // other surface, which leaves the normal multi-step flow untouched.
@@ -167,6 +177,9 @@ const mountRoot = (rootElement) => {
   // Absent (the plain shortcode) or empty means every location / category.
   const allowedLocationIds = parseIdList(rootElement.dataset.locations);
   const allowedCategoryIds = parseIdList(rootElement.dataset.categories);
+  // Rewritten panel copy, as JSON. Absent (the plain shortcode) or unparsable
+  // leaves every string on the panel's own wording.
+  const panelContent = parsePanelContent(rootElement.dataset.panelContent);
   // Optional agent lock. `0` / absent means the normal flow, so anything that
   // does not parse to a positive id is treated as "no lock".
   const singleAgentId =
@@ -191,6 +204,7 @@ const mountRoot = (rootElement) => {
         allowedLocationIds={allowedLocationIds}
         allowedCategoryIds={allowedCategoryIds}
         singleAgentId={singleAgentId}
+        panelContent={panelContent}
       />
     </StrictMode>
   );

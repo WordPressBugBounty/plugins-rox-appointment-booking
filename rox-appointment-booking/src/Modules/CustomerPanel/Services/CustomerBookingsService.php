@@ -98,7 +98,13 @@ class CustomerBookingsService
         $location = $this->getLocation($appt['location_id'] ?? null);
         $order = $this->getOrderForBooking($id);
 
-        $serviceTitle = $service ? ($service->title ?? '') : esc_html__('Service', 'rox-appointment-booking');
+        // The live catalogue name, translated — not the booking's stored
+        // snapshot. Per the multilingual plan's decision 0.4 the snapshot keeps
+        // the *price* that was charged, while names follow the catalogue so a
+        // customer reading the panel in German never sees an English service.
+        $serviceTitle = $service
+            ? rox_appointment_booking_translate('service', $service->getID(), 'title', (string) ($service->title ?? ''))
+            : esc_html__('Service', 'rox-appointment-booking');
         $agentName = $agent ? $agent->full_name : '';
         $locationTitle = $location['title'] ?? '';
 
@@ -387,7 +393,13 @@ class CustomerBookingsService
         if (!$row) {
             return ['title' => '', 'address' => ''];
         }
-        return ['title' => $row['title'] ?? '', 'address' => $row['address'] ?? ''];
+        // Reads the location table directly rather than through a model, so it
+        // needs the same translation the public location endpoint applies.
+        $locationId = (int) $locationId;
+        return [
+            'title'   => rox_appointment_booking_translate('location', $locationId, 'title', (string) ($row['title'] ?? '')),
+            'address' => rox_appointment_booking_translate('location', $locationId, 'address', (string) ($row['address'] ?? '')),
+        ];
     }
 
     /**

@@ -60,6 +60,147 @@ class EmailRecipientResolver
     }
 
     /**
+     * Resolve the language one recipient type should be written in.
+     *
+     * Resolution order, most specific first:
+     *   1. the `language` column on the customer/agent record
+     *   2. the locale of their linked WordPress user
+     *   3. null — caller falls back to the site default
+     *
+     * Admins always get null: the admin copy is an internal notification, and
+     * with several possible admin addresses there is no single right language.
+     *
+     * @param string $recipientType One of the EmailTemplateRegistry::RECIPIENT_* values.
+     * @param array $context Event context.
+     * @return string|null Language code, or null for the site default.
+     */
+    public static function resolveLanguage(string $recipientType, array $context = []): ?string
+    {
+        switch ($recipientType) {
+            case EmailTemplateRegistry::RECIPIENT_CUSTOMER:
+                $language = self::customerLanguage($context);
+                break;
+            case EmailTemplateRegistry::RECIPIENT_AGENT:
+                $language = self::agentLanguage($context);
+                break;
+            default:
+                $language = null;
+        }
+
+        /**
+         * Filter the language one recipient's e-mail is rendered in.
+         *
+         * @param string|null $language      Resolved language code, or null for the default.
+         * @param string      $recipientType Recipient type.
+         * @param array       $context       Event context.
+         */
+        $language = apply_filters(
+            'rox_appointment_booking_email_language',
+            $language,
+            $recipientType,
+            $context
+        );
+
+        return is_string($language) && $language !== '' ? $language : null;
+    }
+
+    /**
+     * The customer's recorded language, or their WordPress user's locale.
+     *
+     * @param array $context Event context.
+     * @return string|null
+     */
+    private static function customerLanguage(array $context): ?string
+    {
+        $customerId = (int) ($context['customer_id'] ?? 0);
+
+        if ($customerId <= 0) {
+            $first      = self::appointments($context)[0] ?? null;
+            $customerId = (int) ($first->customer_id ?? 0);
+        }
+
+        if ($customerId <= 0) {
+            return null;
+        }
+
+        $customer = CustomerModel::find($customerId);
+
+        if (!$customer) {
+            return null;
+        }
+
+        return self::personLanguage($customer->language ?? null, (int) ($customer->wp_user_id ?? 0));
+    }
+
+    /**
+     * The agent's recorded language, or their WordPress user's locale.
+     *
+     * Only the first agent is consulted: one order can span several agents, but
+     * a single rendered message goes to all of them.
+     *
+     * @param array $context Event context.
+     * @return string|null
+     */
+    private static function agentLanguage(array $context): ?string
+    {
+        $agentId = (int) ($context['agent_id'] ?? 0);
+
+        if ($agentId <= 0) {
+            foreach (self::appointments($context) as $appointment) {
+                if (!empty($appointment->agent_id)) {
+                    $agentId = (int) $appointment->agent_id;
+                    break;
+                }
+            }
+        }
+
+        if ($agentId <= 0) {
+            return null;
+        }
+
+        $agent = AgentModel::find($agentId);
+
+        if (!$agent) {
+            return null;
+        }
+
+        return self::personLanguage($agent->language ?? null, (int) ($agent->wp_user_id ?? 0));
+    }
+
+    /**
+     * Pick a language from a stored preference, falling back to a linked
+     * WordPress user's locale reduced to its language subtag.
+     *
+     * @param string|null $stored Value of the record's `language` column.
+     * @param int $wpUserId Linked WordPress user, 0 when there is none.
+     * @return string|null
+     */
+    private static function personLanguage(?string $stored, int $wpUserId): ?string
+    {
+        $stored = is_string($stored) ? trim($stored) : '';
+
+        if ($stored !== '') {
+            return $stored;
+        }
+
+        if ($wpUserId <= 0) {
+            return null;
+        }
+
+        $locale = get_user_locale($wpUserId);
+
+        if (!is_string($locale) || $locale === '') {
+            return null;
+        }
+
+        // WPML addresses languages by subtag (`de`), WordPress by locale
+        // (`de_DE`) — reduce so the two line up.
+        $language = strtolower((string) strtok($locale, '_-'));
+
+        return $language !== '' ? $language : null;
+    }
+
+    /**
      * The customer's address — taken from the context when the caller already
      * has the customer data, otherwise looked up by id, otherwise read off the
      * booking itself.

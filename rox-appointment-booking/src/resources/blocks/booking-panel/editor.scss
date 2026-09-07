@@ -27,6 +27,40 @@
 	}
 }
 
+// The Panel content section: twenty-odd text fields, grouped under headings so
+// they read as the three parts of the panel they rewrite.
+.rox-panel-content {
+	&__group + &__group {
+		margin-top: 24px;
+		padding-top: 16px;
+		border-top: 1px solid #e0e0e0;
+	}
+
+	&__group-title {
+		margin: 0 0 12px;
+		font-size: 11px;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: #757575;
+	}
+
+	&__media {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+
+	&__media-preview {
+		width: 40px;
+		height: 40px;
+		object-fit: contain;
+		border: 1px solid #ddd;
+		border-radius: 2px;
+	}
+}
+
 // Normal / Hover colour tabs inside the Button colors panel.
 // PanelColorSettings is normally its own collapsible panel; nested inside one it
 // has to drop the frame, or the sidebar shows a panel inside a panel.

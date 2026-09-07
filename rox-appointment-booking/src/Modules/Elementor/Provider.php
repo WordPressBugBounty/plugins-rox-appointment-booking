@@ -21,7 +21,7 @@
 
 namespace RoxAppointmentBooking\Modules\Elementor;
 
-use RoxAppointmentBooking\Supports\BookingButtonAssets;
+use RoxAppointmentBooking\Supports\BookingPanel\BookingButtonAssets;
 use RoxAppointmentBooking\Modules\Elementor\Widgets\BookingPanelWidget;
 use RoxAppointmentBooking\Modules\Elementor\Widgets\LoginFormWidget;
 use RoxAppointmentBooking\Modules\LoginForm\Services\LoginFormShortcode;

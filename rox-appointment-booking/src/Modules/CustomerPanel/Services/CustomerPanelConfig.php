@@ -47,6 +47,13 @@ class CustomerPanelConfig
 
         return [
             'nonce'       => wp_create_nonce('wp_rest'),
+            // The language the customer is reading the panel in, passed back as
+            // `lang` on every request so service names in their booking history
+            // come back translated. Empty with no multilingual plugin active, so
+            // a single-language site sends no extra param.
+            'language'    => rox_appointment_booking_multilingual()->isActive()
+                ? rox_appointment_booking_current_language()
+                : '',
             'apiBaseUrl'  => esc_url_raw(rest_url('rox-appointment-booking/v1/')),
             'restBaseUrl' => esc_url_raw(rest_url()),
             // Nonce-signed WordPress logout URL, pointed back at the frontend

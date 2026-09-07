@@ -113,7 +113,27 @@ abstract class AbstractREST
             );
         }
 
-        return $this->handleRequest($request);
+        // Language for this request. The booking panel and customer panel are
+        // JS apps calling /wp-json directly, so the page's language is not
+        // implied by the REST URL on every WPML URL format — they pass it as
+        // `lang` and it is honoured here, for every endpoint at once.
+        //
+        // `lang` arrives on unauthenticated public requests and is handed to
+        // WPML, so it is whitelisted against the site's active languages rather
+        // than merely escaped; anything unknown falls back to the default.
+        // The switch is always unwound, including when handleRequest() throws:
+        // a leaked switch would corrupt everything rendered later in the same
+        // PHP process, e-mails included.
+        $lang = $request->get_param('lang');
+
+        if ($lang === null || !function_exists('rox_appointment_booking_with_language')) {
+            return $this->handleRequest($request);
+        }
+
+        return rox_appointment_booking_with_language(
+            (string) $lang,
+            fn() => $this->handleRequest($request)
+        );
     }
 
     /**

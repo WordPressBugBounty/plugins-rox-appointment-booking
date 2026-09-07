@@ -42,14 +42,15 @@ class PaymentProcessingService
         $payFullNow = strtolower($params['payment_amount_choice'] ?? 'deposit') === 'full';
         $amount = $payFullNow ? (float) $order->total_amount : (float) $order->amount_due_now;
 
-        // A coupon can wipe out everything due now — a 100% (or >= price)
-        // coupon on the whole order, or one that swallows the entire deposit.
-        // No gateway can take a zero charge (Stripe's minimum is $0.50, PayPal
-        // rejects 0 outright), so settle it here instead of failing the whole
-        // booking. Guarded on a real discount: a zero total with no coupon
-        // behind it is a pricing bug, not a free booking, and is still refused.
+        // Nothing is payable now — either every booked service is priced at 0,
+        // or a coupon wiped out the whole order (or swallowed the entire
+        // deposit). No gateway can take a zero charge (Stripe's minimum is
+        // $0.50, PayPal rejects 0 outright), so settle it here instead of
+        // failing the whole booking. A zero due-now on an order that STILL
+        // owes money is only legitimate when a discount caused it; without one
+        // it is a pricing bug and is still refused.
         if ($amount <= 0) {
-            if ((float) $order->discount_amount <= 0) {
+            if ((float) $order->total_amount > 0 && (float) $order->discount_amount <= 0) {
                 return new WP_Error('invalid_amount', esc_html__('Invalid amount', 'rox-appointment-booking'), ['status' => 400]);
             }
 

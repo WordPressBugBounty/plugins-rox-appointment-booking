@@ -20,7 +20,7 @@ namespace RoxAppointmentBooking\Modules\Elementor;
 
 use Elementor\Controls_Manager;
 use Elementor\Controls_Stack;
-use RoxAppointmentBooking\Supports\NavButtons;
+use RoxAppointmentBooking\Supports\BookingPanel\NavButtons;
 
 if (! defined('ABSPATH')) exit; // Exit if accessed directly
 

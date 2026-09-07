@@ -89,6 +89,18 @@ class SaveService extends AbstractREST
     public function handleRequest(WP_REST_Request $request): WP_REST_Response|WP_Error
     {
         $id = $request->get_param('id');
+
+        // Editing while a translation is the active language would overwrite the
+        // source string with its translation, silently corrupting the original
+        // for every other language. Refuse rather than half-save.
+        if (!rox_appointment_booking_is_default_language()) {
+            return rox_appointment_booking_rest_response(
+                data : null,
+                code : 409,
+                message : esc_html__('Switch to the site default language to edit this service.', 'rox-appointment-booking'),
+                headers : ['status' => 409]
+            );
+        }
         $params = $request->get_params();
 
         // Validate required fields for new services only
@@ -272,13 +284,17 @@ class SaveService extends AbstractREST
             $boolean_fields = [
                 'deposit', 'hide_price_booking_panel', 'hide_duration_booking_panel',
                 'only_visible_to_agent', 'allow_without_agent', 'set_service_specific_payment_methods',
-                'active_minimum_extra_service', 'active_maximum_extra_service'
+                'active_minimum_extra_service', 'active_maximum_extra_service',
+                'minimum_advance_enable', 'maximum_advance_enable'
             ];
 
             // Fields living on the Pro-locked Settings tab: a non-Pro save never
             // submits them, so leave the stored value untouched instead of resetting
             // it to false (otherwise a Pro user's setting would be wiped on any edit).
-            $preserve_when_absent = ['allow_without_agent', 'hide_price_booking_panel'];
+            $preserve_when_absent = [
+                'allow_without_agent', 'hide_price_booking_panel',
+                'minimum_advance_enable', 'maximum_advance_enable'
+            ];
 
             foreach ($boolean_fields as $field) {
                 if (isset($params[$field])) {
@@ -304,6 +320,20 @@ class SaveService extends AbstractREST
             // an invalid capacity.
             if (isset($params['without_agent_capacity'])) {
                 $params['without_agent_capacity'] = max(1, intval($params['without_agent_capacity']));
+            }
+
+            // Booking window: every half is a count, so clamp to a non-negative
+            // integer. Only when present — the Pro-locked Settings tab does not
+            // submit them, and overwriting with 0 there would erase the window on
+            // any unrelated edit.
+            $advance_fields = [
+                'minimum_advance_days', 'minimum_advance_hours',
+                'maximum_advance_days', 'maximum_advance_hours',
+            ];
+            foreach ($advance_fields as $advance_field) {
+                if (isset($params[$advance_field])) {
+                    $params[$advance_field] = max(0, intval($params[$advance_field]));
+                }
             }
 
             // Group booking is a Pro feature — block a non-Pro save from newly
@@ -411,6 +441,15 @@ class SaveService extends AbstractREST
             if (isset($params['extra_services'])) {
                 $this->handleExtraServiceRelationships($service, $params);
             }
+
+            /**
+             * Fires after a service record is created or updated.
+             *
+             * @param string       $entity Entity key.
+             * @param ServiceModel $service Saved model.
+             * @param bool         $isNew Whether the record was just created.
+             */
+            do_action('rox_appointment_booking_after_entity_saved', 'service', $service, !$id);
 
             return rox_appointment_booking_rest_response(
                 data : [

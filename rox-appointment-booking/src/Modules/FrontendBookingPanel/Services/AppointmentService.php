@@ -10,6 +10,7 @@ use RoxAppointmentBooking\Modules\Payment\Data\PaymentModel;
 use RoxAppointmentBooking\Modules\Notification\Services\NotificationService;
 use RoxAppointmentBooking\Modules\Customer\Services\CustomerService;
 use RoxAppointmentBooking\Modules\Service\Data\ServiceModel;
+use RoxAppointmentBooking\Modules\Service\Services\ServiceService;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceCategoryRelationModel;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceLocationRelationModel;
 
@@ -90,6 +91,40 @@ class AppointmentService
                 return new WP_Error(
                     'service_scope_mismatch',
                     esc_html__('Selected service is not available for the chosen category or location.', 'rox-appointment-booking'),
+                    ['status' => 409]
+                );
+            }
+
+            // BOOKING WINDOW:
+            // A service can be restricted to slots no sooner than X and no further
+            // out than Y. The panel already hides everything outside that window,
+            // but a stale open tab or a direct API call can still post one, so the
+            // write path enforces both ends too.
+            $slot_time = strtotime($appointmentData['date'] . ' ' . $appointmentData['start_time']);
+            $now_time = strtotime(current_time('mysql'));
+
+            $minimum_advance = ServiceService::minimumAdvanceMinutes($service);
+            if ($minimum_advance > 0 && (!$slot_time || $slot_time < $now_time + $minimum_advance * 60)) {
+                return new WP_Error(
+                    'minimum_advance_required',
+                    sprintf(
+                        // translators: %s = the minimum window, e.g. "5 days 4 hours"
+                        esc_html__('This service must be booked at least %s before it starts. Please choose a later date or time.', 'rox-appointment-booking'),
+                        esc_html(ServiceService::formatAdvanceWindow($minimum_advance))
+                    ),
+                    ['status' => 409]
+                );
+            }
+
+            $maximum_advance = ServiceService::maximumAdvanceMinutes($service);
+            if ($maximum_advance > 0 && (!$slot_time || $slot_time > $now_time + $maximum_advance * 60)) {
+                return new WP_Error(
+                    'maximum_advance_exceeded',
+                    sprintf(
+                        // translators: %s = the maximum window, e.g. "90 days"
+                        esc_html__('This service can only be booked up to %s ahead. Please choose an earlier date or time.', 'rox-appointment-booking'),
+                        esc_html(ServiceService::formatAdvanceWindow($maximum_advance))
+                    ),
                     ['status' => 409]
                 );
             }
@@ -658,12 +693,13 @@ class AppointmentService
         // The store's configured currency, not a hardcoded USD — every amount
         // on this order is charged in whatever the payment settings say.
         $order->currency       = strtoupper(rox_appointment_booking_payment_settings('payment_currency') ?? 'USD');
-        // A fully discounted order never reaches a gateway — PaymentProcessing
-        // Service settles it directly — so don't stamp it with a method that
-        // was only whatever card happened to be selected on screen. A discount
-        // that merely clears the deposit is NOT free: total_amount is still
-        // owed, and that balance will be collected through the chosen method.
-        $order->payment_method = ($total_amount <= 0 && $discount_amount > 0)
+        // An order with nothing to pay never reaches a gateway — free services,
+        // or a coupon covering the lot; PaymentProcessingService settles it
+        // directly — so don't stamp it with a method that was only whatever
+        // card happened to be selected on screen. A discount that merely clears
+        // the deposit is NOT free: total_amount is still owed, and that balance
+        // will be collected through the chosen method.
+        $order->payment_method = $total_amount <= 0
             ? 'free'
             : match ($paymentType) {
                 'later' => 'pay_later',

@@ -165,7 +165,7 @@ class GetAgent extends AbstractREST
             'happy_customers' => $agent->happy_customers ?? 0,
             'certifications' => $agent->certifications ?? 0,
             'work_days' => $this->getWorkDays($agent->weekly_schedule),
-            'bio' => $agent->bio ?? '',
+            'bio' => rox_appointment_booking_translate('agent', $agent->getID(), 'bio', (string) ($agent->bio ?? '')),
             'socials' => $this->getSocialsMap($agent),
         ];
         if ($detailed) {
@@ -174,7 +174,7 @@ class GetAgent extends AbstractREST
                 'first_name' => $agent->first_name ?? null,
                 'last_name' => $agent->last_name ?? null,
                 'full_name' => $agent->getFullName(),
-                'title' => $agent->title ?? null,
+                'title' => rox_appointment_booking_translate('agent', $agent->getID(), 'title', (string) ($agent->title ?? '')),
                 'location_id' => $agent->location_id ?? null,
                 'service_ids' => ServiceAgentRelationModel::query()
                     ->where('agent_id', $agent->getID())
@@ -192,7 +192,7 @@ class GetAgent extends AbstractREST
                 'happy_customers' => $agent->happy_customers ?? 0,
                 'certifications' => $agent->certifications ?? 0,
                 'work_days' => $this->getWorkDays($agent->weekly_schedule),
-                'bio' => $agent->bio ?? '',
+                'bio' => rox_appointment_booking_translate('agent', $agent->getID(), 'bio', (string) ($agent->bio ?? '')),
                 'socials' => $this->getSocialsMap($agent),
             ]);
         }

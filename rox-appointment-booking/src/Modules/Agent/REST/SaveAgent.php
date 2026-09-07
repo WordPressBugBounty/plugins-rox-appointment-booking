@@ -102,6 +102,18 @@ class SaveAgent extends AbstractREST
         $id = $request->get_param('id');
         $params = $request->get_params();
 
+        // Editing while a translation is the active language would overwrite the
+        // source string with its translation, silently corrupting the original
+        // for every other language. Refuse rather than half-save.
+        if (!rox_appointment_booking_is_default_language()) {
+            return rox_appointment_booking_rest_response(
+                data : null,
+                code : 409,
+                message : esc_html__('Switch to the site default language to edit this agent.', 'rox-appointment-booking'),
+                headers : ['status' => 409]
+            );
+        }
+
         // The free plan allows only a single agent; creating more requires Pro.
         if (
             !$id
@@ -403,6 +415,15 @@ class SaveAgent extends AbstractREST
                     );
                 }
             }
+            /**
+             * Fires after an agent record is created or updated.
+             *
+             * @param string     $entity Entity key.
+             * @param AgentModel $agent Saved model.
+             * @param bool       $isNew Whether the record was just created.
+             */
+            do_action('rox_appointment_booking_after_entity_saved', 'agent', $agent, !$id);
+
             return rox_appointment_booking_rest_response(
                 data : [
                     'id' => $agent->getID(),

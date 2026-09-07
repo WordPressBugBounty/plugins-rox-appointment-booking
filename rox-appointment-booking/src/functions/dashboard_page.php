@@ -46,6 +46,15 @@ if (!function_exists('rox_appointment_booking_dashboard_url')) {
 			return '';
 		}
 
+		// On a multilingual site the stored id is the source page; point at the
+		// translation for the language in play so an e-mail link or logout
+		// redirect does not drop the visitor onto the wrong language. Falls back
+		// to the source id when there is no translation, and is a plain
+		// passthrough with no multilingual plugin installed.
+		if (function_exists('rox_appointment_booking_translated_post_id')) {
+			$page_id = rox_appointment_booking_translated_post_id($page_id, 'page');
+		}
+
 		$page = get_post($page_id);
 		if (!$page || $page->post_status !== 'publish') {
 			return '';

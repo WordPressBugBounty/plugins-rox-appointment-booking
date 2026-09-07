@@ -60,6 +60,9 @@ const readSettings = (trigger) => ({
 	hideInfo: trigger.dataset.hideInfo === "true",
 	locations: trigger.dataset.locations || "",
 	categories: trigger.dataset.categories || "",
+	// The panel's rewritten copy, as the JSON blob PHP wrote. Handed on
+	// untouched — the panel parses it.
+	panelContent: trigger.dataset.panelContent || "",
 	agentId: trigger.dataset.agentId || "0",
 	// The panel's own grey frame. Absent means off: the modal already supplies
 	// a card, so only a surface that offers the toggle switches it on.

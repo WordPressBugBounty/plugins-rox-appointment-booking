@@ -5,6 +5,7 @@
 // (holiday > special day off > weekly day_off).
 
 import dayjs from "dayjs";
+import { getSiteNow } from "../../lib/locale.js";
 
 // JS Date.getDay() order (0=Sun) → the day names the schedule endpoint uses.
 // These are wire values matched against `weekly_schedule[].day_name`, not UI
@@ -69,10 +70,33 @@ export function bookedTimesForDate(schedule, dateStr) {
   );
 }
 
-// Whether a calendar date is unbookable: holiday > special day off > weekly
-// day_off (matched by day name, exactly like the frontend booking panel).
+// The booking window's two ends, as the site's own clock reads them. The
+// schedule is a per-weekday template with no notion of "now", so these are what
+// turn it into real dates: nothing sooner than `first`, nothing later than
+// `last`. `last` is null when the service sets no maximum.
+function bookingWindow(schedule) {
+  const maxMinutes = Number(schedule?.maximum_advance_minutes) || 0;
+  return {
+    first: getSiteNow(Number(schedule?.minimum_advance_minutes) || 0),
+    last: maxMinutes > 0 ? getSiteNow(maxMinutes) : null,
+  };
+}
+
+// Whether a whole date sits outside the booking window — too soon to book, or
+// further out than the service allows.
+function isOutsideWindow(schedule, dateStr) {
+  const { first, last } = bookingWindow(schedule);
+  return dateStr < first.date || (last !== null && dateStr > last.date);
+}
+
+// Whether a calendar date is unbookable: outside the booking window, or
+// holiday > special day off > weekly day_off (matched by day name, exactly like
+// the frontend booking panel).
 export function isDateOff(schedule, dateStr) {
   if (!schedule) return false;
+  // A date the window rules out has no pickable slot on it, so it disables
+  // alongside the days off rather than opening to an all-grey slot list.
+  if (isOutsideWindow(schedule, dateStr)) return true;
   if (Array.isArray(schedule.holidays) && schedule.holidays.includes(dateStr)) {
     return true;
   }
@@ -97,9 +121,22 @@ export function daySlotsFor(schedule, dateStr) {
   const times = timeslotsForDate(schedule, dateStr);
   if (!times) return [];
   const booked = bookedTimesForDate(schedule, dateStr);
+
+  // Read on the site's clock rather than the visitor's, since the slots are
+  // site-local wall time. Without this today's earlier times stay pickable all
+  // day, and a service with a maximum stays bookable years out.
+  const { first, last } = bookingWindow(schedule);
+  const hhmm = (time) => String(time).slice(0, 5);
+  const outsideWindow = (time) =>
+    dateStr < first.date ||
+    (dateStr === first.date && hhmm(time) <= hhmm(first.time)) ||
+    (last !== null &&
+      (dateStr > last.date ||
+        (dateStr === last.date && hhmm(time) > hhmm(last.time))));
+
   return times.map((time) => ({
     value: time,
     label: to12h(time),
-    disabled: booked.has(time),
+    disabled: booked.has(time) || outsideWindow(time),
   }));
 }

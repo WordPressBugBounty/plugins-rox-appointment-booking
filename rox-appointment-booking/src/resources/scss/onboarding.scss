@@ -23,17 +23,6 @@
   }
 }
 
-.wp-logo {
-  position: fixed;
-  top: -135px;
-  left: unset;
-  right: -105px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #F1F2F7;
-}
-
 .onboarding-container {
   max-width: 680px;
   width: 100%;
@@ -137,8 +126,8 @@
   justify-content: center;
   gap: 4px;
   border-radius: 5px;
-  background: rgba(225, 131, 8, 0.10);
-  color: #E18308;
+  background: rgba(217, 64, 217, 0.10);
+  color: #D940D9;
   font-size: 12px;
   font-weight: 600;
   padding: 4px 4px 4px 6px;
@@ -938,14 +927,14 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background-color: #FFD640;
+  background-color: #FFB9FF;
   margin-top: 20px;
   transition: background-color 0.2s ease;
   // AntD's default `.ant-btn` box-shadow shows as a faint line under the button.
   box-shadow: none;
 
   &:hover {
-    background-color: #FFE482 !important;
+    background-color: #FFE0FF !important;
     color: #151720 !important;
   }
 }

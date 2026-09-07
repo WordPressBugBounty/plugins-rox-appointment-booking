@@ -4,7 +4,7 @@ Tags: booking, reservation, appointments, calendar
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.6
+Stable tag: 1.2.7
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -271,6 +271,21 @@ After activation, you can configure the plugin settings from the WordPress admin
 
 
 == Changelog ==
+Version: 1.2.7 // 2026-09-07
+* Added: WPML and Polylang support — all booking content can now be translated.
+* Added: Booking Restrictions under Settings > General — a minimum and a maximum time before booking, so a slot cannot be taken too late or booked a year ahead.
+* Added: E-mails are sent in the customer's or the agent's own language.
+* Added: "Re-scan strings for translation" button in Settings, for content saved before the translation plugin.
+* Added: Panel Content controls for the booking panel block and Elementor widget — rewrite every step heading and step list label.
+* Added: Sidebar image, title, subtitle and help box controls for the panel's first step.
+* Added: "Add to Your Site" section in Settings, with the shortcode, block and widget for every feature.
+* Improved: "Form Fields" is now called "Custom Fields".
+* Improved: Content is edited in the default language and translated in the translation plugin.
+* Improved: Cabinet links in e-mails point to the translated page.
+* Improved: The Location wording controls are hidden when the panel has no Location step.
+* Improved: Zero-priced services can now be booked without a payment gateway.
+* Fixed: Past time slots were still offered for today, in the booking panel and the admin calendar.
+
 Version: 1.2.6 // 2026-09-02
 * Added: Appointment Status row on the appointment view drawer.
 * Added: New design for the logged in notice on the login form.

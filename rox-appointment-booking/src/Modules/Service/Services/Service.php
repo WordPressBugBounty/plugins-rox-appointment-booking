@@ -574,4 +574,100 @@ class ServiceService
 
         return $service->duration ?? false;
     }
+
+    /**
+     * The soonest a slot may be booked: minutes that must sit between now and
+     * the slot's start.
+     *
+     * @param ServiceModel|null $service Service to read the window from.
+     * @return int Minutes, 0 when there is no minimum.
+     */
+    public static function minimumAdvanceMinutes(?ServiceModel $service): int
+    {
+        return self::advanceWindow($service, 'minimum');
+    }
+
+    /**
+     * The furthest ahead a slot may be booked: minutes between now and the last
+     * slot still on offer.
+     *
+     * @param ServiceModel|null $service Service to read the window from.
+     * @return int Minutes, 0 when there is no maximum.
+     */
+    public static function maximumAdvanceMinutes(?ServiceModel $service): int
+    {
+        return self::advanceWindow($service, 'maximum');
+    }
+
+    /**
+     * One end of the booking window, resolved across its two tiers.
+     *
+     * The site-wide default in General settings is free. A service can carry
+     * its own window and override that, but only while Pro is active — same
+     * idiom as allow_without_agent: without Pro the stored per-service value is
+     * ignored rather than wiped, so it resumes if Pro comes back, and the site
+     * falls back to the global setting in the meantime rather than to nothing.
+     *
+     * @param ServiceModel|null $service Service to read the override from.
+     * @param string $bound 'minimum' or 'maximum'.
+     * @return int Minutes, 0 when neither tier sets this bound.
+     */
+    private static function advanceWindow(?ServiceModel $service, string $bound): int
+    {
+        $enable = $bound . '_advance_enable';
+        $days = $bound . '_advance_days';
+        $hours = $bound . '_advance_hours';
+
+        if (
+            $service
+            && defined('ROX_APPOINTMENT_BOOKING_PRO_VERSION')
+            && !empty($service->{$enable})
+        ) {
+            return self::advanceMinutes($service->{$days}, $service->{$hours});
+        }
+
+        $settings = rox_appointment_booking_general_settings();
+
+        if (empty($settings[$enable])) {
+            return 0;
+        }
+
+        return self::advanceMinutes($settings[$days] ?? 0, $settings[$hours] ?? 0);
+    }
+
+    /**
+     * Days + hours as a single minute count, both halves floored at 0.
+     *
+     * @param mixed $days
+     * @param mixed $hours
+     * @return int
+     */
+    private static function advanceMinutes($days, $hours): int
+    {
+        return max(0, (int) $days) * 1440 + max(0, (int) $hours) * 60;
+    }
+
+    /**
+     * Human-readable form of a booking-window bound, for error messages.
+     *
+     * @param int $minutes Minutes in the window.
+     * @return string e.g. "5 days 4 hours".
+     */
+    public static function formatAdvanceWindow(int $minutes): string
+    {
+        $days = intdiv($minutes, 1440);
+        $hours = intdiv($minutes % 1440, 60);
+
+        $parts = [];
+        if ($days > 0) {
+            // translators: %d = number of days
+            $parts[] = sprintf(_n('%d day', '%d days', $days, 'rox-appointment-booking'), $days);
+        }
+        if ($hours > 0) {
+            // translators: %d = number of hours
+            $parts[] = sprintf(_n('%d hour', '%d hours', $hours, 'rox-appointment-booking'), $hours);
+        }
+
+        return implode(' ', $parts);
+    }
 }

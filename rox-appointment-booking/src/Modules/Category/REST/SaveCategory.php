@@ -75,6 +75,18 @@ class SaveCategory extends AbstractREST
         $id = $request->get_param('id');
         $params = $request->get_params();
 
+        // Editing while a translation is the active language would overwrite the
+        // source string with its translation, silently corrupting the original
+        // for every other language. Refuse rather than half-save.
+        if (!rox_appointment_booking_is_default_language()) {
+            return rox_appointment_booking_rest_response(
+                data: null,
+                code: 409,
+                message: esc_html__('Switch to the site default language to edit this category.', 'rox-appointment-booking'),
+                headers: ['status' => 409]
+            );
+        }
+
         // Validate required field
         if (empty($params['title'])) {
             return rox_appointment_booking_rest_response(
@@ -154,6 +166,15 @@ class SaveCategory extends AbstractREST
             $category->sort_order = !empty($params['sort_order']) ? (int)$params['sort_order'] : 0;
             $category->internal_notes = !empty($params['internal_notes']) ? sanitize_text_field($params['internal_notes']) : null;
             $category->save();
+
+            /**
+             * Fires after a category record is created or updated.
+             *
+             * @param string        $entity Entity key.
+             * @param CategoryModel $category Saved model.
+             * @param bool          $isNew Whether the record was just created.
+             */
+            do_action('rox_appointment_booking_after_entity_saved', 'category', $category, !$id);
 
             $message = $id ? esc_html__('Category updated successfully', 'rox-appointment-booking') : esc_html__('Category created successfully', 'rox-appointment-booking');
             $code = $id ? 200 : 201;

@@ -18,6 +18,7 @@
 		"headingAlign": { "type": "string", "default": "" },
 		"headingMargin": { "type": "object", "default": {} },
 		"contentMargin": { "type": "object", "default": {} },
+		"panelContent": { "type": "object", "default": {} },
 		"showBackground": { "type": "boolean", "default": true },
 		"backgroundColor": { "type": "string", "default": "" },
 		"accentColor": { "type": "string", "default": "" },

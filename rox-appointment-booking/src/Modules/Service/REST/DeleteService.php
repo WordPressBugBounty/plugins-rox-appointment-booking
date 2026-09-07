@@ -95,6 +95,7 @@ class DeleteService extends AbstractREST
                     try {
                         $this->deleteServiceRelationships($singleId);
                         $service->delete();
+                        do_action('rox_appointment_booking_after_entity_deleted', 'service', $singleId);
                         $deleted[] = $singleId;
                     } catch (\Exception $e) {
                         $errors[] = $e->getMessage();
@@ -136,6 +137,7 @@ class DeleteService extends AbstractREST
         try {
             $this->deleteServiceRelationships($id);
             $service->delete();
+            do_action('rox_appointment_booking_after_entity_deleted', 'service', $id);
             return rox_appointment_booking_rest_response(
                 data : null,
                 message : esc_html__('Service deleted successfully', 'rox-appointment-booking'),

@@ -73,10 +73,12 @@ class GetCategory extends AbstractREST
     {
         $serviceCount = CategoryService::getServicesCountByCatId($category->getID());
 
+        $categoryId = $category->getID();
+
         $data = [
-            'id' => $category->getID(),
-            'name' => $category->title,
-            'description' => $category->description,
+            'id' => $categoryId,
+            'name' => rox_appointment_booking_translate('category', $categoryId, 'title', (string) $category->title),
+            'description' => rox_appointment_booking_translate('category', $categoryId, 'description', (string) $category->description),
             'services_count' => $serviceCount,
             'iconPath' => $category->thumbnail_id ? wp_get_attachment_url($category->thumbnail_id) : '',
         ];

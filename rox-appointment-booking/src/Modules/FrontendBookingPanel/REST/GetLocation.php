@@ -71,19 +71,19 @@ class GetLocation extends AbstractREST
     {
         $data = [
             'id' => $location->getID(),
-            'name' => $location->getName(),
+            'name' => rox_appointment_booking_translate('location', $location->getID(), 'title', (string) $location->getName()),
             // In the list shape alongside `name`, not just the detailed one: the
             // booking panel stores whichever location the customer picked on the
             // booking item and renders its address on the confirmation receipt,
             // without ever re-fetching the location by id.
-            'address' => $location->getFormattedAddress(),
+            'address' => rox_appointment_booking_translate('location', $location->getID(), 'address', (string) $location->getFormattedAddress()),
             'iconPath' => $location->thumbnail_id ? wp_get_attachment_url($location->thumbnail_id) : '',
             'backgroundColor' => '#FCEFE3',
         ];
 
         if ($detailed) {
             $data = array_merge($data, [
-                'description' => $location->description,
+                'description' => rox_appointment_booking_translate('location', $location->getID(), 'description', (string) $location->description),
                 'thumbnail_id' => $location->thumbnail_id,
                 'geo_position' => $location->geo_position,
                 'internal_notes' => $location->internal_notes,

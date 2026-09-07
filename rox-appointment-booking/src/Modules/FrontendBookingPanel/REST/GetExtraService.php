@@ -71,8 +71,8 @@ class GetExtraService extends AbstractREST
         
         $data = [
             'id' => $extraService->getID(),
-            'name' => $extraService->title ? $extraService->title : '',
-            'description' => $extraService->description,
+            'name' => rox_appointment_booking_translate('extra_service', $extraService->getID(), 'title', (string) ($extraService->title ?: '')),
+            'description' => rox_appointment_booking_translate('extra_service', $extraService->getID(), 'description', (string) $extraService->description),
             'duration' => $extraService->getFormattedDuration(),
             'currency' => $currency,
             'currency_symbol' => rox_appointment_booking__get_currency_symbol($currency),
@@ -84,8 +84,8 @@ class GetExtraService extends AbstractREST
 
         if ($detailed) {
             $data = array_merge($data, [
-                'title' => $extraService->title,
-                'description' => $extraService->description,
+                'title' => rox_appointment_booking_translate('extra_service', $extraService->getID(), 'title', (string) $extraService->title),
+                'description' => rox_appointment_booking_translate('extra_service', $extraService->getID(), 'description', (string) $extraService->description),
                 'price' => $extraService->price,
                 'formatted_price' => $extraService->getFormattedPrice(),
                 'duration' => $extraService->getFormattedDuration(), // Duration formatted like GetService.php

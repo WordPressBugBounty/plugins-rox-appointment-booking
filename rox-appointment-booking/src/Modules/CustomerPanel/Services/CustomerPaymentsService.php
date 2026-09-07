@@ -146,7 +146,7 @@ class CustomerPaymentsService
             if ($appointment && !empty($appointment->service_id)) {
                 $service = ServiceModel::find((int) $appointment->service_id);
                 if ($service && !empty($service->title)) {
-                    $serviceTitle = $service->title;
+                    $serviceTitle = rox_appointment_booking_translate('service', $service->getID(), 'title', (string) $service->title);
                 }
             }
         } elseif ($order) {
@@ -157,7 +157,7 @@ class CustomerPaymentsService
                 if ($appointment && !empty($appointment->service_id)) {
                     $service = ServiceModel::find((int) $appointment->service_id);
                     if ($service && !empty($service->title)) {
-                        $serviceTitles[] = $service->title;
+                        $serviceTitles[] = rox_appointment_booking_translate('service', $service->getID(), 'title', (string) $service->title);
                     }
                 }
             }

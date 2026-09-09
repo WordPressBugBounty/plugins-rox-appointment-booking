@@ -19,7 +19,7 @@ import { registerLanguageMiddleware } from "../lib/apiLanguage.js";
 // Registered at module scope, before any component can fire a request, so every
 // public call carries the page's language. No-op on a single-language site.
 registerLanguageMiddleware(
-  window?.rox_appointment_booking?.config?.frontend?.language
+  window?.rox_appointment_booking?.config?.app?.language
 );
 
 const baseThemeConfig = {
@@ -75,6 +75,10 @@ const App = ({
   instanceId,
   type,
   hideNavigation,
+  serviceColumns,
+  showDashboardButton,
+  dashboardButtonText,
+  dashboardButtonUrl,
   contentMargin,
   headingAlign,
   headingMargin,
@@ -120,6 +124,10 @@ const App = ({
           instanceId={instanceId}
           type={type}
           hideNavigation={hideNavigation}
+          serviceColumns={serviceColumns}
+          showDashboardButton={showDashboardButton}
+          dashboardButtonText={dashboardButtonText}
+          dashboardButtonUrl={dashboardButtonUrl}
           contentMargin={contentMargin}
           headingAlign={headingAlign}
           headingMargin={headingMargin}
@@ -159,6 +167,15 @@ const mountRoot = (rootElement) => {
   const instanceId = rootElement.dataset.instance;
   const type = rootElement.dataset.type;
   const hideNavigation = rootElement.dataset.hideNavigation === "true";
+  // Service cards per row on the Services step. A missing / unparseable value
+  // leaves the panel on the stylesheet's own default.
+  const serviceColumns = parseInt(rootElement.dataset.serviceColumns, 10);
+  // The confirmation screen's "Go to Dashboard" button. Absent attribute keeps
+  // it on; an explicit "false" hides it. Blank text / url fall back to the
+  // built-in label and the plugin's dashboard page.
+  const showDashboardButton = rootElement.dataset.showDashboardButton !== "false";
+  const dashboardButtonText = rootElement.dataset.dashboardButtonText || "";
+  const dashboardButtonUrl = rootElement.dataset.dashboardButtonUrl || "";
   // Four comma-separated lengths each, top/right/bottom/left. Only read once
   // a column is hidden; the stylesheet is what enforces that.
   const contentMargin = rootElement.dataset.contentMargin || "";
@@ -193,6 +210,10 @@ const mountRoot = (rootElement) => {
         instanceId={instanceId}
         type={type}
         hideNavigation={hideNavigation}
+        serviceColumns={serviceColumns > 0 ? serviceColumns : undefined}
+        showDashboardButton={showDashboardButton}
+        dashboardButtonText={dashboardButtonText}
+        dashboardButtonUrl={dashboardButtonUrl}
         contentMargin={contentMargin}
         headingAlign={headingAlign}
         headingMargin={headingMargin}

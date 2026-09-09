@@ -88,7 +88,6 @@ class GetCategory extends AbstractREST
                 'parent_id' => $category->parent_id,
                 'service_ids' => $this->getServiceIdsByCategoryId($category->getID()),
                 'thumbnail_id' => $category->thumbnail_id,
-                'internal_notes' => $category->internal_notes,
                 'created_at' => $category->created_at,
                 'updated_at' => $category->updated_at,
             ]);

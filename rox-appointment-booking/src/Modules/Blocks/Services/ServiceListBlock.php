@@ -214,6 +214,10 @@ class ServiceListBlock
             'is_user_logged_in' => is_user_logged_in(),
             'logout_url'        => html_entity_decode(wp_logout_url()),
             'dashboardUrl'      => rox_appointment_booking_dashboard_url(),
+            // Optional override for the Pay Later confirm button on the payment
+            // step (Settings > Payments > Pay Later). Empty keeps the panel's
+            // own "Confirm Booking".
+            'payLaterButtonLabel' => sanitize_text_field((string) rox_appointment_booking_payment_settings('pay_later_button_label', '')),
             'timezone'          => get_option('timezone_string') ?: 'UTC',
             'dateFormat'        => get_option('date_format') ?: 'Y-m-d',
             'timeFormat'        => get_option('time_format') ?: 'H:i:s',

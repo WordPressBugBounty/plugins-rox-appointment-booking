@@ -86,7 +86,10 @@ class GetPayments extends AbstractREST
                 'stripe_account_country' => rox_appointment_booking_payment_settings('stripe_account_country', ''),
                 'stripe_mode' => rox_appointment_booking_payment_settings('stripe_mode', ''),
                 'stripe_connected_at' => rox_appointment_booking_payment_settings('stripe_connected_at', ''),
-                'default_payment_status' => rox_appointment_booking_payment_settings('default_payment_status') ?? 'unpaid'
+                'default_payment_status' => rox_appointment_booking_payment_settings('default_payment_status') ?? 'unpaid',
+                // Overrides the booking panel's Pay Later confirm button text;
+                // empty means the panel keeps its own "Confirm Booking".
+                'pay_later_button_label' => rox_appointment_booking_payment_settings('pay_later_button_label', '')
             ];
             
             $payments_settings = wp_parse_args($payments_settings, $defaults);

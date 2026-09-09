@@ -8,6 +8,7 @@ use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
 use RoxAppointmentBooking\Modules\Multilingual\Services\MultilingualService;
 use RoxAppointmentBooking\Modules\Multilingual\Services\StringBackfillService;
+use RoxAppointmentBooking\Modules\Multilingual\Services\JsStringBridge;
 
 /**
  * Class RescanStrings
@@ -112,16 +113,36 @@ class RescanStrings extends AbstractREST
 
         update_option(StringBackfillService::DONE_OPTION, time());
 
+        // Also re-register the JS/React UI strings and drop any cached
+        // translations JSON, so a just-translated label shows up immediately
+        // instead of waiting out JsStringBridge's cache. Time-bounded inside
+        // registerAll(); whatever it does not reach is picked up by the
+        // background batches on the next few admin page loads.
+        //
+        // Guarded because the record scan above has already succeeded and
+        // been recorded: a failure in this second, additive step must not
+        // turn the whole button into an error.
+        $uiStringCount = 0;
+
+        try {
+            $uiStringCount = JsStringBridge::registerAll();
+            JsStringBridge::flushCache();
+        } catch (\Throwable $e) {
+            JsStringBridge::resetProgress();
+        }
+
         return rox_appointment_booking_rest_response(
             data : [
-                'records'  => (int) $result['records'],
-                'entities' => array_map('intval', $result['entities']),
-                'skipped'  => array_values(array_map('sanitize_key', $result['skipped'])),
+                'records'   => (int) $result['records'],
+                'entities'  => array_map('intval', $result['entities']),
+                'skipped'   => array_values(array_map('sanitize_key', $result['skipped'])),
+                'uiStrings' => $uiStringCount,
             ],
             message : sprintf(
-                // translators: %d = number of records scanned
-                esc_html__('%d records registered for translation.', 'rox-appointment-booking'),
-                (int) $result['records']
+                // translators: %1$d = number of records scanned, %2$d = number of UI strings registered
+                esc_html__('%1$d records and %2$d interface strings registered for translation.', 'rox-appointment-booking'),
+                (int) $result['records'],
+                $uiStringCount
             )
         );
     }

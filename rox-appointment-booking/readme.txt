@@ -4,7 +4,7 @@ Tags: booking, reservation, appointments, calendar
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.7
+Stable tag: 1.2.8
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -271,6 +271,24 @@ After activation, you can configure the plugin settings from the WordPress admin
 
 
 == Changelog ==
+Version: 1.2.8 // 2026-09-09
+* Added: Service columns control, one or two per row, for the booking panel block and Elementor widget.
+* Added: Show, rename and relink the confirmation screen's "Go to Dashboard" button.
+* Added: "Confirm button text" field under Settings > Payments > Pay Later.
+* Added: Fill colour, normal and hover, for an outline popup button.
+* Added: Remove button for an extra service in the booking summary sidebar.
+* Added: Loading placeholders on the panel's location, category, service, agent and extra service steps.
+* Improved: WPML and Polylang now translate the booking panel's own interface text.
+* Improved: "Re-scan strings for translation" now registers the interface strings too.
+* Improved: The Pay Later step's button now reads "Confirm Booking".
+* Improved: The comment box on the Customer Information step is taller and resizable.
+* Improved: Deposit Type and Deposit Amount are required while deposits are enabled.
+* Fixed: Editors, subscribers and shop managers were sent to the booking dashboard after login.
+* Fixed: Customers signing in landed on the admin dashboard, not the customer dashboard page.
+* Fixed: The booking panel did not follow the page's language on a Polylang site.
+* Fixed: A price arriving as text could blank the panel or add up wrong.
+* Fixed: The first step's sidebar illustration shifted the content below it while loading.
+
 Version: 1.2.7 // 2026-09-07
 * Added: WPML and Polylang support — all booking content can now be translated.
 * Added: Booking Restrictions under Settings > General — a minimum and a maximum time before booking, so a slot cannot be taken too late or booked a year ahead.

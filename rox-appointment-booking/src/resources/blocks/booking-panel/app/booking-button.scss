@@ -215,6 +215,17 @@
 	.rox-booking-button__label {
 		display: inline-block;
 	}
+
+	// A full-width button fills its wrapper, so the wrapper has to be as wide as
+	// the container. In normal flow it already is, but as a flex or grid item —
+	// a Group block laid out in a row, an Elementor container — it shrinks to
+	// its content and the button shrinks with it. Only set when the width
+	// control asks for it: an unconditional 100% would overflow a wrapper the
+	// surface gave a horizontal margin, which `auto` accounts for and a
+	// percentage does not.
+	&--full {
+		width: 100%;
+	}
 }
 
 

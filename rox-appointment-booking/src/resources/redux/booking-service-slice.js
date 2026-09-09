@@ -12,7 +12,7 @@ export const SESSION_STORAGE_KEY = "rox_appointment_booking_service_state";
  * @return {string}
  */
 const panelLanguage = () =>
-  window?.rox_appointment_booking?.config?.frontend?.language || "";
+  window?.rox_appointment_booking?.config?.app?.language || "";
 
 /**
  * The sessionStorage key a panel instance persists under.

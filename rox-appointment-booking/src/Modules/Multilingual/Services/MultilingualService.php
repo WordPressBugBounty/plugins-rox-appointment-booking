@@ -47,6 +47,16 @@ class MultilingualService
     private DriverInterface $driver;
 
     /**
+     * How many withLanguage() calls are currently on the stack. Non-zero
+     * means a caller explicitly asked to run in a given language, which is
+     * what separates "editing a translation" from "an editor whose admin
+     * happens to be in another language". See isDefaultLanguage().
+     *
+     * @var int
+     */
+    private int $explicitSwitchDepth = 0;
+
+    /**
      * Pick a driver and, when WPML is half-installed, say so.
      */
     public function __construct()
@@ -322,17 +332,39 @@ class MultilingualService
         $previous = $this->currentLanguage();
         $target = $this->sanitizeLanguage($lang);
 
-        if ($target === $previous) {
-            return $callback();
-        }
-
-        $this->driver->switchLanguage($target);
+        // Counted even when the target matches what is already active: what
+        // isDefaultLanguage() needs to know is that the *caller asked for* a
+        // specific language, not merely that one happens to be active.
+        $this->explicitSwitchDepth++;
 
         try {
-            return $callback();
+            if ($target === $previous) {
+                return $callback();
+            }
+
+            $this->driver->switchLanguage($target);
+
+            try {
+                return $callback();
+            } finally {
+                $this->driver->switchLanguage($previous);
+            }
         } finally {
-            $this->driver->switchLanguage($previous);
+            $this->explicitSwitchDepth--;
         }
+    }
+
+    /**
+     * Whether the current code path is running inside an explicit
+     * withLanguage() switch — i.e. a caller asked for a specific language,
+     * rather than simply inheriting whatever the multilingual plugin had
+     * active for the request.
+     *
+     * @return bool
+     */
+    public function isExplicitlySwitched(): bool
+    {
+        return $this->explicitSwitchDepth > 0;
     }
 
     /**
@@ -390,7 +422,26 @@ class MultilingualService
      */
     public function isDefaultLanguage(): bool
     {
-        return !$this->driver->isActive() || $this->currentLanguage() === $this->defaultLanguage();
+        if (!$this->driver->isActive()) {
+            return true;
+        }
+
+        // Ambient language is not enough to call a request "a translation".
+        // wp-admin legitimately runs in the editor's own profile language —
+        // and WPML resolves its current language from that on REST calls —
+        // while the admin screens still load and save *source* records: no
+        // admin endpoint translates anything, and the admin bundle never
+        // sends `lang`. Treating that as editing a translation would block
+        // every save for an editor whose WordPress is not in English.
+        //
+        // Only an explicit switch (AbstractREST wrapping handleRequest() in
+        // withLanguage() because the request carried `lang`) means
+        // translated content is actually in play.
+        if (!$this->isExplicitlySwitched()) {
+            return true;
+        }
+
+        return $this->currentLanguage() === $this->defaultLanguage();
     }
 
     /**

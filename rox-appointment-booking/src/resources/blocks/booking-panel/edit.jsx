@@ -233,6 +233,8 @@ const Edit = ({ attributes, setAttributes }) => {
 		buttonBackgroundColorHover,
 		buttonTextColorHover,
 		buttonBorderColorHover,
+		buttonFillColor,
+		buttonFillColorHover,
 		buttonBorderStyle,
 		buttonBorderWidth,
 		buttonBorderRadius,
@@ -242,9 +244,22 @@ const Edit = ({ attributes, setAttributes }) => {
 
 	const isPopup = displayMode === "popup";
 
+	// Width and alignment used to share `buttonAlign`, which meant touching one
+	// silently reset the other. They are separate attributes now; blocks saved
+	// under the old scheme still carry "full" here, so read through these two
+	// rather than the raw attributes, and write both on the next change.
+	const isLegacyFull = buttonAlign === "full";
+	const align = isLegacyFull ? "left" : buttonAlign || "left";
+	const width = isLegacyFull ? "full" : buttonWidth || "auto";
+
+	// The block's own wrapper is the flex item inside a Group laid out in a row,
+	// so a full-width button needs the stretch here rather than on the inner
+	// wrapper — that one is in normal flow and already fills this.
 	const blockProps = useBlockProps({
 		className: isPopup
-			? "rox-booking-button-block-editor"
+			? `rox-booking-button-block-editor${
+					width === "full" ? " rox-booking-button-wrap--full" : ""
+				}`
 			: "rox-booking-panel-block-editor",
 	});
 
@@ -289,14 +304,6 @@ const Edit = ({ attributes, setAttributes }) => {
 	// the icon is picked once and then left alone.
 	const [iconPickerOpen, setIconPickerOpen] = useState(false);
 
-	// Width and alignment used to share `buttonAlign`, which meant touching one
-	// silently reset the other. They are separate attributes now; blocks saved
-	// under the old scheme still carry "full" here, so read through these two
-	// rather than the raw attributes, and write both on the next change.
-	const isLegacyFull = buttonAlign === "full";
-	const align = isLegacyFull ? "left" : buttonAlign || "left";
-	const width = isLegacyFull ? "full" : buttonWidth || "auto";
-
 	// On tablet and mobile the control shows what is actually in force — the
 	// device's own value or the inherited one — and writes to that device only.
 	const deviceAlign = isDesktop
@@ -316,26 +323,35 @@ const Edit = ({ attributes, setAttributes }) => {
 	const isFilled = buttonStyle === "filled";
 	// A link variant is plain text: no box, so no border and no radius.
 	const hasBox = buttonStyle !== "link";
+	// Outline spends its accent on the label and border, which leaves the fill
+	// itself with no control — this is that control. Not offered for link,
+	// which is text with no surface to fill.
+	const isOutline = buttonStyle === "outline";
 
-	const colorSettings = (bg, fg, border, onBg, onFg, onBorder) =>
+	const colorSettings = (values, set) =>
 		[
 			{
-				value: bg || undefined,
+				value: values.accent || undefined,
 				// Clearing hands back `undefined`; store "" so the attribute keeps
 				// its declared string type.
-				onChange: (value) => onBg(value || ""),
+				onChange: (value) => set.accent(value || ""),
 				label: isFilled
 					? __("Background", "rox-appointment-booking")
 					: __("Accent", "rox-appointment-booking"),
 			},
 			isFilled && {
-				value: fg || undefined,
-				onChange: (value) => onFg(value || ""),
+				value: values.text || undefined,
+				onChange: (value) => set.text(value || ""),
 				label: __("Text", "rox-appointment-booking"),
 			},
+			isOutline && {
+				value: values.fill || undefined,
+				onChange: (value) => set.fill(value || ""),
+				label: __("Background", "rox-appointment-booking"),
+			},
 			hasBox && {
-				value: border || undefined,
-				onChange: (value) => onBorder(value || ""),
+				value: values.border || undefined,
+				onChange: (value) => set.border(value || ""),
 				label: __("Border", "rox-appointment-booking"),
 			},
 		].filter(Boolean);
@@ -924,12 +940,20 @@ const Edit = ({ attributes, setAttributes }) => {
 										title=""
 										initialOpen
 										colorSettings={colorSettings(
-											buttonBackgroundColor,
-											buttonTextColor,
-											buttonBorderColor,
-											(value) => setAttributes({ buttonBackgroundColor: value }),
-											(value) => setAttributes({ buttonTextColor: value }),
-											(value) => setAttributes({ buttonBorderColor: value }),
+											{
+												accent: buttonBackgroundColor,
+												text: buttonTextColor,
+												fill: buttonFillColor,
+												border: buttonBorderColor,
+											},
+											{
+												accent: (value) =>
+													setAttributes({ buttonBackgroundColor: value }),
+												text: (value) => setAttributes({ buttonTextColor: value }),
+												fill: (value) => setAttributes({ buttonFillColor: value }),
+												border: (value) =>
+													setAttributes({ buttonBorderColor: value }),
+											},
 										)}
 									/>
 								) : (
@@ -938,13 +962,22 @@ const Edit = ({ attributes, setAttributes }) => {
 										title=""
 										initialOpen
 										colorSettings={colorSettings(
-											buttonBackgroundColorHover,
-											buttonTextColorHover,
-											buttonBorderColorHover,
-											(value) =>
-												setAttributes({ buttonBackgroundColorHover: value }),
-											(value) => setAttributes({ buttonTextColorHover: value }),
-											(value) => setAttributes({ buttonBorderColorHover: value }),
+											{
+												accent: buttonBackgroundColorHover,
+												text: buttonTextColorHover,
+												fill: buttonFillColorHover,
+												border: buttonBorderColorHover,
+											},
+											{
+												accent: (value) =>
+													setAttributes({ buttonBackgroundColorHover: value }),
+												text: (value) =>
+													setAttributes({ buttonTextColorHover: value }),
+												fill: (value) =>
+													setAttributes({ buttonFillColorHover: value }),
+												border: (value) =>
+													setAttributes({ buttonBorderColorHover: value }),
+											},
 										)}
 									/>
 								)
@@ -1016,6 +1049,24 @@ const Edit = ({ attributes, setAttributes }) => {
 									)
 						}
 					/>
+					{/* How many service cards sit side by side on the Services
+					    step. The stylesheet keeps it one-per-row on narrow
+					    screens whatever this says. */}
+					<RangeControl
+						label={__("Service columns", "rox-appointment-booking")}
+						value={attributes.serviceColumns ?? 2}
+						onChange={(value) =>
+							setAttributes({ serviceColumns: value || 2 })
+						}
+						min={1}
+						max={2}
+						help={__(
+							"Number of service cards per row on the Services step. Always one per row on narrow screens.",
+							"rox-appointment-booking",
+						)}
+						__nextHasNoMarginBottom
+					/>
+
 					{/* Opt-in, and left alone by default: the heading sits where it
 					    always has unless an editor says otherwise. */}
 					<SelectControl
@@ -1227,6 +1278,58 @@ const Edit = ({ attributes, setAttributes }) => {
 						setAttributes={setAttributes}
 					/>
 				</PanelBody>
+				<PanelBody
+					title={__("Go to Dashboard button", "rox-appointment-booking")}
+					initialOpen={false}
+				>
+					{/* The confirmation screen's button. Off for a public panel
+					    whose visitors have no account to reach; when on, its
+					    label and target are the editor's. */}
+					<ToggleControl
+						label={__("Show button", "rox-appointment-booking")}
+						checked={attributes.showDashboardButton !== false}
+						onChange={(value) =>
+							setAttributes({ showDashboardButton: value })
+						}
+						help={__(
+							"On the booking confirmation screen. Turn off for a public panel where visitors have no account.",
+							"rox-appointment-booking",
+						)}
+						__nextHasNoMarginBottom
+					/>
+					{attributes.showDashboardButton !== false && (
+						<>
+							<TextControl
+								label={__("Button text", "rox-appointment-booking")}
+								value={attributes.dashboardButtonText || ""}
+								placeholder={__(
+									"Go to Dashboard",
+									"rox-appointment-booking",
+								)}
+								onChange={(value) =>
+									setAttributes({ dashboardButtonText: value })
+								}
+								__nextHasNoMarginBottom
+							/>
+							<TextControl
+								label={__("Button link", "rox-appointment-booking")}
+								value={attributes.dashboardButtonUrl || ""}
+								placeholder={__(
+									"Customer dashboard page",
+									"rox-appointment-booking",
+								)}
+								onChange={(value) =>
+									setAttributes({ dashboardButtonUrl: value })
+								}
+								help={__(
+									"Leave empty to use the plugin's customer dashboard page.",
+									"rox-appointment-booking",
+								)}
+								__nextHasNoMarginBottom
+							/>
+						</>
+					)}
+				</PanelBody>
 			</InspectorControls>
 
 			<div {...blockProps}>
@@ -1246,6 +1349,8 @@ const Edit = ({ attributes, setAttributes }) => {
 						backgroundColorHover={buttonBackgroundColorHover}
 						textColorHover={buttonTextColorHover}
 						borderColorHover={buttonBorderColorHover}
+						fillColor={buttonFillColor}
+						fillColorHover={buttonFillColorHover}
 						borderStyle={buttonBorderStyle}
 						padding={resolved(attributes, "buttonPadding", device) || {}}
 						margin={resolved(attributes, "buttonMargin", device) || {}}

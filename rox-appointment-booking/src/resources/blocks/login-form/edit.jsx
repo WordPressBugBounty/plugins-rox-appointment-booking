@@ -154,7 +154,7 @@ const Edit = ({ attributes, setAttributes }) => {
 					<TextControl
 						label={__("Redirect after login (URL)", "rox-appointment-booking")}
 						help={__(
-							"Leave empty to send the user to the WordPress admin.",
+							"Leave empty to send booking agents and customers to their dashboard. Everyone else stays on this page.",
 							"rox-appointment-booking",
 						)}
 						value={redirectUrl}

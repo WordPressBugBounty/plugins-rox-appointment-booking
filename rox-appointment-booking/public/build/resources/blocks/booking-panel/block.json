@@ -31,6 +31,22 @@
       "type": "boolean",
       "default": false
     },
+    "serviceColumns": {
+      "type": "number",
+      "default": 2
+    },
+    "showDashboardButton": {
+      "type": "boolean",
+      "default": true
+    },
+    "dashboardButtonText": {
+      "type": "string",
+      "default": ""
+    },
+    "dashboardButtonUrl": {
+      "type": "string",
+      "default": ""
+    },
     "headingAlign": {
       "type": "string",
       "default": ""
@@ -252,6 +268,14 @@
       "default": ""
     },
     "buttonBorderColorHover": {
+      "type": "string",
+      "default": ""
+    },
+    "buttonFillColor": {
+      "type": "string",
+      "default": ""
+    },
+    "buttonFillColorHover": {
       "type": "string",
       "default": ""
     },

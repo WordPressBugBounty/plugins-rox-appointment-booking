@@ -229,6 +229,11 @@ const BookingModal = ({
 		root.dataset.instance = settings.instance || "1";
 		root.dataset.type = "booking-form";
 		root.dataset.hideNavigation = settings.hideNavigation ? "true" : "false";
+		root.dataset.serviceColumns = settings.serviceColumns || "";
+		root.dataset.showDashboardButton =
+			settings.showDashboardButton === false ? "false" : "true";
+		root.dataset.dashboardButtonText = settings.dashboardButtonText || "";
+		root.dataset.dashboardButtonUrl = settings.dashboardButtonUrl || "";
 		root.dataset.contentMargin = settings.contentMargin || "";
 		root.dataset.headingAlign = settings.headingAlign || "";
 		root.dataset.headingMargin = settings.headingMargin || "";

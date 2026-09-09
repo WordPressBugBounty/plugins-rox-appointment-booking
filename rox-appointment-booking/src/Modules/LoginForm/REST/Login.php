@@ -110,6 +110,11 @@ class Login extends AbstractREST
             $wp_user = get_user_by('email', $params['email']);
 
             if (!$wp_user || !wp_check_password($params['password'], $wp_user->user_pass, $wp_user->ID)) {
+                // Let login-hardening plugins (Wordfence, Limit Login Attempts)
+                // see the failed attempt so they can throttle brute force — this
+                // endpoint bypasses wp-login.php where they normally hook.
+                do_action('wp_login_failed', $params['email'], new \WP_Error('invalid_email_or_password', esc_html__('Invalid email or password', 'rox-appointment-booking')));
+
                 return new WP_REST_Response([
                     'success' => false,
                     'code' => 401,
@@ -127,7 +132,7 @@ class Login extends AbstractREST
                 ->first();
 
             if ($customer) {
-                return $this->loginAndRespond($wp_user, $this->customerData($customer));
+                return $this->loginAndRespond($wp_user, $this->customerData($customer, $wp_user));
             }
 
             $agent = AgentModel::query()
@@ -138,7 +143,7 @@ class Login extends AbstractREST
             // Only a login-enabled agent may sign in here; disabling login unlinks
             // the WordPress user, but the flag is enforced explicitly regardless.
             if ($agent && $agent->canLogin()) {
-                return $this->loginAndRespond($wp_user, $this->agentData($agent));
+                return $this->loginAndRespond($wp_user, $this->agentData($agent, $wp_user));
             }
 
             return new WP_REST_Response([
@@ -191,9 +196,10 @@ class Login extends AbstractREST
      * compatible.
      *
      * @param CustomerModel $customer Matched customer record.
+     * @param \WP_User      $wp_user  The WordPress account being signed in.
      * @return array
      */
-    private function customerData(CustomerModel $customer): array
+    private function customerData(CustomerModel $customer, \WP_User $wp_user): array
     {
         return [
             'role' => 'customer',
@@ -205,16 +211,18 @@ class Login extends AbstractREST
             'wp_user_id' => $customer->wp_user_id,
             'created_at' => $customer->created_at,
             'updated_at' => $customer->updated_at,
+            'redirect_url' => rox_appointment_booking_panel_redirect_url($wp_user),
         ];
     }
 
     /**
      * Build the response payload for an agent login.
      *
-     * @param AgentModel $agent Matched agent record.
+     * @param AgentModel $agent   Matched agent record.
+     * @param \WP_User   $wp_user The WordPress account being signed in.
      * @return array
      */
-    private function agentData(AgentModel $agent): array
+    private function agentData(AgentModel $agent, \WP_User $wp_user): array
     {
         return [
             'role' => 'agent',
@@ -230,7 +238,10 @@ class Login extends AbstractREST
             // REST login sets the auth cookie directly, so the wp-login.php
             // `login_redirect` filter (UserManagement\LoginManagement) never
             // fires — the redirect has to travel back in the response instead.
-            'redirect_url' => admin_url('admin.php?page=rox-appointment-booking-dashboard#/appointment'),
+            // Empty for an account that holds neither booking role (an
+            // administrator linked to an agent record, say); the form then
+            // falls back to whatever redirect the surface was given.
+            'redirect_url' => rox_appointment_booking_panel_redirect_url($wp_user),
         ];
     }
 }

@@ -32,7 +32,8 @@ class LoginFormConfig
      * Build the login form mount config.
      *
      * @param string $redirect_url Optional redirect target after a successful
-     *                             login. Empty string ⇒ the plugin dashboard.
+     *                             login. Empty string ⇒ let the login response
+     *                             decide (booking roles only).
      * @param string $login_label  Optional Login button label. Empty string ⇒ the
      *                             app's default ("Login").
      * @param bool   $show_google  Whether the surface wants the "Sign in with
@@ -49,25 +50,27 @@ class LoginFormConfig
         $api_base  = esc_url_raw(rest_url('rox-appointment-booking/v1/'));
         $logged_in = is_user_logged_in();
 
-        // Sanitise first, then fall back: a value `esc_url_raw()` rejects (e.g. a
-        // `javascript:` url) must land on the default too, not leave the field
-        // empty for the app to interpret.
+        // A value `esc_url_raw()` rejects (e.g. a `javascript:` url) collapses to
+        // an empty string, which is also what "the surface set no redirect"
+        // looks like — both mean "no url from this surface".
+        //
+        // There is deliberately no default url here. This used to send every
+        // successful login to the plugin dashboard, which took editors,
+        // subscribers, shop managers and administrators who happen to also be a
+        // booking customer somewhere they have no business being. The login
+        // response now carries a per-role `redirect_url` instead
+        // (rox_appointment_booking_panel_redirect_url()), so only booking agents
+        // and customers are sent to a dashboard; anyone else stays on the page
+        // they logged in from. A surface that sets its own redirect still wins
+        // for everybody, since that is the site owner's explicit choice.
         $redirect_url = esc_url_raw(trim($redirect_url));
-        if ($redirect_url === '') {
-            // The plugin's own dashboard page rather than bare wp-admin: it is
-            // registered with the `read` capability so a customer can open it,
-            // and it carries the `page` slug WooCommerceCompat matches on when
-            // WooCommerce is around to bounce capability-less users out of
-            // wp-admin. A surface that sets its own redirect still wins.
-            $redirect_url = esc_url_raw(admin_url('admin.php?page=rox-appointment-booking-dashboard'));
-        }
 
         $config = [
             'loginApi'        => $api_base . 'public/login',
             'resetRequestApi' => $api_base . 'public/customer/reset-password-request',
             'setPasswordApi'  => $api_base . 'public/customer/reset-password',
             'nonce'           => wp_create_nonce('wp_rest'),
-            // Already resolved above: the surface's url, or the plugin dashboard.
+            // The surface's own url, or empty to let the login response decide.
             'redirectUrl'     => $redirect_url,
             'loginLabel'      => sanitize_text_field($login_label),
             // When someone is already signed in there is nothing to log into, so

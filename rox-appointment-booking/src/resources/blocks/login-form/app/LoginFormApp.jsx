@@ -126,11 +126,12 @@ export default function LoginFormApp({ config = {} }) {
   };
 
   /**
-   * Sends the visitor on after a successful login. The login response may carry
-   * its own `redirect_url` (e.g. agents land on the admin dashboard) which wins;
-   * otherwise the surface's `redirectUrl` setting applies (filled server-side,
-   * defaults to the WordPress admin). The reload is only a fallback for a config
-   * that carries no url at all.
+   * Sends the visitor on after a successful login. The login response carries a
+   * role-decided `redirect_url` which wins — agents land on the admin dashboard,
+   * customers on the frontend dashboard page, and an account holding neither
+   * booking role gets none. Next comes the surface's own `redirectUrl` setting
+   * when the site owner filled one in. With neither, the page simply reloads
+   * into its logged-in state.
    *
    * @param {object} [data] The login response `data` (password or Google flow).
    */

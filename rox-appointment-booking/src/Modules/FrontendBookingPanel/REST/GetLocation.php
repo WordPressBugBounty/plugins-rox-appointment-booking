@@ -86,7 +86,6 @@ class GetLocation extends AbstractREST
                 'description' => rox_appointment_booking_translate('location', $location->getID(), 'description', (string) $location->description),
                 'thumbnail_id' => $location->thumbnail_id,
                 'geo_position' => $location->geo_position,
-                'internal_notes' => $location->internal_notes,
                 'service_ids' => $this->getServiceIdsByLocationId($location->getID()),
                 'created_at' => $location->created_at,
                 'updated_at' => $location->updated_at,

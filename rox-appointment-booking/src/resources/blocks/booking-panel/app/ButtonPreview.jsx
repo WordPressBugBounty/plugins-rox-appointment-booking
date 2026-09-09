@@ -119,6 +119,8 @@ const buttonStyle = ({
 	backgroundColorHover,
 	textColorHover,
 	borderColorHover,
+	fillColor,
+	fillColorHover,
 	borderWidth,
 	borderStyle,
 	borderRadius,
@@ -149,6 +151,19 @@ const buttonStyle = ({
 					"--rox-btn-fg": backgroundColor,
 					"--rox-btn-fg-hover": backgroundColorHover,
 				};
+
+	// The fill pair, which only the variants without one of their own use. The
+	// variant tints its fill on hover, so the resting fill stands in as the
+	// hover one unless an explicit hover fill was picked — otherwise the tint
+	// would wipe out a colour an editor chose deliberately.
+	if (style !== "filled") {
+		if (fillColor) {
+			colors["--rox-btn-bg"] = fillColor;
+			colors["--rox-btn-bg-hover"] = fillColorHover || fillColor;
+		} else if (fillColorHover) {
+			colors["--rox-btn-bg-hover"] = fillColorHover;
+		}
+	}
 
 	// `link` draws no box, so a border colour would have nothing to paint.
 	if (style !== "link") {

@@ -93,7 +93,6 @@ class GetExtraService extends AbstractREST
                 'is_active' => $extraService->isActive(),
                 'created_at' => $extraService->created_at,
                 'updated_at' => $extraService->updated_at,
-                'internal_notes' => $extraService->internal_notes,
                 'duration_in_hours' => $extraService->getDurationInHours(),
                 'duration_raw' => $extraService->duration, // Raw duration value for form editing
                 'thumbnail_id' => $extraService->thumbnail_id,

@@ -53,6 +53,14 @@ const readSettings = (trigger) => ({
 	modalWidth: parseInt(trigger.dataset.modalWidth, 10) || 1100,
 	resetOnClose: trigger.dataset.resetOnClose === "true",
 	hideNavigation: trigger.dataset.hideNavigation === "true",
+	// Service cards per row on the Services step; blank leaves the panel's
+	// own default.
+	serviceColumns: trigger.dataset.serviceColumns || "",
+	// The confirmation screen's "Go to Dashboard" button. "false" hides it;
+	// blank text / url fall back to the built-in label and dashboard page.
+	showDashboardButton: trigger.dataset.showDashboardButton !== "false",
+	dashboardButtonText: trigger.dataset.dashboardButtonText || "",
+	dashboardButtonUrl: trigger.dataset.dashboardButtonUrl || "",
 	// Four comma-separated lengths each, top/right/bottom/left.
 	contentMargin: trigger.dataset.contentMargin || "",
 	headingAlign: trigger.dataset.headingAlign || "",

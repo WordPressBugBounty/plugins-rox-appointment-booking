@@ -281,6 +281,10 @@ class BookingPanelBlock
             'is_user_logged_in' => is_user_logged_in(),
             'logout_url'        => html_entity_decode(wp_logout_url()),
             'dashboardUrl'      => rox_appointment_booking_dashboard_url(),
+            // Optional override for the Pay Later confirm button on the payment
+            // step (Settings > Payments > Pay Later). Empty keeps the panel's
+            // own "Confirm Booking".
+            'payLaterButtonLabel' => sanitize_text_field((string) rox_appointment_booking_payment_settings('pay_later_button_label', '')),
         ];
     }
 
@@ -327,6 +331,18 @@ class BookingPanelBlock
         $hide_navigation = !empty($attributes['hideNavigation']) ? 'true' : 'false';
         $hide_info       = !empty($attributes['hideInfo']) ? 'true' : 'false';
 
+        // How many service cards sit per row on the Services step, clamped to
+        // the 1-4 the panel supports. Delegated so the inline panel and the
+        // popup normalise it the same way.
+        $service_columns = (string) BookingButtonMarkup::serviceColumns($attributes['serviceColumns'] ?? 2);
+
+        // The confirmation screen's "Go to Dashboard" button: whether it shows,
+        // and the editor's own label / target when it does. Empty text and URL
+        // fall back to "Go to Dashboard" and the customer dashboard page.
+        $show_dashboard_button = (!array_key_exists('showDashboardButton', $attributes) || !empty($attributes['showDashboardButton'])) ? 'true' : 'false';
+        $dashboard_button_text = $this->str($attributes['dashboardButtonText'] ?? '');
+        $dashboard_button_url  = esc_url_raw($this->str($attributes['dashboardButtonUrl'] ?? ''));
+
         // The grey frame around the panel; the colour is dropped unless it
         // sanitises to a plain hex / rgb() value.
         $show_background  = $this->showBackground($attributes) ? 'true' : 'false';
@@ -347,7 +363,7 @@ class BookingPanelBlock
         $panel_content = PanelContent::toAttr($attributes['panelContent'] ?? []);
 
         return sprintf(
-            '<div %1$s><div class="rox-appointment-booking-frontend-root"%10$s data-instance="%2$s" data-type="booking-form" data-hide-navigation="%3$s" data-hide-info="%4$s" data-content-margin="%11$s" data-heading-align="%12$s" data-heading-margin="%13$s" data-show-background="%5$s" data-background-color="%6$s" data-font-family="%7$s" data-locations="%8$s" data-categories="%9$s" data-panel-content="%14$s"></div></div>',
+            '<div %1$s><div class="rox-appointment-booking-frontend-root"%10$s data-instance="%2$s" data-type="booking-form" data-hide-navigation="%3$s" data-hide-info="%4$s" data-service-columns="%15$s" data-show-dashboard-button="%16$s" data-dashboard-button-text="%17$s" data-dashboard-button-url="%18$s" data-content-margin="%11$s" data-heading-align="%12$s" data-heading-margin="%13$s" data-show-background="%5$s" data-background-color="%6$s" data-font-family="%7$s" data-locations="%8$s" data-categories="%9$s" data-panel-content="%14$s"></div></div>',
             $wrapper_attributes,
             // Prefixed per surface: the instance id keys the panel's store, and
             // every surface counts from 1, so a bare number would let a panel
@@ -364,7 +380,11 @@ class BookingPanelBlock
             esc_attr($this->contentSpacing($attributes, 'contentMargin', true)),
             esc_attr($this->headingAlign($attributes)),
             esc_attr($this->contentSpacing($attributes, 'headingMargin', true)),
-            esc_attr($panel_content)
+            esc_attr($panel_content),
+            esc_attr($service_columns),
+            esc_attr($show_dashboard_button),
+            esc_attr($dashboard_button_text),
+            esc_attr($dashboard_button_url)
         );
     }
 
@@ -421,8 +441,17 @@ class BookingPanelBlock
             wp_enqueue_style(BookingButtonAssets::VIEW_HANDLE);
         }
 
+        // A full-width button fills this wrapper, so the wrapper has to fill the
+        // container — which it does not do on its own once it is a flex or grid
+        // item, as it is inside a Group block laid out in a row. Blocks saved
+        // before width and alignment were separate controls carry the width in
+        // the alignment value, the same normalisation render() makes.
+        $is_full = ($attributes['buttonWidth'] ?? 'auto') === 'full'
+            || ($attributes['buttonAlign'] ?? '') === 'full';
+
         $wrapper_attributes = get_block_wrapper_attributes([
-            'class' => 'rox-booking-button-wrap',
+            'class' => 'rox-booking-button-wrap'
+                . ($is_full ? ' rox-booking-button-wrap--full' : ''),
         ]);
 
         return BookingButtonMarkup::render(
@@ -441,6 +470,8 @@ class BookingPanelBlock
                 'backgroundColorHover' => $attributes['buttonBackgroundColorHover'] ?? '',
                 'textColorHover'       => $attributes['buttonTextColorHover'] ?? '',
                 'borderColorHover'     => $attributes['buttonBorderColorHover'] ?? '',
+                'fillColor'            => $attributes['buttonFillColor'] ?? '',
+                'fillColorHover'       => $attributes['buttonFillColorHover'] ?? '',
                 'borderWidth'          => $attributes['buttonBorderWidth'] ?? 1,
                 'borderWidthTablet'    => $attributes['buttonBorderWidthTablet'] ?? null,
                 'borderWidthMobile'    => $attributes['buttonBorderWidthMobile'] ?? null,
@@ -472,6 +503,10 @@ class BookingPanelBlock
                 'modalWidth'           => $attributes['modalWidth'] ?? 1100,
                 'hideNavigation'       => !empty($attributes['hideNavigation']),
                 'hideInfo'             => !empty($attributes['hideInfo']),
+                'serviceColumns'       => $attributes['serviceColumns'] ?? 2,
+                'showDashboardButton'  => !array_key_exists('showDashboardButton', $attributes) || !empty($attributes['showDashboardButton']),
+                'dashboardButtonText'  => $attributes['dashboardButtonText'] ?? '',
+                'dashboardButtonUrl'   => $attributes['dashboardButtonUrl'] ?? '',
                 'contentMargin'        => $attributes['contentMargin'] ?? [],
                 'headingAlign'         => $this->headingAlign($attributes),
                 'headingMargin'        => $attributes['headingMargin'] ?? [],

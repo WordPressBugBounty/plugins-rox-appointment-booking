@@ -153,7 +153,7 @@ class LoginFormWidget extends Widget_Base
                 'label'       => esc_html__('Redirect after login (URL)', 'rox-appointment-booking'),
                 'type'        => Controls_Manager::TEXT,
                 'default'     => '',
-                'description' => esc_html__('Leave empty to send the user to the WordPress admin.', 'rox-appointment-booking'),
+                'description' => esc_html__('Leave empty to send booking agents and customers to their dashboard. Everyone else stays on this page.', 'rox-appointment-booking'),
             ]
         );
 

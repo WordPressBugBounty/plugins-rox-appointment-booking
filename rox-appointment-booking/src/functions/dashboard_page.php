@@ -65,3 +65,54 @@ if (!function_exists('rox_appointment_booking_dashboard_url')) {
 		return $permalink ? $permalink : '';
 	}
 }
+
+if (!function_exists('rox_appointment_booking_panel_redirect_url')) {
+	/**
+	 * Where a booking agent or customer belongs right after logging in, or an
+	 * empty string for everyone else.
+	 *
+	 * Only the plugin's own two roles are answered for. Every other login —
+	 * editors, authors, contributors, subscribers, WooCommerce shop managers —
+	 * has nothing to do with bookings and keeps whatever destination WordPress
+	 * or the site owner picked. Administrators are left alone too: they belong
+	 * on the WordPress dashboard even when they also carry a booking role.
+	 *
+	 * Agents work inside wp-admin, so they get the admin dashboard; the same
+	 * precedence CustomerPanelApp applies, so an agent who also holds the
+	 * customer role is an agent here. Customers get the frontend dashboard page,
+	 * falling back to the admin page (which serves the same panel bundle) when
+	 * that page was never created or has been trashed.
+	 *
+	 * @param \WP_User|null $user User to answer for. Defaults to the current user.
+	 * @return string
+	 */
+	function rox_appointment_booking_panel_redirect_url($user = null) {
+		if (!($user instanceof \WP_User)) {
+			$user = wp_get_current_user();
+		}
+
+		if (!$user || !$user->exists()) {
+			return '';
+		}
+
+		$roles = (array) $user->roles;
+
+		if (in_array('administrator', $roles, true)) {
+			return '';
+		}
+
+		$admin_dashboard = admin_url('admin.php?page=rox-appointment-booking-dashboard');
+
+		if (in_array('rox_appointment_booking_agent', $roles, true)) {
+			return $admin_dashboard . '#/appointment';
+		}
+
+		if (in_array('rox_appointment_booking_customer', $roles, true)) {
+			$dashboard_url = rox_appointment_booking_dashboard_url();
+
+			return $dashboard_url ? $dashboard_url : $admin_dashboard;
+		}
+
+		return '';
+	}
+}

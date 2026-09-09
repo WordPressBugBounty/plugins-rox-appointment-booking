@@ -218,6 +218,61 @@ class BookingPanelWidget extends Widget_Base
         // The panel the modal builds sits on <body>, outside {{WRAPPER}}, so
         // every rule is written to it as well.
         NavButtonSection::register($this, BookingButtonMarkup::PANEL_OWNER_SELECTOR);
+
+        $this->registerDashboardButtonSection();
+    }
+
+    /**
+     * The confirmation screen's "Go to Dashboard" button: whether it shows, and
+     * its label / target when it does. Its own section rather than a row in
+     * Layout — it belongs with the nav buttons, after the Back / Next sections.
+     *
+     * @return void
+     */
+    protected function registerDashboardButtonSection(): void
+    {
+        $this->start_controls_section(
+            'dashboard_button',
+            ['label' => esc_html__('Go to Dashboard button', 'rox-appointment-booking')]
+        );
+
+        $this->add_control(
+            'show_dashboard_button',
+            [
+                'label'        => esc_html__('Show button', 'rox-appointment-booking'),
+                'type'         => Controls_Manager::SWITCHER,
+                'return_value' => 'yes',
+                'default'      => 'yes',
+                'description'  => esc_html__('On the booking confirmation screen. Turn off for a public panel where visitors have no account.', 'rox-appointment-booking'),
+            ]
+        );
+
+        $this->add_control(
+            'dashboard_button_text',
+            [
+                'label'       => esc_html__('Button text', 'rox-appointment-booking'),
+                'type'        => Controls_Manager::TEXT,
+                'default'     => '',
+                'placeholder' => esc_html__('Go to Dashboard', 'rox-appointment-booking'),
+                'label_block' => true,
+                'condition'   => ['show_dashboard_button' => 'yes'],
+            ]
+        );
+
+        $this->add_control(
+            'dashboard_button_url',
+            [
+                'label'       => esc_html__('Button link', 'rox-appointment-booking'),
+                'type'        => Controls_Manager::TEXT,
+                'default'     => '',
+                'placeholder' => esc_html__('Customer dashboard page', 'rox-appointment-booking'),
+                'label_block' => true,
+                'description' => esc_html__("Leave empty to use the plugin's customer dashboard page.", 'rox-appointment-booking'),
+                'condition'   => ['show_dashboard_button' => 'yes'],
+            ]
+        );
+
+        $this->end_controls_section();
     }
 
     /**
@@ -666,6 +721,19 @@ class BookingPanelWidget extends Widget_Base
                 'return_value' => 'yes',
                 'default'      => '',
                 'description'  => esc_html__('The right info / booking summary appears from the Date & Time step onward, so it is not visible on the first step.', 'rox-appointment-booking'),
+            ]
+        );
+
+        // How many service cards sit side by side on the Services step. The
+        // panel keeps it one-per-row on narrow screens whatever this says.
+        $this->add_control(
+            'service_columns',
+            [
+                'label'       => esc_html__('Service columns', 'rox-appointment-booking'),
+                'type'        => Controls_Manager::SLIDER,
+                'range'       => ['px' => ['min' => 1, 'max' => 2, 'step' => 1]],
+                'default'     => ['size' => 2],
+                'description' => esc_html__('Number of service cards per row on the Services step. Always one per row on narrow screens.', 'rox-appointment-booking'),
             ]
         );
 
@@ -1391,7 +1459,7 @@ class BookingPanelWidget extends Widget_Base
             // The instance id decides which store the panel gets, so two of
             // these widgets on one page keep their selections apart. Elementor's
             // element id is unique per widget and stable across renders.
-            '<div class="rox-appointment-booking-frontend-root" data-instance="%7$s" data-type="booking-form" data-hide-navigation="%1$s" data-hide-info="%2$s" data-show-background="%3$s" data-background-color="%4$s" data-locations="%5$s" data-categories="%6$s" data-font-family="%8$s" data-font-url="%9$s" data-content-margin="%10$s" data-heading-align="%11$s" data-heading-margin="%12$s" data-panel-content="%13$s"></div>',
+            '<div class="rox-appointment-booking-frontend-root" data-instance="%7$s" data-type="booking-form" data-hide-navigation="%1$s" data-hide-info="%2$s" data-service-columns="%14$s" data-show-dashboard-button="%15$s" data-dashboard-button-text="%16$s" data-dashboard-button-url="%17$s" data-show-background="%3$s" data-background-color="%4$s" data-locations="%5$s" data-categories="%6$s" data-font-family="%8$s" data-font-url="%9$s" data-content-margin="%10$s" data-heading-align="%11$s" data-heading-margin="%12$s" data-panel-content="%13$s"></div>',
             esc_attr($hide_navigation),
             esc_attr($hide_info),
             esc_attr($show_background),
@@ -1406,7 +1474,11 @@ class BookingPanelWidget extends Widget_Base
             esc_attr(BookingButtonMarkup::contentSpacing($this->dimensions($settings, 'heading_margin'), true)),
             // The panel's own copy, as far as the editor rewrote it. Empty when
             // every field was left alone, which keeps the panel's own wording.
-            esc_attr(PanelContent::toAttr($this->panelContent($settings)))
+            esc_attr(PanelContent::toAttr($this->panelContent($settings))),
+            esc_attr((string) $this->serviceColumns($settings)),
+            esc_attr(($settings['show_dashboard_button'] ?? 'yes') === 'yes' ? 'true' : 'false'),
+            esc_attr((string) ($settings['dashboard_button_text'] ?? '')),
+            esc_attr(esc_url_raw((string) ($settings['dashboard_button_url'] ?? '')))
         );
     }
 
@@ -1425,6 +1497,19 @@ class BookingPanelWidget extends Widget_Base
         $value = (string) ($settings['heading_align'] ?? '');
 
         return in_array($value, BookingButtonMarkup::HEADING_ALIGNS, true) ? $value : '';
+    }
+
+    /**
+     * Service cards per row on the Services step, clamped to the 1-2 the panel
+     * supports. The SLIDER control stores `{size, unit}`; the markup builder
+     * unwraps and clamps it.
+     *
+     * @param array $settings Resolved widget settings.
+     * @return int
+     */
+    protected function serviceColumns(array $settings): int
+    {
+        return BookingButtonMarkup::serviceColumns($settings['service_columns'] ?? 2);
     }
 
     /**
@@ -1524,6 +1609,10 @@ class BookingPanelWidget extends Widget_Base
             'modalWidth'           => (int) ($settings['modal_width'] ?? 1100),
             'hideNavigation'       => ($settings['hide_navigation'] ?? '') === 'yes',
             'hideInfo'             => ($settings['hide_info'] ?? '') === 'yes',
+            'serviceColumns'       => $this->serviceColumns($settings),
+            'showDashboardButton'  => ($settings['show_dashboard_button'] ?? 'yes') === 'yes',
+            'dashboardButtonText'  => (string) ($settings['dashboard_button_text'] ?? ''),
+            'dashboardButtonUrl'   => (string) ($settings['dashboard_button_url'] ?? ''),
             'contentMargin'        => $this->dimensions($settings, 'content_margin'),
             'headingAlign'         => $this->headingAlign($settings),
             'headingMargin'        => $this->dimensions($settings, 'heading_margin'),

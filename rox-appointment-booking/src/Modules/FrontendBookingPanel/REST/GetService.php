@@ -121,9 +121,6 @@ class GetService extends AbstractREST
                 'hide_duration_booking_panel' => $service->hide_duration_booking_panel ? ['1'] : [],
                 'allow_without_agent' => $service->allow_without_agent ? ['1'] : [],
                 'extra_services' => $this->getExtraServiceIdsByServiceId($service->getID()),
-                'internal_notes' => $service->internal_notes,
-                'created_by' => $service->created_by,
-                'updated_by' => $service->updated_by,
             ]);
         }
 

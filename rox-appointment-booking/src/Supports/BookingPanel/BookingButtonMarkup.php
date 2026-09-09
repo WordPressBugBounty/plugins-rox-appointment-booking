@@ -185,6 +185,11 @@ class BookingButtonMarkup
             'backgroundColorHover' => '',
             'textColorHover'       => '',
             'borderColorHover'     => '',
+            // The fill behind an `outline` button. That variant spends
+            // `backgroundColor` on its accent, so the fill needs a pair of its
+            // own; left empty the variant stays transparent as it always has.
+            'fillColor'            => '',
+            'fillColorHover'       => '',
             'borderWidth'          => 1,
             'borderWidthTablet'    => null,
             'borderWidthMobile'    => null,
@@ -217,6 +222,16 @@ class BookingButtonMarkup
             'modalWidth'           => 1100,
             'hideNavigation'       => false,
             'hideInfo'             => false,
+            // How many service cards sit per row on the Services step. Clamped
+            // to 1-2 on the way out; the panel keeps it one-per-row on narrow
+            // screens whatever this says.
+            'serviceColumns'       => 2,
+            // The confirmation screen's "Go to Dashboard" button. Shown by
+            // default; an empty label / URL falls back to "Go to Dashboard" and
+            // the plugin's customer dashboard page.
+            'showDashboardButton'  => true,
+            'dashboardButtonText'  => '',
+            'dashboardButtonUrl'   => '',
             // Where a step's heading sits, and the two nudges an editor can
             // give it and the content column under it. The content one is read
             // only once a column is hidden — with both in place the panel is
@@ -312,6 +327,8 @@ class BookingButtonMarkup
                 . 'data-rox-booking-trigger="1" data-instance="%5$s" data-type="booking-form" '
                 . 'data-modal-width="%6$s" data-reset-on-close="%7$s" '
                 . 'data-hide-navigation="%8$s" data-hide-info="%9$s" '
+                . 'data-service-columns="%24$s" '
+                . 'data-show-dashboard-button="%25$s" data-dashboard-button-text="%26$s" data-dashboard-button-url="%27$s" '
                 . 'data-content-margin="%20$s" data-heading-align="%21$s" '
                 . 'data-heading-margin="%22$s" data-panel-content="%23$s" '
                 . 'data-locations="%10$s" data-categories="%11$s" data-agent-id="%12$s" '
@@ -346,7 +363,11 @@ class BookingButtonMarkup
             esc_attr(self::contentSpacing($args['contentMargin'], true)),
             esc_attr(self::oneOf($args['headingAlign'], self::HEADING_ALIGNS, '')),
             esc_attr(self::contentSpacing($args['headingMargin'], true)),
-            esc_attr(PanelContent::toAttr($args['panelContent']))
+            esc_attr(PanelContent::toAttr($args['panelContent'])),
+            esc_attr((string) self::serviceColumns($args['serviceColumns'])),
+            esc_attr(self::boolAttr($args['showDashboardButton'])),
+            esc_attr(self::text($args['dashboardButtonText'])),
+            esc_attr(esc_url_raw(self::text($args['dashboardButtonUrl'])))
         );
     }
 
@@ -387,12 +408,28 @@ class BookingButtonMarkup
                 '--rox-btn-fg-hover' => $text_hover,
             ];
         } else {
-            // No fill: the primary colour is the label, and the stylesheet
-            // derives the outline's border from it.
+            // No fill of its own: the primary colour is the label, and the
+            // stylesheet derives the outline's border from it.
             $colors = [
                 '--rox-btn-fg'       => $primary,
                 '--rox-btn-fg-hover' => $primary_hover,
             ];
+
+            // …unless a surface paints one anyway, which is what the separate
+            // fill pair is for.
+            $fill       = Color::sanitize(self::text($args['fillColor']));
+            $fill_hover = Color::sanitize(self::text($args['fillColorHover']));
+
+            if ($fill !== '') {
+                $colors['--rox-btn-bg'] = $fill;
+                // The variant tints its fill on hover, which would wipe out a
+                // colour an editor picked deliberately. Naming the resting fill
+                // as the hover one keeps it in place; an explicit hover fill
+                // still wins.
+                $colors['--rox-btn-bg-hover'] = $fill_hover !== '' ? $fill_hover : $fill;
+            } elseif ($fill_hover !== '') {
+                $colors['--rox-btn-bg-hover'] = $fill_hover;
+            }
         }
 
         // `link` draws no box, so a border colour would have nothing to paint.
@@ -553,6 +590,29 @@ class BookingButtonMarkup
         $floor = $signed ? -$max : 0;
 
         return max($floor, min($max, (int) $value)) . 'px';
+    }
+
+    /**
+     * The service-list column count, clamped to the 1-2 the panel supports.
+     *
+     * Accepts a Gutenberg RangeControl number or an Elementor SLIDER's
+     * `{size, unit}` map; anything else lands on the 2-up default.
+     *
+     * @param mixed $value Raw setting.
+     * @return int
+     */
+    public static function serviceColumns($value): int
+    {
+        // An Elementor SLIDER hands back `{size, unit}`; a Gutenberg RangeControl
+        // hands back the number itself. Anything unusable falls to the 2-up
+        // default rather than to 0.
+        if (is_array($value)) {
+            $value = $value['size'] ?? 2;
+        }
+
+        $columns = is_numeric($value) ? (int) $value : 2;
+
+        return max(1, min(2, $columns ?: 2));
     }
 
     /**

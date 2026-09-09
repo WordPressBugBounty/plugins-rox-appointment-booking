@@ -105,6 +105,11 @@ class CustomerLogin extends AbstractREST
             $wp_user = get_user_by('email', $params['email']);
             
             if (!$wp_user || !wp_check_password($params['password'], $wp_user->user_pass, $wp_user->ID)) {
+                // Let login-hardening plugins (Wordfence, Limit Login Attempts)
+                // see the failed attempt so they can throttle brute force — this
+                // endpoint bypasses wp-login.php where they normally hook.
+                do_action('wp_login_failed', $params['email'], new \WP_Error('invalid_email_or_password', esc_html__('Invalid email or password', 'rox-appointment-booking')));
+
                 return new WP_REST_Response([
                     'success' => false,
                     'code' => 401,

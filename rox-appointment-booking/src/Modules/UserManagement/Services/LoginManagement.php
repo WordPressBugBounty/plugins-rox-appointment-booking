@@ -31,7 +31,16 @@ class LoginManagement
     }
 
     /**
-     * Redirect users to the booking engine dashboard after login.
+     * Send a booking agent or customer to their dashboard after login.
+     *
+     * Only those two roles are taken over. This used to claim every login that
+     * was not an administrator, which is equally true of editors, authors,
+     * contributors, subscribers and WooCommerce shop managers — none of whom
+     * this plugin has any business pulling onto the booking dashboard.
+     *
+     * The role test lives in rox_appointment_booking_panel_redirect_url() so
+     * this filter and the standalone login form agree on who is redirected
+     * where.
      *
      * @param string $redirect_to The redirect destination URL.
      * @param string $requested_redirect_to The requested redirect destination URL.
@@ -44,11 +53,9 @@ class LoginManagement
             return $redirect_to;
         }
 
-        if (in_array('administrator', $user->roles)) {
-            return $redirect_to;
-        }
+        $panel_url = rox_appointment_booking_panel_redirect_url($user);
 
-        return admin_url('admin.php?page=rox-appointment-booking-dashboard#/appointment');
+        return $panel_url !== '' ? $panel_url : $redirect_to;
     }
 
 

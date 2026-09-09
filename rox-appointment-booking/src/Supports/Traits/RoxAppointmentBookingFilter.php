@@ -162,7 +162,12 @@ trait RoxAppointmentBookingFilter
                     break;
 
                 case 'select':
-                    if (isset($filterDef['customFilter']) && method_exists($this, $filterDef['customFilter'])) {
+                    // Only whitelisted internal methods may be dispatched here:
+                    // customFilter can arrive from the request (filtersMeta), so an
+                    // unrestricted $this->{...}() would let a caller invoke any
+                    // method on this class.
+                    $allowedCustomFilters = ['filterByRelation'];
+                    if (isset($filterDef['customFilter']) && in_array($filterDef['customFilter'], $allowedCustomFilters, true) && method_exists($this, $filterDef['customFilter'])) {
                         // Handle filterByRelation with parameters
                         if ($filterDef['customFilter'] === 'filterByRelation' && isset($filterDef['relationTable'])) {
                             $query = $this->filterByRelation(

@@ -159,8 +159,6 @@ class GetAgent extends AbstractREST
                 'name' => $agent->getFullName(),
                 'thumbnail' => $agent->thumbnail_id ? wp_get_attachment_url($agent->thumbnail_id) : '',
             ],
-            'email' => $agent->email,
-            'phone' => $agent->phone,
             'experience_years' => $agent->experience_years ?? 0,
             'happy_customers' => $agent->happy_customers ?? 0,
             'certifications' => $agent->certifications ?? 0,
@@ -184,10 +182,6 @@ class GetAgent extends AbstractREST
                 'special_days' => json_decode($agent->special_days ?? '[]', true),
                 'availability' => $agent->availability ?? [],
                 'holiday' => json_decode($agent->holiday ?? '[]', true),
-                'internal_notes' => $agent->internal_notes ?? null,
-                'allow_to_login' => (bool)$agent->allow_to_login,
-                'user_type' => !empty($agent->wp_user_id) ? 'existing' : ($agent->user_type ?? null),
-                'existing_user' => !empty($agent->wp_user_id) ? (($user = get_userdata($agent->wp_user_id)) ? $user->user_login : null) : null,
                 'experience_years' => $agent->experience_years ?? 0,
                 'happy_customers' => $agent->happy_customers ?? 0,
                 'certifications' => $agent->certifications ?? 0,
@@ -260,9 +254,7 @@ class GetAgent extends AbstractREST
         if (!empty($search)) {
             $query->where(function($q) use ($search) {
                 $q->where('first_name', 'LIKE', "%{$search}%")
-                  ->orWhere('last_name', 'LIKE', "%{$search}%")
-                  ->orWhere('email', 'LIKE', "%{$search}%")
-                  ->orWhere('phone', 'LIKE', "%{$search}%");
+                  ->orWhere('last_name', 'LIKE', "%{$search}%");
             });
         }
         $total = $query->count();

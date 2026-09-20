@@ -130,6 +130,14 @@ class BookingPanelStructure extends AbstractREST
             "googleClientId"        => (string) $google_login['clientId'],
             "googleLoginButtonText" => (string) $google_login['buttonText'],
 
+            // "Already have an account?" login tab on the Customer Information
+            // step. On unless switched off under Settings > General > Booking
+            // Permissions, for sites whose visitors never have an account.
+            "customerLoginEnabled" => filter_var(
+                rox_appointment_booking_general_settings('customer_login_tab_enable', true),
+                FILTER_VALIDATE_BOOLEAN
+            ),
+
             // Pro custom fields shown on the Customer Information step. Empty
             // array unless the Pro plugin answers this filter.
             "customFields" => apply_filters('rox_appointment_booking_custom_fields', []),

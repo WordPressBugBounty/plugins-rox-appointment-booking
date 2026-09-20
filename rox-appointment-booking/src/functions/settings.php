@@ -48,6 +48,30 @@ if (!function_exists('rox_appointment_booking_payment_settings')) {
 	}
 }
 
+if (!function_exists('rox_appointment_booking_pay_later_label')) {
+	/**
+	 * Display name of the Pay Later payment method — the "Payment option name"
+	 * under Settings > Payments > Pay Later, or `$fallback` when unset.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string|null $fallback Text to use when no custom name is set.
+	 *                              Defaults to "Pay Later".
+	 *
+	 * @return string
+	 */
+	function rox_appointment_booking_pay_later_label($fallback = null)
+	{
+		$label = sanitize_text_field((string) rox_appointment_booking_payment_settings('pay_later_label', ''));
+
+		if ($label !== '') {
+			return $label;
+		}
+
+		return $fallback ?? __('Pay Later', 'rox-appointment-booking');
+	}
+}
+
 if (!function_exists('rox_appointment_booking_email_settings')) {
 	/**
 	 * Retrieve e-mail settings for the Booking Engine plugin.
@@ -154,6 +178,34 @@ if (!function_exists('rox_appointment_booking_agent_can_cancel')) {
 			rox_appointment_booking_general_settings('agent_cancel_enable', false),
 			FILTER_VALIDATE_BOOLEAN
 		);
+	}
+}
+
+if (!function_exists('rox_appointment_booking_branding')) {
+	/**
+	 * Dashboard branding (White Label) — what the Agent and Customer dashboards
+	 * show in place of the plugin's own logo (the administrator's view always
+	 * keeps the plugin's logo; see DynamicSidebar.jsx). Only the Pro plugin
+	 * answers `rox_appointment_booking_branding` (a Pro feature); with Pro
+	 * inactive, an older Pro that predates the feature, or the White Label
+	 * switch off, `enabled` stays false and the dashboards keep the default logo.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return array{enabled: bool, logoUrl: string, companyName: string, portalTitle: string}
+	 */
+	function rox_appointment_booking_branding()
+	{
+		$defaults = [
+			'enabled'     => false,
+			'logoUrl'     => '',
+			'companyName' => '',
+			'portalTitle' => '',
+		];
+
+		$branding = apply_filters('rox_appointment_booking_branding', $defaults);
+
+		return is_array($branding) ? array_merge($defaults, $branding) : $defaults;
 	}
 }
 

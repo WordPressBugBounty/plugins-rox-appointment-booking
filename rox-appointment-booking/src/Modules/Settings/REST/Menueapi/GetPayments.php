@@ -89,7 +89,13 @@ class GetPayments extends AbstractREST
                 'default_payment_status' => rox_appointment_booking_payment_settings('default_payment_status') ?? 'unpaid',
                 // Overrides the booking panel's Pay Later confirm button text;
                 // empty means the panel keeps its own "Confirm Booking".
-                'pay_later_button_label' => rox_appointment_booking_payment_settings('pay_later_button_label', '')
+                'pay_later_button_label' => rox_appointment_booking_payment_settings('pay_later_button_label', ''),
+                // Overrides the Pay Later option's name on the payment step;
+                // empty means the panel keeps its own "Pay Later".
+                'pay_later_label' => rox_appointment_booking_payment_settings('pay_later_label', ''),
+                // Overrides the note shown under the payment options once Pay
+                // Later is picked; empty keeps the panel's own note.
+                'pay_later_note' => rox_appointment_booking_payment_settings('pay_later_note', '')
             ];
             
             $payments_settings = wp_parse_args($payments_settings, $defaults);

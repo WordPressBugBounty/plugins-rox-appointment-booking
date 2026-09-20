@@ -101,6 +101,9 @@ class GetGeneral extends AbstractREST
                 'customer_cancel_enable' => false,
                 'agent_reschedule_enable' => false,
                 'agent_cancel_enable' => false,
+                // On by default: the booking panel has always offered the
+                // "Already have an account?" login tab.
+                'customer_login_tab_enable' => true,
             ];
 
             $general_settings = wp_parse_args($general_settings, $defaults);

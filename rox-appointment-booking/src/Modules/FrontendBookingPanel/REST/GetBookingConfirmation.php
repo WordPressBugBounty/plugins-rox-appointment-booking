@@ -246,7 +246,18 @@ class GetBookingConfirmation extends AbstractREST
                 ],
                 'bookings' => $bookings,
                 'bookingResponse' => [
-                    'order' => ['order_id' => $order->getID()],
+                    // OrderConfirmation.jsx computes "Balance Due" as
+                    // total_amount - amountPaid; without total_amount here it
+                    // falls back to showing the untouched gross, so a
+                    // redirect-gateway (Mollie / WooCommerce) return renders a
+                    // Balance Due even after a full payment. Deposit fields are
+                    // included for the same component's "Deposit Paid" row.
+                    'order' => [
+                        'order_id' => $order->getID(),
+                        'total_amount' => (float) ($order->total_amount ?? 0),
+                        'amount_due_later' => (float) ($order->amount_due_later ?? 0),
+                        'deposit_amount' => (float) ($order->deposit_amount ?? 0),
+                    ],
                     'payment' => [
                         'status' => $payment->status ?? '',
                         'amount' => (float) ($payment->amount ?? $order->total_amount ?? 0),

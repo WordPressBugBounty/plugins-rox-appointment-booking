@@ -1603,7 +1603,7 @@
   .view-wrapper {
     border-radius: 10px;
     background: #f1f2f7;
-    padding: 23px 18px;
+    padding: 18px 18px;
     min-height: calc(100vh - 82px);
   }
 
@@ -2688,6 +2688,32 @@
       align-items: center;
     }
 
+    // White Label (Pro), agent dashboard: the business logo sits in exactly
+    // the slot the plugin's own logo uses — the container above is left as
+    // is (64px, same padding) and the logo takes the space inside it, shown
+    // whole (never cropped or stretched): as tall as that space, as wide as
+    // its ratio makes it, up to the full width.
+    .logo-container--brand {
+      .rox-brand-logo {
+        display: block;
+        height: 100%;
+        width: auto;
+        max-width: 100%;
+        object-fit: contain;
+        object-position: left center;
+      }
+
+      // Only when no logo was uploaded (see BrandLogo.jsx).
+      .rox-brand-name {
+        font-size: 17px;
+        font-weight: 700;
+        color: #151720;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+
     .ant-menu {
 
       .ant-menu-item,
@@ -2697,17 +2723,34 @@
         gap: 12px;
         padding-left: 14px !important;
         height: 36px;
+        // The anchor for the selected item's indicator further down.
+        position: relative;
+        // antd clips these rows so a long label can ellipse, which also clips
+        // the selected row's indicator. The label's own ellipsis lives on
+        // `.ant-menu-title-content` and keeps its overflow, so nothing is given
+        // up by releasing it here.
+        overflow: visible;
 
         svg {
           color: #494a4c;
-        }
-
-        &:hover {
-          background: #f3f4f9;
+          transition: color 0.18s ease;
         }
 
         .ant-menu-title-content {
           margin-inline-start: 0px;
+          color: #151720;
+          transition: color 0.18s ease;
+        }
+
+        // The label is already at its resting colour, so only the mark moves
+        // here — the tint is what answers the pointer.
+        &:hover {
+          background: #f2f5ff;
+
+          svg,
+          .ant-menu-title-content {
+            color: #151720;
+          }
         }
       }
 
@@ -2738,33 +2781,104 @@
       }
 
       .ant-menu-item-selected {
-        svg {
-          color: #3057e4;
+        // The same tint hover uses — the accent on the mark, the label and the
+        // tab is what separates "chosen" from "under the pointer", rather than
+        // a second background the two would have to be told apart by.
+        background: #f2f5ff;
+
+        svg,
+        .ant-menu-title-content {
+          color: #3560fb;
         }
 
         &:hover {
-          background: #ebefff;
+          background: #f2f5ff;
+
+          svg,
+          .ant-menu-title-content {
+            color: #3560fb;
+          }
+        }
+
+        // The tab, on the row's own left edge — inside the tint, not out in the
+        // gutter beside it. Its right corners are the rounded pair, so it reads
+        // as attached to that edge rather than as a mark floating near it.
+        //
+        // The row's 6px corner radius does not reach it: the bar is 20px of a
+        // 36px row, so it spans the straight part of that edge with 8px to
+        // spare at either end.
+        //
+        // `::before` rather than `::after`: antd already owns `::after` here
+        // for the border it draws down the right edge, which the rule below
+        // takes away. Submenu rows own `::before` for their bullet, and their
+        // selector is the more specific of the two, so a nested row keeps it.
+        &::before {
+          content: "";
+          position: absolute;
+          left: 0;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 4px;
+          height: 20px;
+          border-radius: 0 4px 4px 0;
+          background: #3560fb;
+        }
+
+        // antd's own inline indicator, down the RIGHT edge. Ours is on the
+        // left, and both together would box the row in.
+        &::after {
+          display: none;
         }
       }
 
+      // A group here carries no children — the items after it are siblings, not
+      // nested — so the element is only ever the heading. All of its spacing is
+      // handed to the rule below, which is what makes the 22px either side of
+      // that rule the whole of the gap rather than a share of it.
       .ant-menu-item-group {
-        margin-top: 18px;
-        margin-bottom: -2px;
+        margin: 0;
       }
 
-      .ant-menu-item-group-title {
-        color: #62646a;
-        font-size: 12px;
-        font-weight: 500;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        padding: 12px 16px 8px 16px;
-        margin-top: 16px !important;
-        line-height: 1;
+      // The empty list antd renders under a childless group. Left alone it
+      // still takes a line's worth of height under the rule.
+      .ant-menu-item-group-list {
+        display: none;
+      }
 
-        &:first-child {
-          margin-top: 0 !important;
-        }
+      // The break between sections, as a dashed rule rather than a heading.
+      //
+      // The name stays in the DOM rather than being deleted from the config: a
+      // screen reader still announces "Resources" before the items it
+      // introduces, which a bare line cannot say. It is collapsed out of the
+      // visual flow instead — zero height with the overflow clipped, and a
+      // font-size of 0 so nothing shows through.
+      .ant-menu-item-group-title {
+        // A real dashed border, not a gradient standing in for one: every other
+        // dashed rule in the admin is `1px dashed`, and the browser's own dash
+        // pattern is finer than anything hand-spaced. Matching the border is
+        // what makes this line look like those rather than merely similar.
+        //
+        // `content-box` so the 1px border is added to the zero height rather
+        // than swallowed by it, whatever `box-sizing` is inherited here.
+        box-sizing: content-box;
+        height: 0;
+        padding: 0;
+        // 22px of clearance above and below, which the zeroed group margin
+        // leaves as the only spacing in play.
+        //
+        // 2px a side, not 10: the Menu already insets every row by 8px (an
+        // inline `padding: 16px 8px` in DynamicSidebar), and this sits inside
+        // that. 8 + 2 is the 10px the rule stands off the sider's own edge —
+        // so if that inline padding ever changes, this has to change with it.
+        //
+        // `!important` because antd sets its own margin on this element.
+        margin: 22px 2px !important;
+        border-top: 1px dashed #bbbec9;
+        // Collapses the label without `overflow: hidden`, which would clip the
+        // rule with it, and leaves the text in the accessibility tree.
+        font-size: 0;
+        line-height: 0;
+        color: transparent;
       }
 
       .ant-menu-title-content {

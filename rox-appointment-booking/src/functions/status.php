@@ -127,7 +127,7 @@ if (!function_exists('rox_appointment_booking_payment_methods')) {
 	{
 		return apply_filters('rox_appointment_booking_payment_methods', [
 			["icon" => "card", "label" => "Stripe", "value" => "stripe"],
-			["icon" => "paylater", "label" => __("Pay Later", "rox-appointment-booking"), "value" => "pay_later"],
+			["icon" => "paylater", "label" => rox_appointment_booking_pay_later_label(), "value" => "pay_later"],
 			["icon" => "cash", "label" => __("Cash", "rox-appointment-booking"), "value" => "cash"],
 			["icon" => "debit", "label" => __("Credit / Debit Card", "rox-appointment-booking"), "value" => "card"],
 		]);

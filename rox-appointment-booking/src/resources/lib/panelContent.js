@@ -43,6 +43,9 @@ export const PANEL_CONTENT_KEYS = [
 	"stepInformationLabel",
 	"stepPaymentLabel",
 	"stepCompleteLabel",
+	// The summary sidebar's row labels.
+	"summaryAgentLabel",
+	"summaryAgentLabelHidden",
 ];
 
 /**
@@ -50,6 +53,15 @@ export const PANEL_CONTENT_KEYS = [
  * survive different values: a blank string is "unset", but so is 0.
  */
 export const PANEL_CONTENT_NUMBER_KEYS = ["sidebarImageWidth"];
+
+/**
+ * The keys holding an on/off switch rather than a label. Only `true` is kept:
+ * each one names the non-default state, so "unset" is the panel's own
+ * behaviour, the same as a blank label.
+ *
+ * Mirrors the PHP `PanelContent::BOOL_KEYS`.
+ */
+export const PANEL_CONTENT_BOOL_KEYS = ["summaryAgentLabelHidden"];
 
 /**
  * The illustration's width in pixels, as the control and the panel both bound
@@ -83,6 +95,14 @@ export const parsePanelContent = (value) => {
 	}
 
 	return PANEL_CONTENT_KEYS.reduce((content, key) => {
+		if (PANEL_CONTENT_BOOL_KEYS.includes(key)) {
+			if (raw[key] === true) {
+				content[key] = true;
+			}
+
+			return content;
+		}
+
 		if (PANEL_CONTENT_NUMBER_KEYS.includes(key)) {
 			// Comes back as a string from a `data-*` blob and as a number from
 			// the block attribute, so both are read the same way. Anything that

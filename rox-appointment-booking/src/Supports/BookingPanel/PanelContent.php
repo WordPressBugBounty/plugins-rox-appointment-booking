@@ -53,12 +53,24 @@ class PanelContent
         'stepInformationLabel',
         'stepPaymentLabel',
         'stepCompleteLabel',
+        // The summary sidebar's row labels.
+        'summaryAgentLabel',
+        'summaryAgentLabelHidden',
     ];
 
     /**
      * Keys holding a URL rather than a label, sanitised as one.
      */
     protected const URL_KEYS = ['sidebarImage', 'helpButtonUrl'];
+
+    /**
+     * Keys holding an on/off switch rather than a label. Only `true` is kept:
+     * each one names the non-default state, so "unset" is the panel's own
+     * behaviour, the same as a blank label.
+     *
+     * Mirrors the JS `PANEL_CONTENT_BOOL_KEYS`.
+     */
+    protected const BOOL_KEYS = ['summaryAgentLabelHidden'];
 
     /**
      * Keys holding a pixel length rather than a label, with the bounds it is
@@ -93,6 +105,14 @@ class PanelContent
 
         foreach (self::KEYS as $key) {
             if (!isset($value[$key]) || !is_scalar($value[$key])) {
+                continue;
+            }
+
+            if (in_array($key, self::BOOL_KEYS, true)) {
+                if (filter_var($value[$key], FILTER_VALIDATE_BOOLEAN)) {
+                    $content[$key] = true;
+                }
+
                 continue;
             }
 

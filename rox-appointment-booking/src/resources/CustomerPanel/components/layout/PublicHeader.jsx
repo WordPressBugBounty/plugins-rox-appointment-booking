@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useToast } from "../../context/ToastContext.jsx";
 import Logo from "../../../components/icons/Logo.jsx";
+import BrandLogo from "../../../components/common/BrandLogo.jsx";
 
 // Public header (brand + nav + bell + avatar), converted from the mockup's
 // `.public-header`. Nav drives the view router; the avatar is driven by
@@ -27,8 +28,11 @@ export default function PublicHeader({
   activeView,
   onNavigate,
   logoutUrl = "",
+  branding = {},
 }) {
   const showToast = useToast();
+  // White Label (Pro) can rename the "My Portal" tag; see BrandLogo for the logo.
+  const portalTitle = (branding.enabled && branding.portalTitle) || "My Portal";
   const name = currentUser.name || "Guest";
   const email = currentUser.email || "";
   const src = currentUser.src || "";
@@ -66,8 +70,11 @@ export default function PublicHeader({
   return (
     <header className="public-header">
       <div className="brand">
-        <Logo style={{ width: "170px", height: "auto", display: "block" }} />
-        <span className="brand-meta">My Portal</span>
+        <BrandLogo
+          branding={branding}
+          fallback={<Logo style={{ width: "170px", height: "auto", display: "block" }} />}
+        />
+        <span className="brand-meta">{portalTitle}</span>
       </div>
 
       <nav className="header-nav">

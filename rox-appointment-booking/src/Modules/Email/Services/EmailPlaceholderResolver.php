@@ -665,7 +665,7 @@ class EmailPlaceholderResolver
 
         return match ($method) {
             ''                   => '',
-            'later', 'pay_later' => __('Pay later', 'rox-appointment-booking'),
+            'later', 'pay_later' => rox_appointment_booking_pay_later_label(__('Pay later', 'rox-appointment-booking')),
             'credit', 'stripe'   => __('Card', 'rox-appointment-booking'),
             'paypal'             => __('PayPal', 'rox-appointment-booking'),
             default              => ucfirst(str_replace('_', ' ', $method)),

@@ -107,6 +107,8 @@ class BookingPanelWidget extends Widget_Base
         'panel_step_information_label' => 'stepInformationLabel',
         'panel_step_payment_label'     => 'stepPaymentLabel',
         'panel_step_complete_label'    => 'stepCompleteLabel',
+        // The summary sidebar's row labels.
+        'panel_summary_agent_label'    => 'summaryAgentLabel',
     ];
 
     /**
@@ -513,6 +515,42 @@ class BookingPanelWidget extends Widget_Base
             'panel_step_complete_label',
             esc_html__('Complete', 'rox-appointment-booking'),
             __('Complete', 'rox-appointment-booking')
+        );
+
+        $this->add_control(
+            'panel_summary_group',
+            [
+                'label'     => esc_html__('Summary', 'rox-appointment-booking'),
+                'type'      => Controls_Manager::HEADING,
+                'separator' => 'before',
+            ]
+        );
+
+        // On by default, so a widget saved before this switch existed keeps
+        // its label. panelContent() turns "off" into summaryAgentLabelHidden.
+        $this->add_control(
+            'panel_summary_agent_label_show',
+            [
+                'label'        => esc_html__('Show agent label', 'rox-appointment-booking'),
+                'type'         => Controls_Manager::SWITCHER,
+                'label_on'     => esc_html__('Show', 'rox-appointment-booking'),
+                'label_off'    => esc_html__('Hide', 'rox-appointment-booking'),
+                'return_value' => 'yes',
+                'default'      => 'yes',
+            ]
+        );
+
+        $this->contentField(
+            'panel_summary_agent_label',
+            esc_html__('Agent label', 'rox-appointment-booking'),
+            __('Agent', 'rox-appointment-booking'),
+            esc_html__('Shown before the selected agent\'s name.', 'rox-appointment-booking')
+        );
+
+        // Nothing to rename while the label is hidden.
+        $this->update_control(
+            'panel_summary_agent_label',
+            ['condition' => ['panel_summary_agent_label_show' => 'yes']]
         );
 
         $this->end_controls_section();
@@ -1538,6 +1576,10 @@ class BookingPanelWidget extends Widget_Base
         // reads pixels, so the size is all that travels.
         $size = $settings['panel_sidebar_image_width'] ?? [];
         $content['sidebarImageWidth'] = is_array($size) ? ($size['size'] ?? '') : $size;
+
+        // SWITCHER reports "yes" when on and "" when off; the panel only needs
+        // to hear about "off".
+        $content['summaryAgentLabelHidden'] = ($settings['panel_summary_agent_label_show'] ?? 'yes') !== 'yes';
 
         return $content;
     }

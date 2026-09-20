@@ -99,6 +99,7 @@ function Panel() {
         activeView={view}
         onNavigate={navigate}
         logoutUrl={config.logoutUrl}
+        branding={config.branding || {}}
       />
       <main className="container">
         {view === "bookings" ? (

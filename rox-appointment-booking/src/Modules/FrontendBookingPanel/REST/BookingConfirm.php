@@ -152,7 +152,11 @@ class BookingConfirm extends AbstractREST
             // Let the Pro plugin persist submitted custom field values for this order.
             do_action('rox_appointment_booking_after_booking_confirmed', $params, $customerResult['id'], $orderId, $appointmentIds);
 
-            (new BookingEmailService())->sendBookingConfirmation($customerResult, $appointmentResult, $paymentResult, array_merge($params, ['order_id' => $orderId]));
+            // A redirect-based gateway (e.g. WooCommerce) hasn't taken the
+            // payment yet — its add-on sends the confirmation once it has.
+            if (empty($paymentResult['redirect_url'])) {
+                (new BookingEmailService())->sendBookingConfirmation($customerResult, $appointmentResult, $paymentResult, array_merge($params, ['order_id' => $orderId]));
+            }
 
             // Booking is complete and cannot fail from here, so the session is
             // only established now. The auth cookie is emitted with this

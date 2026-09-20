@@ -4,7 +4,7 @@ Tags: booking, reservation, appointments, calendar
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.8
+Stable tag: 1.2.9
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -271,6 +271,16 @@ After activation, you can configure the plugin settings from the WordPress admin
 
 
 == Changelog ==
+Version: 1.2.9 // 2026-09-20
+* Added: "Show Login Option On Booking Form" switch under Settings > General > Booking Permissions.
+* Added: "Payment option name" and "Payment note" fields under Settings > Payments > Pay Later.
+* Added: A renamed Pay Later now reads the same on the panel, the Orders table and in e-mails.
+* Added: Show, hide and rename the summary sidebar's "Agent" label, for the block and Elementor widget.
+* Improved: "Dashboard" in the admin menu is now "Overview", with Appointments above Orders.
+* Improved: Custom Fields has its own menu icon.
+* Improved: The Overview heading now matches every other page.
+* Improved: The Integrations cards no longer blink when an integration popup closes.
+
 Version: 1.2.8 // 2026-09-09
 * Added: Service columns control, one or two per row, for the booking panel block and Elementor widget.
 * Added: Show, rename and relink the confirmation screen's "Go to Dashboard" button.

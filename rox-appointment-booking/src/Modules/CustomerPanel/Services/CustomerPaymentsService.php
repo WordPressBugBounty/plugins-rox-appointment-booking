@@ -212,7 +212,7 @@ class CustomerPaymentsService
             case 'stripe':   return esc_html__('Credit Card', 'rox-appointment-booking');
             case 'cash':     return esc_html__('Cash', 'rox-appointment-booking');
             case 'later':
-            case 'pay_later': return esc_html__('Pay Later', 'rox-appointment-booking');
+            case 'pay_later': return esc_html(rox_appointment_booking_pay_later_label());
             default:         return $method !== '' ? ucfirst($method) : esc_html__('Payment', 'rox-appointment-booking');
         }
     }

@@ -197,6 +197,10 @@ class App
             // list.
             'durationOptions' => ServiceService::getDurationOptions(),
             'currencySymbol' => rox_appointment_booking__get_currency_symbol(rox_appointment_booking_payment_settings('payment_currency') ?? 'USD'),
+            // White Label (Pro): an agent's sidebar shows the business logo
+            // instead of the plugin's own when `enabled` is true (administrators
+            // keep the plugin's logo). Answered by Pro only.
+            'branding' => rox_appointment_booking_branding(),
         ];
 
         /**

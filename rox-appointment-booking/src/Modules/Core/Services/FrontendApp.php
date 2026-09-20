@@ -67,6 +67,12 @@ class FrontendApp
             // step (Settings > Payments > Pay Later). Empty keeps the panel's
             // own "Confirm Booking".
             'payLaterButtonLabel' => sanitize_text_field((string) rox_appointment_booking_payment_settings('pay_later_button_label', '')),
+            // Optional override for the Pay Later option's name on the payment
+            // step (Settings > Payments > Pay Later). Empty keeps "Pay Later".
+            'payLaterLabel' => sanitize_text_field((string) rox_appointment_booking_payment_settings('pay_later_label', '')),
+            // Optional override for the note shown once Pay Later is picked
+            // (Settings > Payments > Pay Later). Empty keeps the panel's own.
+            'payLaterNote' => sanitize_text_field((string) rox_appointment_booking_payment_settings('pay_later_note', '')),
         ];
     }
 

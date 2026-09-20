@@ -73,6 +73,9 @@ class CustomerPanelConfig
             // Settings > Booking > "Allow Customer To Cancel Their Appointment",
             // enforced the same way as the reschedule switch above.
             'canCancel' => rox_appointment_booking_customer_can_cancel(),
+            // White Label (Pro): the header shows the business logo and portal
+            // title instead of the plugin's own when `enabled` is true.
+            'branding' => rox_appointment_booking_branding(),
             'currentUser' => [
                 'name'  => $userInfo->getFullName(),
                 'email' => $userInfo->getEmail(),

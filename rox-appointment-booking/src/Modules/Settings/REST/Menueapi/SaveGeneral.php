@@ -112,6 +112,17 @@ class SaveGeneral extends AbstractREST
                 unset($params['location_module_enable']);
             }
 
+            // White Label (Pro). Stored here like any other field on this form;
+            // only the Pro plugin reads them back (rox_appointment_booking_branding()).
+            // The portal title is echoed into the Customer Panel header, so it is
+            // kept to plain text.
+            if (array_key_exists('white_label_enable', $params)) {
+                $params['white_label_enable'] = filter_var($params['white_label_enable'], FILTER_VALIDATE_BOOLEAN);
+            }
+            if (array_key_exists('portal_title', $params)) {
+                $params['portal_title'] = sanitize_text_field((string) $params['portal_title']);
+            }
+
             // The Booking settings menu (SaveBooking) persists its toggles on
             // this same option, so merge instead of replacing — a General save
             // must not wipe keys this form does not render.

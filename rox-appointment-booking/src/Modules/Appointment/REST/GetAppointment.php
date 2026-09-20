@@ -726,7 +726,7 @@ class GetAppointment extends AbstractREST
         }
 
         $map = [
-            'pay_later' => 'On-site',
+            'pay_later' => rox_appointment_booking_pay_later_label('On-site'),
             'stripe' => 'Stripe',
             'woocommerce' => 'WooCommerce',
         ];

@@ -12,11 +12,12 @@
 
 import { MediaUpload, MediaUploadCheck } from "@wordpress/block-editor";
 import * as components from "@wordpress/components";
+import { useState } from "@wordpress/element";
 import { __, sprintf } from "@wordpress/i18n";
 
 import { SIDEBAR_IMAGE_WIDTH } from "../../../lib/panelContent.js";
 
-const { BaseControl, Button, RangeControl, TextControl } = components;
+const { BaseControl, Button, RangeControl, TextControl, ToggleControl } = components;
 
 /**
  * One group of fields under its own heading, so twenty-odd inputs still read as
@@ -46,6 +47,11 @@ const Group = ({ label, children }) => (
 const PanelContentControls = ({ content, hasLocationStep, onChange }) => {
 	const overrides = content || {};
 
+	// Fields emptied in this session. The attribute can't tell "cleared" from
+	// "never touched", so without this a field refills with the default the
+	// moment its last character is deleted and can never be emptied.
+	const [clearedKeys, setClearedKeys] = useState([]);
+
 	// A cleared field is removed rather than stored as "", so the attribute
 	// holds only what the editor actually rewrote.
 	const set = (key) => (value) => {
@@ -57,17 +63,23 @@ const PanelContentControls = ({ content, hasLocationStep, onChange }) => {
 			delete next[key];
 		}
 
+		setClearedKeys((keys) => {
+			const others = keys.filter((k) => k !== key);
+			return value ? others : [...others, key];
+		});
+
 		onChange(next);
 	};
 
 	// The field opens showing the panel's own text as its value, not just as a
 	// placeholder, so an editor can edit the real wording instead of retyping
 	// it. It is still only stored once they change it, and clearing the field
-	// drops the override and brings the default straight back.
+	// drops the override — the default stays visible as the placeholder and
+	// is what the panel renders.
 	const field = (key, label, defaultText, help) => (
 		<TextControl
 			label={label}
-			value={overrides[key] || defaultText}
+			value={overrides[key] || (clearedKeys.includes(key) ? "" : defaultText)}
 			placeholder={defaultText}
 			onChange={set(key)}
 			help={help}
@@ -269,6 +281,27 @@ const PanelContentControls = ({ content, hasLocationStep, onChange }) => {
 					__("Complete", "rox-appointment-booking"),
 					__("Complete", "rox-appointment-booking"),
 				)}
+			</Group>
+
+			<Group label={__("Summary", "rox-appointment-booking")}>
+				{/* Stored as "hidden" so an untouched block keeps the label: only
+				    switching it off writes anything to the attribute. */}
+				<ToggleControl
+					label={__("Show agent label", "rox-appointment-booking")}
+					checked={!overrides.summaryAgentLabelHidden}
+					onChange={(show) => set("summaryAgentLabelHidden")(!show)}
+					__nextHasNoMarginBottom
+				/>
+				{!overrides.summaryAgentLabelHidden &&
+					field(
+						"summaryAgentLabel",
+						__("Agent label", "rox-appointment-booking"),
+						__("Agent", "rox-appointment-booking"),
+						__(
+							"Shown before the selected agent's name.",
+							"rox-appointment-booking",
+						),
+					)}
 			</Group>
 		</>
 	);

@@ -6,6 +6,8 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\Access\Permissions;
+use RoxAppointmentBooking\Supports\Access\OwnedRecords;
 use RoxAppointmentBooking\Modules\Service\Data\ServiceModel;
 use RoxAppointmentBooking\Modules\Appointment\Data\AppointmentModel;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceAgentRelationModel;
@@ -62,7 +64,7 @@ class DeleteService extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !current_user_can('manage_options')) {
+        if (!is_user_logged_in() || !Permissions::can('service.delete')) {
             return false;
         }
 
@@ -84,7 +86,7 @@ class DeleteService extends AbstractREST
         
         if ($ids && is_array($ids)) {
             foreach ($ids as $singleId) {
-                $service = ServiceModel::find($singleId);
+                $service = OwnedRecords::ownsService((int) $singleId) ? ServiceModel::find($singleId) : null;
                 if ($service) {
                     $validation_error = $this->validateServiceCanBeDeleted($singleId);
                     if ($validation_error) {
@@ -114,7 +116,7 @@ class DeleteService extends AbstractREST
         }
         
         // Single delete fallback
-        $service = ServiceModel::find($id);
+        $service = OwnedRecords::ownsService((int) $id) ? ServiceModel::find($id) : null;
         if (!$service) {
             return rox_appointment_booking_rest_response(
                 data : null,

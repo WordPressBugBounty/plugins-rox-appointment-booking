@@ -1,5 +1,6 @@
 import apiFetch from "@wordpress/api-fetch";
 import { registerLanguageMiddleware } from "../../lib/apiLanguage.js";
+import { configureTimezone, setCustomerTimezone } from "../../lib/timezone.js";
 
 // Thin fetch helper for the Customer Panel's own REST endpoints
 // (/customer-panel/…). Uses the nonce + apiBaseUrl injected by
@@ -20,6 +21,14 @@ if (cfg.nonce) {
 // request carries `lang` and service names come back in the language the
 // customer is reading the panel in.
 registerLanguageMiddleware(cfg.language);
+
+// The timezone module reads its settings from one place on every surface. Here
+// the customer's own saved preference outranks the browser's guess — unlike on
+// the public panel, this side knows who is looking.
+configureTimezone(cfg.timezone);
+if (cfg.timezone && cfg.timezone.customerTimezone) {
+  setCustomerTimezone(cfg.timezone.customerTimezone);
+}
 
 // Plugin REST base, e.g. https://site/wp-json/rox-appointment-booking/v1
 const BASE = (cfg.apiBaseUrl || "/wp-json/rox-appointment-booking/v1/").replace(

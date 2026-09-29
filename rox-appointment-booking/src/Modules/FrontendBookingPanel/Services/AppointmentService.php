@@ -11,6 +11,7 @@ use RoxAppointmentBooking\Modules\Notification\Services\NotificationService;
 use RoxAppointmentBooking\Modules\Customer\Services\CustomerService;
 use RoxAppointmentBooking\Modules\Service\Data\ServiceModel;
 use RoxAppointmentBooking\Modules\Service\Services\ServiceService;
+use RoxAppointmentBooking\Modules\Appointment\REST\GetAppointmentSchedule;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceCategoryRelationModel;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceLocationRelationModel;
 
@@ -41,6 +42,17 @@ class AppointmentService
         // payment and no notification — as soon as a later appointment was
         // rejected, and those orphan rows then blocked the customer's own retry.
         $validated = [];
+
+        // The zone the customer read the slots in, kept only so the receipt and
+        // the e-mail can repeat their own times back to them. Anything the site
+        // cannot construct a DateTimeZone from is stored as NULL, which reads
+        // as the site's own zone everywhere. Never used to schedule.
+        $customer_timezone = isset($params['customer_timezone'])
+            ? sanitize_text_field((string) $params['customer_timezone'])
+            : '';
+        $customer_timezone = rox_appointment_booking_is_valid_timezone($customer_timezone)
+            ? $customer_timezone
+            : null;
 
         foreach ($params['appointments'] as $appointmentData) {
             // Frontend might send end_time or we can calculate it securely.
@@ -186,6 +198,41 @@ class AppointmentService
             $full_start_time = $appointmentData['date'] . ' ' . $appointmentData['start_time'];
             $full_end_time = $appointmentData['date'] . ' ' . $calculated_end_time;
 
+            // BUFFER TIME (Pro): the service's preparation / wrap-up minutes widen
+            // the stretch of the agent's schedule this booking holds, so the
+            // agent and capacity checks below compare that stretch instead of
+            // the bare interval. $start_dt now sits at the end, on the next day
+            // when the booking runs past midnight.
+            $booking_end = $start_dt->format('Y-m-d H:i:s');
+            $buffer = ServiceService::bufferColumns($service, $full_start_time, $booking_end);
+            $schedule_overlap = ServiceService::scheduleOverlap($appointmentData['date'], $full_start_time, $full_end_time, $buffer);
+
+            // WORKING HOURS: the panel never offers a time whose booking would
+            // run past the end of the working day or into a break, buffer time
+            // included, so a request for one comes from a stale tab or a
+            // hand-made call. A schedule that cannot be read returns null and
+            // is left alone, as before.
+            $working_windows = GetAppointmentSchedule::workingWindowsForDate(
+                $agent_id !== null ? (int) $agent_id : null,
+                !empty($appointmentData['service_id']) ? (int) $appointmentData['service_id'] : null,
+                (string) $appointmentData['date']
+            );
+
+            if (
+                is_array($working_windows)
+                && !GetAppointmentSchedule::blockFitsWindows(
+                    $working_windows,
+                    (string) ($buffer['block_start_time'] ?? $full_start_time),
+                    (string) ($buffer['block_end_time'] ?? $full_end_time)
+                )
+            ) {
+                return new WP_Error(
+                    'outside_working_hours',
+                    esc_html__('This time is outside the working hours for that day, or it runs into a break. Please choose a different time.', 'rox-appointment-booking'),
+                    ['status' => 409]
+                );
+            }
+
             // CUSTOMER DOUBLE-BOOKING CHECK:
             // The same customer cannot hold two appointments that overlap in time,
             // regardless of service or agent (a person can't be in two places at once).
@@ -213,6 +260,17 @@ class AppointmentService
                     // here is never undone — the apostrophe would reach the
                     // toast as a literal &#039;.
                     __('This slot doesn\'t have enough spots. Choose another time or reduce attendees.', 'rox-appointment-booking'),
+                    ['status' => 409]
+                );
+            }
+
+            // The cart check above is per customer, on the bare interval. Two cart
+            // appointments with the same agent must also leave that agent the
+            // buffer time in between.
+            if ($agent_id !== null && $this->hasBufferConflictValidated($validated, $agent_id, $buffer)) {
+                return new WP_Error(
+                    'buffer_time_conflict',
+                    esc_html__('This time is too close to another appointment with the same agent. Preparation and wrap-up time is needed in between, so please choose a different time.', 'rox-appointment-booking'),
                     ['status' => 409]
                 );
             }
@@ -261,28 +319,52 @@ class AppointmentService
                     );
                 }
 
+                // The pool above is the session itself (the bookings overlap). A
+                // neighbouring session of this same service that only reaches in
+                // through a buffer shares no attendees — the agent is still
+                // preparing or wrapping up — so it blocks the slot outright.
+                $neighbour_session_query = AppointmentModel::query()
+                    ->where('service_id', intval($appointmentData['service_id']))
+                    ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
+                    ->where($schedule_overlap)
+                    ->where(function($query) use ($full_start_time, $full_end_time) {
+                        $query->where('start_time', '>=', $full_end_time)
+                              ->orWhere('end_time', '<=', $full_start_time);
+                    });
+                if ($agent_id !== null) {
+                    $neighbour_session_query->where('agent_id', $agent_id);
+                } else {
+                    $neighbour_session_query->whereNull('agent_id');
+                }
+
+                if ($neighbour_session_query->first()) {
+                    return new WP_Error(
+                        'buffer_time_conflict',
+                        esc_html__('This time is too close to another session of this service. Preparation and wrap-up time is needed in between, so please choose a different time.', 'rox-appointment-booking'),
+                        ['status' => 409]
+                    );
+                }
+
                 // The attendee pool above only covers this same group service. The
                 // agent can still be occupied by another service at the same time,
                 // so the single-occupancy guard still applies outside the group.
                 if ($agent_id !== null) {
                     $agent_conflict = AppointmentModel::query()
                         ->where('agent_id', $agent_id)
-                        ->where('date', $appointmentData['date'])
                         ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
                         ->where(function($query) use ($appointmentData) {
                             $query->where('service_id', '!=', intval($appointmentData['service_id']))
                                   ->whereNull('service_id', 'or');
                         })
-                        ->where(function($query) use ($full_start_time, $full_end_time) {
-                            $query->where('start_time', '<', $full_end_time)
-                                  ->where('end_time', '>', $full_start_time);
-                        })
+                        ->where($schedule_overlap)
                         ->first();
 
                     if ($agent_conflict) {
                         return new WP_Error(
                             'time_conflict',
-                            esc_html__('The selected agent already has another appointment at this time. Please choose a different time.', 'rox-appointment-booking'),
+                            ServiceService::overlapsOnlyThroughBuffer($agent_conflict, $full_start_time, $booking_end)
+                                ? esc_html__('This time is too close to another appointment with the same agent. Preparation and wrap-up time is needed in between, so please choose a different time.', 'rox-appointment-booking')
+                                : esc_html__('The selected agent already has another appointment at this time. Please choose a different time.', 'rox-appointment-booking'),
                             ['status' => 409]
                         );
                     }
@@ -299,12 +381,8 @@ class AppointmentService
 
                 $overlapping_count = AppointmentModel::query()
                     ->where('service_id', intval($appointmentData['service_id']))
-                    ->where('date', $appointmentData['date'])
                     ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
-                    ->where(function($query) use ($full_start_time, $full_end_time) {
-                        $query->where('start_time', '<', $full_end_time)
-                              ->where('end_time', '>', $full_start_time);
-                    })
+                    ->where($schedule_overlap)
                     ->count();
 
                 if ($overlapping_count >= $max_capacity) {
@@ -320,22 +398,19 @@ class AppointmentService
                 // However, when a user adds "Extra Services", the total duration increases.
                 // If the total duration extends into another appointment that is already booked later in the same day,
                 // we must reject it here to prevent the agent from being double-booked.
+                // Buffer time widens both sides of this test (see $schedule_overlap).
                 $existing = AppointmentModel::query()
                     ->where('agent_id', $agent_id)
-                    ->where('date', $appointmentData['date'])
                     ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
-                    ->where(function($query) use ($full_start_time, $full_end_time) {
-                        $query->where(function($q) use ($full_start_time, $full_end_time) {
-                            $q->where('start_time', '<', $full_end_time)
-                              ->where('end_time', '>', $full_start_time);
-                        });
-                    })
+                    ->where($schedule_overlap)
                     ->first();
 
                 if ($existing) {
                     return new WP_Error(
                         'time_conflict',
-                        esc_html__('The selected time slot does not have enough time to accommodate your selected extra services. Please choose a different time.', 'rox-appointment-booking'),
+                        ServiceService::overlapsOnlyThroughBuffer($existing, $full_start_time, $booking_end)
+                            ? esc_html__('This time is too close to another appointment with the same agent. Preparation and wrap-up time is needed in between, so please choose a different time.', 'rox-appointment-booking')
+                            : esc_html__('The selected time slot does not have enough time to accommodate your selected extra services. Please choose a different time.', 'rox-appointment-booking'),
                         ['status' => 409]
                     );
                 }
@@ -346,6 +421,7 @@ class AppointmentService
                 'start_time' => $full_start_time,
                 'end_time' => $full_end_time,
                 'fill' => [
+                    'customer_timezone' => $customer_timezone,
                     'customer_id' => $customerId,
                     'service_id' => intval($appointmentData['service_id']),
                     'agent_id' => $agent_id,
@@ -358,7 +434,10 @@ class AppointmentService
                     'status' => rox_appointment_booking_general_settings('default_appointment_status', 'pending'),
                     'payment_status' => rox_appointment_booking_payment_settings('default_payment_status', 'unpaid'),
                     'total_attendees' => $total_attendees,
-                ],
+                    // Buffer time (Pro): the snapshot and the stretch of
+                    // schedule this booking blocks, or no keys at all when the
+                    // Pro plugin — which owns those columns — is not there.
+                ] + $buffer,
             ];
         }
 
@@ -414,6 +493,51 @@ class AppointmentService
             $validated_end = strtotime($validatedAppointment['end_time']);
 
             if ($validated_start === false || $validated_end === false) {
+                continue;
+            }
+
+            if ($validated_start < $end && $validated_end > $start) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check an already-validated cart for an appointment with the same agent
+     * whose schedule, buffers included, overlaps the given one.
+     *
+     * hasOverlappingValidated() only compares the bare intervals, because it
+     * guards the customer. The agent also needs its preparation / wrap-up time
+     * between the two, which only the block ranges carry. Without Pro there is
+     * no buffer and nothing to add to that check.
+     *
+     * @param array $validated Appointments validated so far in this cart.
+     * @param int $agent_id Agent of the new appointment.
+     * @param array $buffer Buffer columns of the new appointment (ServiceService::bufferColumns()).
+     * @return bool
+     */
+    private function hasBufferConflictValidated(array $validated, int $agent_id, array $buffer): bool
+    {
+        // No block range means no buffer feature — bufferColumns() hands back
+        // no keys at all then, and there is nothing to add to the bare test.
+        $start = strtotime((string) ($buffer['block_start_time'] ?? ''));
+        $end = strtotime((string) ($buffer['block_end_time'] ?? ''));
+
+        if (!$start || !$end) {
+            return false;
+        }
+
+        foreach ($validated as $validatedAppointment) {
+            if (($validatedAppointment['fill']['agent_id'] ?? null) !== $agent_id) {
+                continue;
+            }
+
+            $validated_start = strtotime((string) ($validatedAppointment['fill']['block_start_time'] ?? ''));
+            $validated_end = strtotime((string) ($validatedAppointment['fill']['block_end_time'] ?? ''));
+
+            if (!$validated_start || !$validated_end) {
                 continue;
             }
 

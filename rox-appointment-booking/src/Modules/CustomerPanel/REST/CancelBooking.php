@@ -6,6 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\CustomerPanel\Services\CustomerPanelService;
 use RoxAppointmentBooking\Modules\Appointment\Data\AppointmentModel;
 
@@ -57,7 +58,7 @@ class CancelBooking extends AbstractREST
         if (CustomerPanelService::isCurrentUserCustomer()) {
             $allowed = rox_appointment_booking_customer_can_cancel();
         } elseif (!current_user_can('manage_options') && current_user_can('rox_appointment_booking_agent')) {
-            $allowed = rox_appointment_booking_agent_can_cancel();
+            $allowed = Permissions::can('appointment.cancel');
         } else {
             $allowed = true;
         }

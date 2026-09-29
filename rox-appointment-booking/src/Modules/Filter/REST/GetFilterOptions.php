@@ -6,7 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
-use RoxAppointmentBooking\Supports\Security;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\Service\Data\ServiceModel;
 use RoxAppointmentBooking\Modules\Category\Data\CategoryModel;
 use RoxAppointmentBookingPro\Modules\Location\Data\LocationModel;
@@ -57,7 +57,7 @@ class GetFilterOptions extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !Security::canAccessPanel()) {
+        if (!is_user_logged_in() || !Permissions::can('panel.access')) {
             return false;
         }
 
@@ -78,7 +78,7 @@ class GetFilterOptions extends AbstractREST
         // admin Orders page's Customer filter. Agent filter bars use
         // service/category/location only, so agents have no reason to enumerate
         // every customer name or the whole staff list.
-        if (in_array($table, ['customer', 'agent'], true) && !Security::canManageBookings()) {
+        if (in_array($table, ['customer', 'agent'], true) && !Permissions::can($table . '.view')) {
             return rox_appointment_booking_rest_response(
                 data: null,
                 code: 403,

@@ -6,6 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceAgentRelationModel;
 use RoxAppointmentBooking\Modules\Agent\Services\AgentService;
 use RoxAppointmentBooking\Modules\Service\Services\ServiceService;
@@ -51,16 +52,22 @@ class GetAppointmentSchedule extends AbstractREST
      * @param array $agent_schedule Agent weekly schedule
      * @param array $service_schedule Service weekly schedule
      * @param array $global_schedule Global weekly schedule
-     * @param int $service_duration Service duration in minutes
+     * @param int $slot_step Minutes from one offered time to the next
+     * @param int $appointment_duration Booking's own length (service + extras); 0 falls back to $slot_step
+     * @param int $buffer_before Preparation minutes before the booking
+     * @param int $buffer_after Wrap-up minutes after the booking
      * @return array Final merged weekly schedule with timeslots
      */
     public function mergeWeeklySchedules(
         array $agent_schedule,
         array $service_schedule,
         array $global_schedule,
-        int $service_duration
+        int $slot_step,
+        int $appointment_duration = 0,
+        int $buffer_before = 0,
+        int $buffer_after = 0
     ): array {
-        if ($service_duration <= 0) {
+        if ($slot_step <= 0) {
             return [];
         }
 
@@ -96,7 +103,10 @@ class GetAppointmentSchedule extends AbstractREST
             $timeslots = $is_day_off ? [] : $this->generateTimeslots(
                 $schedule_times,
                 $breaks,
-                $service_duration
+                $slot_step,
+                $appointment_duration,
+                $buffer_before,
+                $buffer_after
             );
 
             $final_schedule[$day_index] = [
@@ -114,12 +124,21 @@ class GetAppointmentSchedule extends AbstractREST
      * 
      * @param array $schedule_times [start_time, end_time] in HH:MM:SS format
      * @param array $breaks [[start, end], ...] in HH:MM:SS format
-     * @param int $service_duration Duration in minutes
+     * @param int $slot_step Minutes from one offered time to the next
+     * @param int $appointment_duration Booking's own length (service + extras); 0 falls back to $slot_step
+     * @param int $buffer_before Preparation minutes before the booking
+     * @param int $buffer_after Wrap-up minutes after the booking
      * @return array List of available timeslots in HH:MM:SS format
      */
-    private function generateTimeslots(array $schedule_times, array $breaks, int $service_duration): array
-    {
-        if (empty($schedule_times) || count($schedule_times) < 2) {
+    private function generateTimeslots(
+        array $schedule_times,
+        array $breaks,
+        int $slot_step,
+        int $appointment_duration = 0,
+        int $buffer_before = 0,
+        int $buffer_after = 0
+    ): array {
+        if (empty($schedule_times) || count($schedule_times) < 2 || $slot_step <= 0) {
             return [];
         }
 
@@ -145,17 +164,42 @@ class GetAppointmentSchedule extends AbstractREST
             return [];
         }
 
-        // Generate timeslots
-        while ($current < $end) {
-            $slot_time = $current->format('H:i:s');
+        // The booking's own length. Callers that do not separate the two pass
+        // the step alone, which is what it is without buffers.
+        $duration = $appointment_duration > 0 ? $appointment_duration : $slot_step;
 
-            // Check if this slot falls within any break time
-            if (!$this->isTimeInBreak($slot_time, $breaks)) {
-                $timeslots[] = $slot_time;
+        // Breaks cut the day into the stretches that can actually hold a
+        // booking. Each stretch is filled on its own, so nothing on offer ever
+        // runs into a break and the times start again right after one.
+        $windows = $this->availableWindows($current, $end, $this->breakRanges($breaks));
+
+        foreach ($windows as $window) {
+            $slot = clone $window['start'];
+
+            // BUFFER TIME (Pro): preparation is work too, so a stretch's first
+            // booking starts that many minutes in — 08:05 on a day opening at
+            // 08:00 with a 5-minute prep (owner decision, 2026-09-24) — rather
+            // than reaching back before the day opens or into the break that
+            // ends here. Every later time is one step on; with buffers in the
+            // grid that step is a whole booking, so one booking's wrap-up and
+            // the next one's preparation meet exactly.
+            if ($buffer_before > 0) {
+                $slot->modify("+{$buffer_before} minutes");
             }
 
-            // Add service duration to current time
-            $current->modify("+{$service_duration} minutes");
+            while ($slot < $window['end']) {
+                // Everything the booking holds — preparation and wrap-up
+                // included — belongs inside this stretch, so stop once it would
+                // run past the end. Later times only start later, so none fit.
+                $block_end = (clone $slot)->modify('+' . ($duration + $buffer_after) . ' minutes');
+                if ($block_end > $window['end']) {
+                    break;
+                }
+
+                $timeslots[] = $slot->format('H:i:s');
+
+                $slot->modify("+{$slot_step} minutes");
+            }
         }
 
         return $timeslots;
@@ -167,28 +211,20 @@ class GetAppointmentSchedule extends AbstractREST
      * @param string $time Time string to validate
      * @return bool True if valid format
      */
-    private function isValidTimeFormat(string $time): bool
+    private static function isValidTimeFormat(string $time): bool
     {
         return (bool) preg_match('/^\d{2}:\d{2}:\d{2}$/', $time);
     }
 
     /**
-     * Check if a given time falls within any break period
-     * 
-     * @param string $time Time in HH:MM:SS format
-     * @param array $breaks [[start, end], ...] in HH:MM:SS format
-     * @return bool True if time falls within a break
+     * Parse break periods into comparable time ranges
+     *
+     * @param array $breaks [[start, end], ...] in HH:MM:SS or ISO 8601 format
+     * @return array List of ['start' => DateTime, 'end' => DateTime]
      */
-    private function isTimeInBreak(string $time, array $breaks): bool
+    private static function breakRanges(array $breaks): array
     {
-        if (empty($breaks)) {
-            return false;
-        }
-
-        $time_obj = \DateTime::createFromFormat('H:i:s', $time);
-        if (!$time_obj) {
-            return false;
-        }
+        $ranges = [];
 
         foreach ($breaks as $break) {
             if (!is_array($break) || count($break) < 2) {
@@ -200,21 +236,66 @@ class GetAppointmentSchedule extends AbstractREST
 
             // Handle both formats: already extracted times and ISO 8601
             if (strpos($break_start_str, 'T') !== false) {
-                $break_start_str = $this->extractTimeFromString($break_start_str);
+                $break_start_str = self::extractTimeFromString($break_start_str);
             }
             if (strpos($break_end_str, 'T') !== false) {
-                $break_end_str = $this->extractTimeFromString($break_end_str);
+                $break_end_str = self::extractTimeFromString($break_end_str);
             }
 
             $break_start = \DateTime::createFromFormat('H:i:s', $break_start_str);
             $break_end = \DateTime::createFromFormat('H:i:s', $break_end_str);
 
-            if ($break_start && $break_end && $time_obj >= $break_start && $time_obj < $break_end) {
-                return true;
+            if ($break_start && $break_end && $break_end > $break_start) {
+                $ranges[] = ['start' => $break_start, 'end' => $break_end];
             }
         }
 
-        return false;
+        return $ranges;
+    }
+
+    /**
+     * Split a working window into the stretches the breaks leave free
+     *
+     * Overlapping or out-of-order breaks are handled by walking the day once,
+     * so the stretches come back in order and never overlap each other.
+     *
+     * @param \DateTime $start Start of the working window
+     * @param \DateTime $end End of the working window
+     * @param array $break_ranges Ranges from breakRanges()
+     * @return array List of ['start' => DateTime, 'end' => DateTime]
+     */
+    private static function availableWindows(\DateTime $start, \DateTime $end, array $break_ranges): array
+    {
+        usort($break_ranges, function ($a, $b) {
+            return $a['start'] <=> $b['start'];
+        });
+
+        $windows = [];
+        $cursor = clone $start;
+
+        foreach ($break_ranges as $range) {
+            if ($range['end'] <= $cursor) {
+                // Break is behind us, or covers where we already are.
+                continue;
+            }
+
+            if ($range['start'] >= $end) {
+                // Breaks are in order, so this and the rest are after the day.
+                break;
+            }
+
+            if ($range['start'] > $cursor) {
+                $windows[] = ['start' => clone $cursor, 'end' => clone $range['start']];
+            }
+
+            $cursor = clone $range['end'];
+        }
+
+        if ($cursor < $end) {
+            $windows[] = ['start' => $cursor, 'end' => clone $end];
+        }
+
+        return $windows;
     }
 
     /**
@@ -247,6 +328,181 @@ class GetAppointmentSchedule extends AbstractREST
     }
 
     /**
+     * Working stretches of one date, with the breaks already taken out
+     *
+     * The same sources the slot grid is built from (agent, service and global
+     * schedules, plus the agent's special days), reduced to the one date the
+     * write paths are about. They use it to refuse a booking that would run
+     * outside the working day or into a break, which the slot grid never offers.
+     *
+     * @param int|null $agent_id Agent being booked, null for an agent-less booking
+     * @param int|null $service_id Service being booked
+     * @param string $date Date in YYYY-MM-DD format
+     * @return array|null Stretches as ['start' => 'H:i:s', 'end' => 'H:i:s'], or null when no schedule could be read
+     */
+    public static function workingWindowsForDate(?int $agent_id, ?int $service_id, string $date): ?array
+    {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return null;
+        }
+
+        $timestamp = strtotime($date);
+        if (!$timestamp) {
+            return null;
+        }
+
+        try {
+            $settings_service = new SettingsService();
+            $global_weekly_schedule = $settings_service->getWeeklySchedule();
+
+            // Nothing to measure against: leave the decision to the callers.
+            if (!is_array($global_weekly_schedule) || empty($global_weekly_schedule)) {
+                return null;
+            }
+
+            $service_weekly_schedule = $service_id
+                ? (new ServiceService())->getWeeklySchedule($service_id)
+                : [];
+            if (!is_array($service_weekly_schedule)) {
+                $service_weekly_schedule = [];
+            }
+            // A service schedule that is switched off means "follow the global one".
+            if (!isset($service_weekly_schedule['is_enabled']) || $service_weekly_schedule['is_enabled'] != 1) {
+                $service_weekly_schedule['weekly_schedule'] = $global_weekly_schedule;
+            }
+
+            $agent_service = new AgentService();
+            $special_day = null;
+
+            if ($agent_id) {
+                $agent_weekly_schedule = $agent_service->getWeeklySchedule($agent_id);
+                if (!is_array($agent_weekly_schedule)) {
+                    $agent_weekly_schedule = [];
+                }
+                if (!isset($agent_weekly_schedule['is_enabled']) || $agent_weekly_schedule['is_enabled'] != 1) {
+                    $agent_weekly_schedule['weekly_schedule'] = $global_weekly_schedule;
+                }
+
+                // A special day replaces the weekday's hours and breaks outright.
+                $special_days = $agent_service->getSpecialDays($agent_id)['special_days'] ?? [];
+                foreach ($special_days as $data) {
+                    if (is_array($data) && ($data['date'] ?? '') === $date) {
+                        $special_day = $data;
+                        break;
+                    }
+                }
+            } else {
+                // Agent-less booking: service ∩ global, the same reduction the
+                // slot grid makes by feeding the global schedule in as the agent.
+                $agent_weekly_schedule = ['weekly_schedule' => $global_weekly_schedule];
+            }
+
+            if (is_array($special_day)) {
+                $schedule_times = $special_day['schedule'] ?? [];
+                $breaks = $special_day['breaks'] ?? [];
+
+                if (!is_array($schedule_times) || count($schedule_times) < 2) {
+                    // Special day off: no stretch of it can hold a booking.
+                    return [];
+                }
+            } else {
+                // PHP's 'w' (0=Sun, 6=Sat). Our array uses 0=Mon, 6=Sun.
+                $day_index = (int) gmdate('w', $timestamp);
+                $day_index = ($day_index === 0) ? 6 : $day_index - 1;
+
+                $agent_day = self::getDayFromSchedule($agent_weekly_schedule['weekly_schedule'] ?? [], $day_index);
+                $service_day = self::getDayFromSchedule($service_weekly_schedule['weekly_schedule'] ?? [], $day_index);
+                $global_day = self::getDayFromSchedule($global_weekly_schedule, $day_index);
+
+                if (self::isDayOff($agent_day) || self::isDayOff($service_day) || self::isDayOff($global_day)) {
+                    return [];
+                }
+
+                $schedule_times = self::intersectTimeslots(
+                    $agent_day['schedule'] ?? [],
+                    $service_day['schedule'] ?? [],
+                    $global_day['schedule'] ?? []
+                );
+
+                $breaks = self::mergeBreaks(
+                    $agent_day['breaks'] ?? [],
+                    $service_day['breaks'] ?? [],
+                    $global_day['breaks'] ?? []
+                );
+            }
+
+            if (count($schedule_times) < 2) {
+                return [];
+            }
+
+            if (!self::isValidTimeFormat($schedule_times[0]) || !self::isValidTimeFormat($schedule_times[1])) {
+                return null;
+            }
+
+            $start = \DateTime::createFromFormat('H:i:s', $schedule_times[0]);
+            $end = \DateTime::createFromFormat('H:i:s', $schedule_times[1]);
+
+            if (!$start || !$end || $end <= $start) {
+                return [];
+            }
+
+            $windows = [];
+            foreach (self::availableWindows($start, $end, self::breakRanges($breaks)) as $window) {
+                $windows[] = [
+                    'start' => $window['start']->format('H:i:s'),
+                    'end' => $window['end']->format('H:i:s'),
+                ];
+            }
+
+            return $windows;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Whether a stretch of schedule fits inside one working stretch of the day
+     *
+     * Everything the booking holds is measured, preparation included: a
+     * stretch's first time already starts after it (see generateTimeslots()),
+     * so a booking whose prep would reach back before the day opens, or into
+     * the break that ends there, is not one the panels ever offered.
+     *
+     * @param array $windows Stretches from workingWindowsForDate()
+     * @param string $block_start Start of the booking's preparation as 'Y-m-d H:i:s'
+     * @param string $block_end End of the booking's wrap-up as 'Y-m-d H:i:s'
+     * @return bool True when one stretch holds the whole block
+     */
+    public static function blockFitsWindows(array $windows, string $block_start, string $block_end): bool
+    {
+        $start = strtotime($block_start);
+        $end = strtotime($block_end);
+
+        if (!$start || !$end || $end <= $start) {
+            return true;
+        }
+
+        // A booking running past midnight cannot sit inside one day's hours.
+        if (gmdate('Y-m-d', $start) !== gmdate('Y-m-d', $end)) {
+            return false;
+        }
+
+        $block_from = gmdate('H:i:s', $start);
+        $block_to = gmdate('H:i:s', $end);
+
+        foreach ($windows as $window) {
+            $window_from = is_array($window) ? ($window['start'] ?? '') : '';
+            $window_to = is_array($window) ? ($window['end'] ?? '') : '';
+
+            if ($window_from !== '' && $window_to !== '' && $block_from >= $window_from && $block_to <= $window_to) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Get booked timeslots for a specific agent based on service duration
      * Returns an array of objects with date and overlapping timeslots properties
      * 
@@ -254,16 +510,21 @@ class GetAppointmentSchedule extends AbstractREST
      * @param int $service_duration Duration of the combined service
      * @param array $weekly_schedule Valid slots for each day
      * @param array $special_days Valid slots for special dates
+     * @param int $buffer_before Buffer minutes before a slot of the service being booked
+     * @param int $buffer_after Buffer minutes after a slot of the service being booked
      * @return array Booked timeslots as array of objects
      */
-    public function getBookedTimeslots(int $agent_id, int $service_duration, array $weekly_schedule = [], array $special_days = []): array
+    public function getBookedTimeslots(int $agent_id, int $service_duration, array $weekly_schedule = [], array $special_days = [], int $buffer_before = 0, int $buffer_after = 0): array
     {
         $booked_timeslots = [];
+        $today = gmdate('Y-m-d');
 
-        // Query all appointments for this agent
+        // Query all appointments for this agent. Yesterday is included only so a
+        // buffer running past midnight still blocks today; blockedDates() drops
+        // anything that lands before today.
         $appointments = AppointmentModel::query()
             ->where('agent_id', $agent_id)
-            ->where('date', '>=', gmdate('Y-m-d'))
+            ->where('date', '>=', gmdate('Y-m-d', strtotime('-1 day')))
             ->get();
 
         if (!$appointments || $appointments->isEmpty()) {
@@ -291,11 +552,14 @@ class GetAppointmentSchedule extends AbstractREST
             if (empty($appointment_start_time) || empty($appointment_end_time)) {
                 continue;
             }
-            
-            $grouped_appointments[$date][] = [
-                'start' => \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$appointment_start_time}"),
-                'end' => \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$appointment_end_time}"),
-            ];
+
+            $range = $this->blockedRange($appointment, $date, $appointment_start_time, $appointment_end_time);
+            if (!$range) {
+                continue;
+            }
+            foreach ($this->blockedDates($range, $today) as $block_date) {
+                $grouped_appointments[$block_date][] = $range;
+            }
         }
 
         // Map special days by date for quick lookup
@@ -320,27 +584,47 @@ class GetAppointmentSchedule extends AbstractREST
             }
 
             $blocked = [];
+            $buffer_blocked = [];
             foreach ($day_slots as $slot_time_str) {
                 // $slot_time_str e.g. "09:00:00"
                 $slot_start = \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$slot_time_str}");
                 $slot_end = clone $slot_start;
                 $slot_end->modify("+{$service_duration} minutes");
+                [$slot_block_start, $slot_block_end] = $this->padRange($slot_start, $slot_end, $buffer_before, $buffer_after);
 
-                // Check overlap with any appointment today
+                // Check overlap with any appointment today, both sides padded by their buffers
+                $taken_by_booking = false;
+                $taken_by_buffer = false;
                 foreach ($day_appointments as $appt) {
                     if (!$appt['start'] || !$appt['end']) continue;
                     // Condition for overlap: slot_start < appt_end AND slot_end > appt_start
-                    if ($slot_start < $appt['end'] && $slot_end > $appt['start']) {
-                        $blocked[] = $slot_time_str;
-                        break;
+                    if ($slot_block_start < $appt['end'] && $slot_block_end > $appt['start']) {
+                        // The two appointments themselves overlapping is a taken
+                        // time; reaching each other only through a buffer is the
+                        // gap around one, which the panels hide instead.
+                        if ($slot_start < $appt['raw_end'] && $slot_end > $appt['raw_start']) {
+                            $taken_by_booking = true;
+                            break;
+                        }
+                        $taken_by_buffer = true;
                     }
+                }
+
+                if ($taken_by_booking) {
+                    $blocked[] = $slot_time_str;
+                } elseif ($taken_by_buffer) {
+                    $buffer_blocked[] = $slot_time_str;
                 }
             }
 
-            if (!empty($blocked)) {
+            if (!empty($blocked) || !empty($buffer_blocked)) {
                 $booked_timeslots[] = [
                     'date' => $date,
-                    'timeslots' => array_values(array_unique($blocked))
+                    'timeslots' => array_values(array_unique($blocked)),
+                    // Closed only by the buffer around a booking: the panels
+                    // drop these from the list rather than grey them out, so a
+                    // customer is not shown times they can never take.
+                    'buffer_timeslots' => array_values(array_unique($buffer_blocked))
                 ];
             }
         }
@@ -366,6 +650,8 @@ class GetAppointmentSchedule extends AbstractREST
      * @param int $max_capacity Max concurrent bookings per slot (min 1)
      * @param array $weekly_schedule Valid slots for each day
      * @param array $special_days Valid slots for special dates
+     * @param int $buffer_before Buffer minutes before a slot of the service being booked
+     * @param int $buffer_after Buffer minutes after a slot of the service being booked
      * @return array Booked timeslots as array of objects
      */
     public function getBookedTimeslotsByServiceCapacity(
@@ -373,18 +659,22 @@ class GetAppointmentSchedule extends AbstractREST
         int $service_duration,
         int $max_capacity,
         array $weekly_schedule = [],
-        array $special_days = []
+        array $special_days = [],
+        int $buffer_before = 0,
+        int $buffer_after = 0
     ): array {
         if ($max_capacity <= 0) {
             $max_capacity = 1;
         }
 
         $booked_timeslots = [];
+        $today = gmdate('Y-m-d');
 
-        // Query all future appointments for this service (any agent)
+        // Query all future appointments for this service (any agent). Yesterday
+        // is included only so a buffer running past midnight still counts today.
         $appointments = AppointmentModel::query()
             ->where('service_id', $service_id)
-            ->where('date', '>=', gmdate('Y-m-d'))
+            ->where('date', '>=', gmdate('Y-m-d', strtotime('-1 day')))
             ->get();
 
         if (!$appointments || $appointments->isEmpty()) {
@@ -413,10 +703,13 @@ class GetAppointmentSchedule extends AbstractREST
                 continue;
             }
 
-            $grouped_appointments[$date][] = [
-                'start' => \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$appointment_start_time}"),
-                'end' => \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$appointment_end_time}"),
-            ];
+            $range = $this->blockedRange($appointment, $date, $appointment_start_time, $appointment_end_time);
+            if (!$range) {
+                continue;
+            }
+            foreach ($this->blockedDates($range, $today) as $block_date) {
+                $grouped_appointments[$block_date][] = $range;
+            }
         }
 
         // Map special days by date for quick lookup
@@ -441,31 +734,48 @@ class GetAppointmentSchedule extends AbstractREST
             }
 
             $blocked = [];
+            $buffer_blocked = [];
             foreach ($day_slots as $slot_time_str) {
                 $slot_start = \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$slot_time_str}");
                 $slot_end = clone $slot_start;
                 $slot_end->modify("+{$service_duration} minutes");
+                [$slot_block_start, $slot_block_end] = $this->padRange($slot_start, $slot_end, $buffer_before, $buffer_after);
 
-                // Count concurrent bookings overlapping this slot
+                // Count concurrent bookings overlapping this slot, both sides
+                // padded by their buffers — a booking still in its wrap-up time
+                // keeps holding one of the parallel places.
                 $overlap_count = 0;
+                $booking_overlap_count = 0;
                 foreach ($day_appointments as $appt) {
                     if (!$appt['start'] || !$appt['end']) continue;
                     // Condition for overlap: slot_start < appt_end AND slot_end > appt_start
-                    if ($slot_start < $appt['end'] && $slot_end > $appt['start']) {
+                    if ($slot_block_start < $appt['end'] && $slot_block_end > $appt['start']) {
                         $overlap_count++;
+                        if ($slot_start < $appt['raw_end'] && $slot_end > $appt['raw_start']) {
+                            $booking_overlap_count++;
+                        }
                     }
                 }
 
                 // Slot is full only when concurrency reaches the capacity limit
                 if ($overlap_count >= $max_capacity) {
-                    $blocked[] = $slot_time_str;
+                    // Full of bookings is a taken time; full only once the
+                    // buffers are counted is the gap around them, which the
+                    // panels hide instead of greying out.
+                    if ($booking_overlap_count >= $max_capacity) {
+                        $blocked[] = $slot_time_str;
+                    } else {
+                        $buffer_blocked[] = $slot_time_str;
+                    }
                 }
             }
 
-            if (!empty($blocked)) {
+            if (!empty($blocked) || !empty($buffer_blocked)) {
                 $booked_timeslots[] = [
                     'date' => $date,
-                    'timeslots' => array_values(array_unique($blocked))
+                    'timeslots' => array_values(array_unique($blocked)),
+                    // See getBookedTimeslots(): hidden rather than greyed.
+                    'buffer_timeslots' => array_values(array_unique($buffer_blocked))
                 ];
             }
         }
@@ -495,6 +805,8 @@ class GetAppointmentSchedule extends AbstractREST
      * @param int $max_capacity Max attendees per slot (min 1)
      * @param array $weekly_schedule Valid slots for each day
      * @param array $special_days Valid slots for special dates
+     * @param int $buffer_before Buffer minutes before a slot of the service being booked
+     * @param int $buffer_after Buffer minutes after a slot of the service being booked
      * @return array Booked timeslots as array of objects
      */
     public function getBookedTimeslotsByGroupCapacity(
@@ -503,17 +815,23 @@ class GetAppointmentSchedule extends AbstractREST
         int $service_duration,
         int $max_capacity,
         array $weekly_schedule = [],
-        array $special_days = []
+        array $special_days = [],
+        int $buffer_before = 0,
+        int $buffer_after = 0
     ): array {
         if ($max_capacity <= 0) {
             $max_capacity = 1;
         }
 
         $booked_timeslots = [];
+        $today = gmdate('Y-m-d');
+        // Yesterday is included only so a buffer running past midnight still
+        // blocks today; blockedDates() drops anything that lands before today.
+        $since = gmdate('Y-m-d', strtotime('-1 day'));
 
         $query = AppointmentModel::query()
             ->where('service_id', $service_id)
-            ->where('date', '>=', gmdate('Y-m-d'));
+            ->where('date', '>=', $since);
         if ($agent_id !== null) {
             $query->where('agent_id', $agent_id);
         } else {
@@ -528,7 +846,7 @@ class GetAppointmentSchedule extends AbstractREST
         if ($agent_id !== null) {
             $other_service_appointments = AppointmentModel::query()
                 ->where('agent_id', $agent_id)
-                ->where('date', '>=', gmdate('Y-m-d'))
+                ->where('date', '>=', $since)
                 ->where(function($query) use ($service_id) {
                     $query->where('service_id', '!=', $service_id)
                           ->whereNull('service_id', 'or');
@@ -568,12 +886,15 @@ class GetAppointmentSchedule extends AbstractREST
                     $attendees = 1;
                 }
 
-                $grouped_appointments[$date][] = [
-                    'start' => \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$appointment_start_time}"),
-                    'end' => \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$appointment_end_time}"),
-                    'attendees' => $attendees,
-                    'exclusive' => $is_exclusive,
-                ];
+                $range = $this->blockedRange($appointment, $date, $appointment_start_time, $appointment_end_time);
+                if (!$range) {
+                    continue;
+                }
+                $range['attendees'] = $attendees;
+                $range['exclusive'] = $is_exclusive;
+                foreach ($this->blockedDates($range, $today) as $block_date) {
+                    $grouped_appointments[$block_date][] = $range;
+                }
             }
         }
 
@@ -599,38 +920,59 @@ class GetAppointmentSchedule extends AbstractREST
             }
 
             $blocked = [];
+            $buffer_blocked = [];
             foreach ($day_slots as $slot_time_str) {
                 $slot_start = \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$slot_time_str}");
                 $slot_end = clone $slot_start;
                 $slot_end->modify("+{$service_duration} minutes");
+                [$slot_block_start, $slot_block_end] = $this->padRange($slot_start, $slot_end, $buffer_before, $buffer_after);
 
                 // Sum attendees of bookings overlapping this slot
                 $attendee_sum = 0;
                 $agent_busy = false;
+                // Whether what closed the slot is a booking's own time rather
+                // than the buffer around it.
+                $booking_busy = false;
                 foreach ($day_appointments as $appt) {
                     if (!$appt['start'] || !$appt['end']) continue;
-                    // Condition for overlap: slot_start < appt_end AND slot_end > appt_start
-                    if ($slot_start < $appt['end'] && $slot_end > $appt['start']) {
-                        // Another service on the agent's calendar: no shared capacity,
-                        // the slot is gone whatever the group has room for.
-                        if ($appt['exclusive']) {
-                            $agent_busy = true;
-                            break;
+                    // Condition for overlap: slot_start < appt_end AND slot_end > appt_start,
+                    // both sides padded by their buffers
+                    if ($slot_block_start < $appt['end'] && $slot_block_end > $appt['start']) {
+                        // The same group session (the bookings themselves overlap):
+                        // attendees share its pool.
+                        if (!$appt['exclusive'] && $slot_start < $appt['raw_end'] && $slot_end > $appt['raw_start']) {
+                            $attendee_sum += $appt['attendees'];
+                            continue;
                         }
-                        $attendee_sum += $appt['attendees'];
+                        // Another service on the agent's calendar, or a neighbouring
+                        // session of this one reaching in through a buffer: no shared
+                        // capacity, the slot is gone whatever the group has room for.
+                        $agent_busy = true;
+                        $booking_busy = $slot_start < $appt['raw_end'] && $slot_end > $appt['raw_start'];
+                        break;
                     }
                 }
 
                 // Slot is full only when attendee count reaches the capacity limit
                 if ($agent_busy || $attendee_sum >= $max_capacity) {
-                    $blocked[] = $slot_time_str;
+                    // A session of this service the customer could have joined,
+                    // or another booking on the agent's own time, is a taken
+                    // slot. A neighbouring booking reaching in only through a
+                    // buffer is the gap around it, which the panels hide.
+                    if ($attendee_sum > 0 || $booking_busy) {
+                        $blocked[] = $slot_time_str;
+                    } else {
+                        $buffer_blocked[] = $slot_time_str;
+                    }
                 }
             }
 
-            if (!empty($blocked)) {
+            if (!empty($blocked) || !empty($buffer_blocked)) {
                 $booked_timeslots[] = [
                     'date' => $date,
-                    'timeslots' => array_values(array_unique($blocked))
+                    'timeslots' => array_values(array_unique($blocked)),
+                    // See getBookedTimeslots(): hidden rather than greyed.
+                    'buffer_timeslots' => array_values(array_unique($buffer_blocked))
                 ];
             }
         }
@@ -641,6 +983,96 @@ class GetAppointmentSchedule extends AbstractREST
         });
 
         return $booked_timeslots;
+    }
+
+    /**
+     * The stretch of the agent's schedule an existing booking holds: its own
+     * interval padded by the buffer snapshotted on its row.
+     *
+     * 'start'/'end' are the padded range used for overlap; 'raw_start'/'raw_end'
+     * are the booking itself, which group capacity needs to tell the same
+     * session apart from a neighbouring one.
+     *
+     * @param AppointmentModel $appointment Booking row
+     * @param string $date Booking date (Y-m-d)
+     * @param string $start_time Booking start (H:i:s)
+     * @param string $end_time Booking end (H:i:s)
+     * @return array|null Range, or null when the times do not parse
+     */
+    private function blockedRange(AppointmentModel $appointment, string $date, string $start_time, string $end_time): ?array
+    {
+        $raw_start = \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$start_time}");
+        $raw_end = \DateTime::createFromFormat('Y-m-d H:i:s', "{$date} {$end_time}");
+        if (!$raw_start || !$raw_end) {
+            return null;
+        }
+
+        [$start, $end] = $this->padRange(
+            $raw_start,
+            $raw_end,
+            ServiceService::appointmentBufferBeforeMinutes($appointment),
+            ServiceService::appointmentBufferAfterMinutes($appointment)
+        );
+
+        return [
+            'start' => $start,
+            'end' => $end,
+            'raw_start' => $raw_start,
+            'raw_end' => $raw_end,
+        ];
+    }
+
+    /**
+     * Every date, from $today on, that a blocked range touches — a buffer can
+     * run past midnight into the day before or after the booking itself.
+     *
+     * @param array $range Range from blockedRange()
+     * @param string $today Earliest date to return (Y-m-d)
+     * @return array Dates (Y-m-d)
+     */
+    private function blockedDates(array $range, string $today): array
+    {
+        // The range is half-open, so one ending exactly at midnight does not
+        // reach into the next day.
+        $last = $range['end'] > $range['start']
+            ? (clone $range['end'])->modify('-1 second')->format('Y-m-d')
+            : $range['start']->format('Y-m-d');
+
+        $dates = [];
+        $cursor = (clone $range['start'])->setTime(0, 0);
+        while ($cursor->format('Y-m-d') <= $last) {
+            $date = $cursor->format('Y-m-d');
+            if ($date >= $today) {
+                $dates[] = $date;
+            }
+            $cursor->modify('+1 day');
+        }
+
+        return $dates;
+    }
+
+    /**
+     * Copies of an interval widened by a buffer on each side.
+     *
+     * @param \DateTime $start Interval start
+     * @param \DateTime $end Interval end
+     * @param int $before Minutes to move the start earlier
+     * @param int $after Minutes to move the end later
+     * @return array [\DateTime $start, \DateTime $end]
+     */
+    private function padRange(\DateTime $start, \DateTime $end, int $before, int $after): array
+    {
+        $padded_start = clone $start;
+        $padded_end = clone $end;
+
+        if ($before > 0) {
+            $padded_start->modify("-{$before} minutes");
+        }
+        if ($after > 0) {
+            $padded_end->modify("+{$after} minutes");
+        }
+
+        return [$padded_start, $padded_end];
     }
 
     /**
@@ -686,7 +1118,7 @@ class GetAppointmentSchedule extends AbstractREST
      * @param int $day_index Day index (0-6)
      * @return array|null Day schedule or null if not found
      */
-    private function getDayFromSchedule(?array $schedule, int $day_index): ?array
+    private static function getDayFromSchedule(?array $schedule, int $day_index): ?array
     {
         if (!is_array($schedule) || !isset($schedule[$day_index])) {
             return null;
@@ -700,7 +1132,7 @@ class GetAppointmentSchedule extends AbstractREST
      * @param array|null $day_data Day data array
      * @return bool True if day is off
      */
-    private function isDayOff(?array $day_data): bool
+    private static function isDayOff(?array $day_data): bool
     {
         return is_array($day_data) && !empty($day_data['day_off']);
     }
@@ -726,12 +1158,12 @@ class GetAppointmentSchedule extends AbstractREST
      * @param array $global_slots Global schedule times
      * @return array Overlapping schedule times in HH:MM:SS format [start, end] or [] if no overlap
      */
-    private function intersectTimeslots(array $agent_slots, array $service_slots, array $global_slots): array
+    private static function intersectTimeslots(array $agent_slots, array $service_slots, array $global_slots): array
     {
         // Extract time windows for each (should be [start, end])
-        $agent = $this->extractTimeWindow($agent_slots);
-        $service = $this->extractTimeWindow($service_slots);
-        $global = $this->extractTimeWindow($global_slots);
+        $agent = self::extractTimeWindow($agent_slots);
+        $service = self::extractTimeWindow($service_slots);
+        $global = self::extractTimeWindow($global_slots);
 
         // If any is missing, treat as unavailable
         if (empty($agent) || empty($service) || empty($global)) {
@@ -739,8 +1171,8 @@ class GetAppointmentSchedule extends AbstractREST
         }
 
         // Find the intersection
-        $start = $this->maxTime([$agent[0], $service[0], $global[0]]);
-        $end = $this->minTime([$agent[1], $service[1], $global[1]]);
+        $start = self::maxTime([$agent[0], $service[0], $global[0]]);
+        $end = self::minTime([$agent[1], $service[1], $global[1]]);
 
         if ($start && $end && $start < $end) {
             return [$start, $end];
@@ -754,13 +1186,13 @@ class GetAppointmentSchedule extends AbstractREST
      * @param array $slots
      * @return array [start, end] or []
      */
-    private function extractTimeWindow(array $slots): array
+    private static function extractTimeWindow(array $slots): array
     {
         if (count($slots) < 2) {
             return [];
         }
-        $start = $this->extractTimeFromString($slots[0]);
-        $end = $this->extractTimeFromString($slots[1]);
+        $start = self::extractTimeFromString($slots[0]);
+        $end = self::extractTimeFromString($slots[1]);
         if ($start && $end) {
             return [$start, $end];
         }
@@ -772,11 +1204,11 @@ class GetAppointmentSchedule extends AbstractREST
      * @param array $times
      * @return string|null
      */
-    private function maxTime(array $times): ?string
+    private static function maxTime(array $times): ?string
     {
         $max = null;
         foreach ($times as $t) {
-            if (!$this->isValidTimeFormat($t)) continue;
+            if (!self::isValidTimeFormat($t)) continue;
             if ($max === null || $t > $max) {
                 $max = $t;
             }
@@ -789,11 +1221,11 @@ class GetAppointmentSchedule extends AbstractREST
      * @param array $times
      * @return string|null
      */
-    private function minTime(array $times): ?string
+    private static function minTime(array $times): ?string
     {
         $min = null;
         foreach ($times as $t) {
-            if (!$this->isValidTimeFormat($t)) continue;
+            if (!self::isValidTimeFormat($t)) continue;
             if ($min === null || $t < $min) {
                 $min = $t;
             }
@@ -808,7 +1240,7 @@ class GetAppointmentSchedule extends AbstractREST
      * @param array $slots Array of datetime strings
      * @return array Array of HH:MM:SS time strings
      */
-    private function extractTimeOnly(array $slots): array
+    private static function extractTimeOnly(array $slots): array
     {
         if (empty($slots)) {
             return [];
@@ -842,7 +1274,7 @@ class GetAppointmentSchedule extends AbstractREST
      * @param array $global_breaks Global breaks
      * @return array Merged breaks in HH:MM:SS format
      */
-    private function mergeBreaks(array $agent_breaks, array $service_breaks, array $global_breaks): array
+    private static function mergeBreaks(array $agent_breaks, array $service_breaks, array $global_breaks): array
     {
         $merged_breaks = [];
         $all_breaks = array_merge($agent_breaks, $service_breaks, $global_breaks);
@@ -857,8 +1289,8 @@ class GetAppointmentSchedule extends AbstractREST
             }
 
             // Extract time only from break times
-            $start_time = $this->extractTimeFromString($break[0]);
-            $end_time = $this->extractTimeFromString($break[1]);
+            $start_time = self::extractTimeFromString($break[0]);
+            $end_time = self::extractTimeFromString($break[1]);
 
             if (empty($start_time) || empty($end_time)) {
                 continue;
@@ -884,7 +1316,7 @@ class GetAppointmentSchedule extends AbstractREST
      * @param string $datetime ISO 8601 datetime string or HH:MM:SS format
      * @return string Time in HH:MM:SS format or empty string if invalid
      */
-    private function extractTimeFromString(string $datetime): string
+    private static function extractTimeFromString(string $datetime): string
     {
         if (empty($datetime)) {
             return '';
@@ -993,13 +1425,14 @@ class GetAppointmentSchedule extends AbstractREST
 
             // Get service duration (minutes)
             $service_duration = $service_service->getServiceDuration($service_id);
-            
-            // Add extra services duration
+
+            // Add extra services duration. Public input: whole positive ids only,
+            // each counted once, and a sane cap on how many are looked up.
             if (!empty($extra_services_param)) {
-                $extra_services = is_array($extra_services_param) ? $extra_services_param : explode(',', $extra_services_param);
+                $extra_services = is_array($extra_services_param) ? $extra_services_param : explode(',', (string) $extra_services_param);
+                $extra_services = array_slice(array_unique(array_filter(array_map('intval', array_filter($extra_services, 'is_scalar')))), 0, 20);
                 foreach ($extra_services as $extra_id) {
-                    $extra_id = trim($extra_id);
-                    if (!empty($extra_id)) {
+                    if ($extra_id > 0) {
                         if (class_exists('\\RoxAppointmentBookingPro\\Modules\\ExtraService\\Data\\ExtraServiceModel')) {
                             $extra_service = \RoxAppointmentBookingPro\Modules\ExtraService\Data\ExtraServiceModel::find(intval($extra_id));
                             if ($extra_service && !empty($extra_service->duration)) {
@@ -1017,6 +1450,22 @@ class GetAppointmentSchedule extends AbstractREST
                     code: 400
                 );
             }
+            // Buffer time (Pro) of the service being booked: a candidate slot needs
+            // this much clear schedule around it on top of its own duration. Each
+            // existing booking brings its own buffer, read off its row.
+            $buffer_before = ServiceService::bufferBeforeMinutes($service_exists);
+            $buffer_after = ServiceService::bufferAfterMinutes($service_exists);
+
+            // The times always sit one whole booking apart: buffer before +
+            // service + chosen extras + buffer after, so one booking's wrap-up
+            // and the next one's preparation meet exactly and no minute of the
+            // agent's day is stranded (owner decision, 2026-09-24). Without a
+            // buffer this is the appointment itself, as always. Whether the
+            // label carries the wrap-up is the service's own switch, further
+            // down in `slot_range_minutes`. The appointment and its wrap-up
+            // still have to fit inside the working day and clear of the breaks
+            // (generateTimeslots()).
+            $slot_step = (int) $service_duration + $buffer_before + $buffer_after;
 
             // Fetch all schedule and holiday data
             $global_weekly_schedule = (new SettingsService())->getWeeklySchedule();
@@ -1060,7 +1509,10 @@ class GetAppointmentSchedule extends AbstractREST
                 $agent_weekly_schedule['weekly_schedule'] ?? [],
                 $service_weekly_schedule['weekly_schedule'] ?? [],
                 $global_weekly_schedule ?? [],
-                (int)$service_duration
+                $slot_step,
+                (int) $service_duration,
+                $buffer_before,
+                $buffer_after
             );
 
             // Merge holidays ($agent_holidays is [] for agent-less → global only)
@@ -1073,7 +1525,7 @@ class GetAppointmentSchedule extends AbstractREST
             $is_group = defined('ROX_APPOINTMENT_BOOKING_PRO_VERSION') && ($service_exists->capacity === 'group');
 
             if ($is_group) {
-                $special_days = $is_agent_less ? [] : $this->getProcessedSpecialDays((int)$agent_id, (int)$service_duration);
+                $special_days = $is_agent_less ? [] : $this->getProcessedSpecialDays((int)$agent_id, $slot_step, (int)$service_duration, $buffer_before, $buffer_after);
 
                 $max_capacity = (int) $service_exists->max_capacity;
                 if ($max_capacity <= 0) {
@@ -1086,7 +1538,9 @@ class GetAppointmentSchedule extends AbstractREST
                     (int)$service_duration,
                     $max_capacity,
                     $final_weekly_schedule,
-                    $special_days
+                    $special_days,
+                    $buffer_before,
+                    $buffer_after
                 );
             } elseif ($is_agent_less) {
                 // No agent → no agent special days; block slots by service capacity.
@@ -1102,14 +1556,16 @@ class GetAppointmentSchedule extends AbstractREST
                     (int)$service_duration,
                     $max_capacity,
                     $final_weekly_schedule,
-                    $special_days
+                    $special_days,
+                    $buffer_before,
+                    $buffer_after
                 );
             } else {
                 // Get and process special days
-                $special_days = $this->getProcessedSpecialDays((int)$agent_id, (int)$service_duration);
+                $special_days = $this->getProcessedSpecialDays((int)$agent_id, $slot_step, (int)$service_duration, $buffer_before, $buffer_after);
 
                 // Get booked timeslots for this agent with overlap logic
-                $booked_timeslots = $this->getBookedTimeslots((int)$agent_id, (int)$service_duration, $final_weekly_schedule, $special_days);
+                $booked_timeslots = $this->getBookedTimeslots((int)$agent_id, (int)$service_duration, $final_weekly_schedule, $special_days, $buffer_before, $buffer_after);
             }
 
             $final_schedule_holidays = [
@@ -1117,13 +1573,29 @@ class GetAppointmentSchedule extends AbstractREST
                 'holidays' => $final_holidays,
                 'booked_timeslots' => $booked_timeslots,
                 'special_days' => $special_days,
+                // The appointment itself (service + extras) — what the panel shows
+                // as the booking's length. Buffers are the agent's, never shown.
                 'slot_duration' => (int)$service_duration,
                 // The weekly schedule is a per-weekday template with no notion of
                 // "now", so the panels apply this window on top of it to hide slots
                 // that are too soon or too far out. Both ends are re-checked by the
                 // write paths on submit. 0 means that end is unbounded.
                 'minimum_advance_minutes' => ServiceService::minimumAdvanceMinutes($service_exists),
-                'maximum_advance_minutes' => ServiceService::maximumAdvanceMinutes($service_exists)
+                'maximum_advance_minutes' => ServiceService::maximumAdvanceMinutes($service_exists),
+                // Already applied to booked_timeslots above; exposed for display only.
+                'buffer_before_minutes' => $buffer_before,
+                'buffer_after_minutes' => $buffer_after,
+                // Label each time as "8:00 - 8:15" instead of "8:00".
+                'show_slot_time_range' => ServiceService::showSlotTimeRange(),
+                // How long that label runs: the appointment, extras included,
+                // unless something extends it — "Include buffer in displayed
+                // slot time" reads the label to the end of the wrap-up instead.
+                // The preparation before the slot is never shown.
+                'slot_range_minutes' => ServiceService::slotLabelMinutes(
+                    (int) $service_duration,
+                    $service_exists,
+                    $buffer_after
+                )
             ];
 
             return rox_appointment_booking_rest_response(
@@ -1143,10 +1615,13 @@ class GetAppointmentSchedule extends AbstractREST
      * Get and process special days for an agent
      * 
      * @param int $agent_id Agent ID
-     * @param int $service_duration Service duration
+     * @param int $slot_step Minutes from one offered time to the next
+     * @param int $appointment_duration Booking's own length (service + extras); 0 falls back to $slot_step
+     * @param int $buffer_before Preparation minutes before the booking
+     * @param int $buffer_after Wrap-up minutes after the booking
      * @return array Processed special days with pre-generated timeslots
      */
-    private function getProcessedSpecialDays(int $agent_id, int $service_duration): array
+    private function getProcessedSpecialDays(int $agent_id, int $slot_step, int $appointment_duration = 0, int $buffer_before = 0, int $buffer_after = 0): array
     {
         $agent_service = new AgentService();
         try {
@@ -1165,7 +1640,7 @@ class GetAppointmentSchedule extends AbstractREST
 
                 $timeslots = [];
                 if (!$is_day_off) {
-                    $timeslots = $this->generateTimeslots($schedule, $data['breaks'] ?? [], $service_duration);
+                    $timeslots = $this->generateTimeslots($schedule, $data['breaks'] ?? [], $slot_step, $appointment_duration, $buffer_before, $buffer_after);
                 }
 
                 $processed[$date] = [
@@ -1192,7 +1667,13 @@ class GetAppointmentSchedule extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !current_user_can('manage_options')) {
+        // Slots feed the booking form, which is reached to create as well as to
+        // edit — either grant is enough to read them.
+        if (!is_user_logged_in()) {
+            return false;
+        }
+
+        if (!Permissions::can('appointment.create') && !Permissions::can('appointment.edit')) {
             return false;
         }
 

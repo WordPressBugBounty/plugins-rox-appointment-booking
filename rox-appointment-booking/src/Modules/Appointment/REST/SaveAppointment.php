@@ -6,6 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\Appointment\Data\AppointmentModel;
 use RoxAppointmentBooking\Modules\Order\Services\OrderService;
 use RoxAppointmentBooking\Modules\Order\Data\OrderModel;
@@ -347,6 +348,14 @@ class SaveAppointment extends AbstractREST
             $sanitized['end_time'] = $start_dt->format('Y-m-d H:i:s');
         }
 
+        // BUFFER TIME (Pro): snapshot the service's buffer onto the booking and
+        // stamp the stretch of schedule it blocks. Always computed here, never
+        // read from the request, so both create and edit store it.
+        $sanitized = array_merge(
+            $sanitized,
+            ServiceService::bufferColumns($selected_service, $sanitized['start_time'], $sanitized['end_time'])
+        );
+
         $sanitized['coupon_id'] = isset($data['coupon_id']) ? intval(wp_unslash($data['coupon_id'])) : null;
         $sanitized['purchase_details'] = isset($data['purchase_details']) ? sanitize_text_field($data['purchase_details']) : '';
         $sanitized['status'] = isset($data['status']) && !empty($data['status']) ? sanitize_text_field($data['status']) : null;
@@ -480,6 +489,36 @@ class SaveAppointment extends AbstractREST
             }
         }
 
+        // BUFFER TIME (Pro): the agent and capacity checks below compare the
+        // stretch of schedule each booking blocks, preparation / wrap-up
+        // included, instead of the bare interval. The customer check above
+        // stays on the bare interval — buffer time is the agent's, not theirs.
+        $schedule_overlap = ServiceService::scheduleOverlap((string) $data['date'], (string) $data['start_time'], (string) $data['end_time'], $data);
+
+        // WORKING HOURS: the slot picker only offers times whose booking fits
+        // inside the working day and misses the breaks, buffer time included,
+        // so the same rule is enforced here for anything sent past it.
+        $working_windows = GetAppointmentSchedule::workingWindowsForDate(
+            !empty($data['agent_id']) ? (int) $data['agent_id'] : null,
+            !empty($data['service_id']) ? (int) $data['service_id'] : null,
+            (string) $data['date']
+        );
+
+        if (
+            is_array($working_windows)
+            && !GetAppointmentSchedule::blockFitsWindows(
+                $working_windows,
+                (string) ($data['block_start_time'] ?? $data['start_time']),
+                (string) ($data['block_end_time'] ?? $data['end_time'])
+            )
+        ) {
+            return new WP_Error(
+                'outside_working_hours',
+                esc_html__('This time is outside the working hours for that day, or it runs into a break. Please choose a different time.', 'rox-appointment-booking'),
+                ['status' => 409]
+            );
+        }
+
         // GROUP CAPACITY CHECK: a service with capacity === 'group' shares one
         // slot across multiple bookings/customers, keyed on the SUM of
         // total_attendees rather than a single-occupancy or booking-count block.
@@ -516,27 +555,50 @@ class SaveAppointment extends AbstractREST
                 );
             }
 
+            // The pool above is the session itself (the bookings overlap). A
+            // neighbouring session of this same service that only reaches in
+            // through a buffer shares no attendees — the agent is still preparing
+            // or wrapping up — so it blocks the slot outright.
+            $neighbour_session_query = AppointmentModel::where('service_id', $data['service_id'])
+                ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
+                ->where($schedule_overlap)
+                ->where(function($query) use ($data) {
+                    $query->where('start_time', '>=', $data['end_time'])
+                          ->orWhere('end_time', '<=', $data['start_time']);
+                });
+            if (!empty($data['agent_id'])) {
+                $neighbour_session_query->where('agent_id', $data['agent_id']);
+            } else {
+                $neighbour_session_query->whereNull('agent_id');
+            }
+
+            if ($neighbour_session_query->first()) {
+                return new WP_Error(
+                    'slot_already_booked',
+                    esc_html__('This time is too close to another session of this service. Preparation and wrap-up time is needed in between, so please choose a different time.', 'rox-appointment-booking'),
+                    ['status' => 409]
+                );
+            }
+
             // The attendee pool above only covers this same group service. The agent
             // can still be occupied by another service at the same time, so the
             // single-occupancy guard still applies to everything outside the group.
             if (!empty($data['agent_id'])) {
                 $agent_conflict = AppointmentModel::where('agent_id', $data['agent_id'])
-                    ->where('date', $data['date'])
                     ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
                     ->where(function($query) use ($data) {
                         $query->where('service_id', '!=', $data['service_id'])
                               ->whereNull('service_id', 'or');
                     })
-                    ->where(function($query) use ($data) {
-                        $query->where('start_time', '<', $data['end_time'])
-                              ->where('end_time', '>', $data['start_time']);
-                    })
+                    ->where($schedule_overlap)
                     ->first();
 
                 if ($agent_conflict) {
                     return new WP_Error(
                         'slot_already_booked',
-                        esc_html__('The selected agent already has another appointment at this time. Please choose a different time.', 'rox-appointment-booking'),
+                        ServiceService::overlapsOnlyThroughBuffer($agent_conflict, (string) $data['start_time'], (string) $data['end_time'])
+                            ? esc_html__('This time is too close to another appointment with the same agent. Preparation and wrap-up time is needed in between, so please choose a different time.', 'rox-appointment-booking')
+                            : esc_html__('The selected agent already has another appointment at this time. Please choose a different time.', 'rox-appointment-booking'),
                         ['status' => 409]
                     );
                 }
@@ -558,12 +620,8 @@ class SaveAppointment extends AbstractREST
             }
 
             $overlapping_count = AppointmentModel::where('service_id', $data['service_id'])
-                ->where('date', $data['date'])
                 ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
-                ->where(function($query) use ($data) {
-                    $query->where('start_time', '<', $data['end_time'])
-                          ->where('end_time', '>', $data['start_time']);
-                })
+                ->where($schedule_overlap)
                 ->count();
 
             if ($overlapping_count >= $max_capacity) {
@@ -582,21 +640,18 @@ class SaveAppointment extends AbstractREST
         // However, when "Extra Services" are added, the total duration increases and the end_time is recalculated.
         // If this new total duration extends into another appointment that is already booked later in the day,
         // we must reject the booking here to prevent the agent from being double-booked.
+        // Buffer time widens both sides of this test (see $schedule_overlap).
         $existing = AppointmentModel::where('agent_id', $data['agent_id'])
-            ->where('date', $data['date'])
             ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
-            ->where(function($query) use ($data) {
-                $query->where(function($q) use ($data) {
-                    $q->where('start_time', '<', $data['end_time'])
-                      ->where('end_time', '>', $data['start_time']);
-                });
-            })
+            ->where($schedule_overlap)
             ->first();
-        
+
         if ($existing) {
             return new WP_Error(
                 'slot_already_booked',
-                esc_html__('The selected time slot does not have enough time to accommodate your selected extra services or this timeslot already booked. Please choose a different time.', 'rox-appointment-booking'),
+                ServiceService::overlapsOnlyThroughBuffer($existing, (string) $data['start_time'], (string) $data['end_time'])
+                    ? esc_html__('This time is too close to another appointment with the same agent. Preparation and wrap-up time is needed in between, so please choose a different time.', 'rox-appointment-booking')
+                    : esc_html__('The selected time slot does not have enough time to accommodate your selected extra services or this timeslot already booked. Please choose a different time.', 'rox-appointment-booking'),
                 ['status' => 409]
             );
         }
@@ -645,7 +700,13 @@ class SaveAppointment extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !current_user_can('manage_options')) {
+        // One route serves both, so ask for the capability the caller is about
+        // to use rather than the stricter of the two.
+        $capability = $request->get_param('id')
+            ? 'appointment.edit'
+            : 'appointment.create';
+
+        if (!is_user_logged_in() || !Permissions::can($capability)) {
             return false;
         }
 

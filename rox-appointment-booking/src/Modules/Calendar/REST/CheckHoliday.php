@@ -6,7 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
-use RoxAppointmentBooking\Supports\Security;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\Calendar\Services\CalendarService;
 
 /**
@@ -144,7 +144,7 @@ class CheckHoliday extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !Security::canAccessPanel()) {
+        if (!is_user_logged_in() || !Permissions::can('calendar.view')) {
             return false;
         }
 

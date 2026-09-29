@@ -16,7 +16,7 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
 import { applyConfigFilters, HOOKS } from "../config/hooks.js";
-import { userRoles, uiRole } from "../config/env.js";
+import { can } from "../config/env.js";
 import DashboardPage from "../pages/dashboard/DashboardPage.jsx";
 import CustomersPage from "../pages/customers/CustomersPage.jsx";
 import AgentsPage from "../pages/agents/AgentsPage.jsx";
@@ -32,37 +32,50 @@ import FormFieldsPage from "../pages/settings/FormFieldsPage.jsx";
 import IntegrationsPage from "../pages/settings/IntegrationsPage.jsx";
 import LocationsPage from "../pages/locations/LocationsPage.jsx";
 import CouponsPage from "../pages/coupons/CouponsPage.jsx";
+import RolesPage from "../pages/roles/RolesPage.jsx";
 
 /**
- * Whether the current user may reach the admin-only pages. Mirrors the PHP
- * `Security::canManageBookings()` gate (admin/manager). Agents and customers
- * fail this check and are confined to `RESTRICTED_USER_PATHS`.
+ * The capability each page path requires, mirroring the gate on the endpoints
+ * behind it. A path absent from this map is a Pro-registered route and is left
+ * to whoever added it.
  *
+ * "/my-bookings" asks for `appointment.view` because it is the caller's own
+ * customer-side activity: anyone who may open the panel's appointment pages may
+ * read their own bookings. `/services` is here too, but agents do NOT get the
+ * admin Services page — `baseRoutes()` swaps in the read-only
+ * `AgentServicesPage` for them.
+ */
+const PATH_CAPABILITIES = {
+  "/": "dashboard.view",
+  "/orders": "order.view",
+  "/orders/:id": "order.view",
+  "/appointment": "appointment.view",
+  "/appointment/:id": "appointment.view",
+  "/my-bookings": "appointment.view",
+  "/calendar": "calendar.view",
+  "/customers": "customer.view",
+  "/services": "service.view",
+  "/agents": "agent.view",
+  "/locations": "location.view",
+  "/coupons": "coupon.view",
+  "/profile": "profile.view",
+  "/global-settings": "settings.view",
+  "/form-fields": "custom_field.view",
+  "/integrations": "integration.view",
+  "/roles": "role.view",
+};
+
+/**
+ * Whether the current user may open a page path. Unknown paths (routes added by
+ * add-ons through `HOOKS.pageRoutes`) are left alone.
+ *
+ * @param {string} path
  * @return {boolean}
  */
-function canAccessAdminRoutes() {
-  const roles = userRoles();
-  return (
-    roles.includes("administrator") ||
-    roles.includes("rox_appointment_booking_manager")
-  );
+function mayOpen(path) {
+  const capability = PATH_CAPABILITIES[path];
+  return capability ? can(capability) : true;
 }
-
-/**
- * The only page paths agents and customers may open. Every other route (admin
- * pages, Pro pages) is redirected away for them, even via a direct URL hash.
- *
- * `/services` is on the list, but agents do NOT get the admin Services page —
- * `baseRoutes()` swaps in the read-only `AgentServicesPage` for them.
- */
-const RESTRICTED_USER_PATHS = [
-  "/appointment",
-  "/appointment/:id",
-  "/my-bookings",
-  "/calendar",
-  "/services",
-  "/profile",
-];
 
 /**
  * The free plugin's migrated pages. Pages are added here as they move off the
@@ -75,11 +88,13 @@ function baseRoutes() {
     { path: "/", element: <DashboardPage /> },
     { path: "/customers", element: <CustomersPage /> },
     { path: "/agents", element: <AgentsPage /> },
-    // Two different pages behind one path: admins get the category/service editor,
-    // agents get a read-only list of the services assigned to them.
+    // Two different pages behind one path: whoever may edit services gets the
+    // category/service editor, everyone else gets a read-only list of the
+    // services assigned to them. Keyed on the capability rather than the role so
+    // a role that earns `service.edit` reaches the real editor.
     {
       path: "/services",
-      element: uiRole() === "agent" ? <AgentServicesPage /> : <ServicesPage />,
+      element: can("service.edit") ? <ServicesPage /> : <AgentServicesPage />,
     },
     { path: "/appointment", element: <AppointmentsPage /> },
     // Deep-link target for notifications ("/appointment/{id}"): the same page,
@@ -106,6 +121,9 @@ function baseRoutes() {
     { path: "/global-settings", element: <SettingsPage /> },
     { path: "/form-fields", element: <FormFieldsPage /> },
     { path: "/integrations", element: <IntegrationsPage /> },
+    // Same arrangement as "/locations": the page is bundled here, Pro-gates
+    // itself, and its endpoints are served by the Pro plugin's PHP.
+    { path: "/roles", element: <RolesPage /> },
   ];
 }
 
@@ -118,15 +136,11 @@ function baseRoutes() {
 export function getPageRoutes() {
   const routes = applyConfigFilters(HOOKS.pageRoutes, baseRoutes());
 
-  // Admins/managers get every page. Agents and customers are confined to their
-  // own pages; any other route (admin or Pro) renders a redirect to their
-  // default page instead of the real component.
-  if (canAccessAdminRoutes()) {
-    return routes;
-  }
-
+  // A page the user has no capability for renders a redirect instead of the real
+  // component, so a direct URL hash cannot reach it either. This only shapes the
+  // UI — every endpoint behind these pages enforces the same capability.
   return routes.map((route) =>
-    RESTRICTED_USER_PATHS.includes(route.path)
+    mayOpen(route.path)
       ? route
       : { ...route, element: <Navigate to="/appointment" replace /> },
   );

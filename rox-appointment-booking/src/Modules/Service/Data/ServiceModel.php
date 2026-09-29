@@ -50,6 +50,10 @@ class ServiceModel extends AbstractModel
         'maximum_advance_enable',
         'maximum_advance_days',
         'maximum_advance_hours',
+        // Buffer time brings four more columns, claimed by the plugin that owns
+        // them through rox_appointment_booking_model_fillable. They stay out of
+        // this list so a site without that plugin — which has no such columns —
+        // can never be made to write them. The casts below are names only.
         'thumbnail_id',
         'status',
         'internal_notes',
@@ -75,6 +79,10 @@ class ServiceModel extends AbstractModel
         'maximum_advance_enable' => 'boolean',
         'maximum_advance_days' => 'integer',
         'maximum_advance_hours' => 'integer',
+        'buffer_enable' => 'boolean',
+        'buffer_before' => 'integer',
+        'buffer_after' => 'integer',
+        'buffer_in_time_slots' => 'boolean',
         'thumbnail_id' => 'integer',
         'sort_order' => 'integer',
         'price' => 'float',

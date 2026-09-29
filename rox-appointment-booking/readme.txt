@@ -4,7 +4,7 @@ Tags: booking, reservation, appointments, calendar
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.9
+Stable tag: 1.3.0
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -128,6 +128,8 @@ Agents never see the main WordPress dashboard, other agents' bookings, customer 
 **✅ Roles & Permissions** - Control access with custom user roles and audit logging
     
 **✅ Notification Panel** - Administrator dashboard for all system notifications    
+    
+**✅ AI Assistant Access (MCP)** - Let Claude, Cursor or VS Code Copilot read and manage bookings, with read, edit and delete switches
 
 
 ### 📅 Advanced Calendar View
@@ -271,6 +273,24 @@ After activation, you can configure the plugin settings from the WordPress admin
 
 
 == Changelog ==
+Version: 1.3.0 // 2026-09-29
+* Added: "Enable Timezone Selector" switch under Settings > General > Timezone, off by default.
+* Added: Customers can pick their own timezone on the booking form, detected from their browser, and see every available time on their own clock.
+* Added: Three e-mail placeholders for the appointment on the customer's timezone.
+* Added: A second booking panel design, Style 2, picked from the booking panel block and Elementor widget.
+* Added: "Show ZIP Code Field" switch under Settings > Payments > Stripe.
+* Added: "Show a time range" switch to show slots as 8:00–8:15 instead of 8:00.
+* Added: A built-in MCP server endpoint that needs no extra plugin, with a ready-to-copy setup for each AI client.
+* Added: Separate switches for read, edit and delete abilities, all off by default.
+* Added: AI clients can read, book, reschedule and cancel appointments, check availability, and manage customers, services, agents and orders.
+* Improved: Saving a customer or agent can no longer link to, or change, a WordPress account with more rights than the person saving it.
+* Improved: The Google Calendar link now sends an exact time when the site is configured by GMT offset rather than by city.
+* Improved: Every admin page, menu item and action now checks the signed-in user's permission.
+* Improved: New design for the service, category and extra service forms.
+* Fixed: The selected day and the "already picked" slot check read one day early for visitors west of UTC.
+* Fixed: Appointment, order and payment detail views showed the wrong time on sites whose timezone is not UTC.
+* Fixed: Caching plugins and hosts could serve stale booking data from the plugin's REST API.
+
 Version: 1.2.9 // 2026-09-20
 * Added: "Show Login Option On Booking Form" switch under Settings > General > Booking Permissions.
 * Added: "Payment option name" and "Payment note" fields under Settings > Payments > Pay Later.
@@ -517,6 +537,8 @@ We welcome contributions! Please submit issues and pull requests on our developm
 
 Rox Appointment Booking does not collect or store any personal data outside of your WordPress installation. All booking information is stored in your WordPress database and follows WordPress data handling practices.
 
+If an administrator turns on AI Assistant Access (MCP), the AI client they connect can read the booking, customer and order data its WordPress user may see, and that data is then processed by the AI provider behind that client. MCP is off by default, and nothing is shared until an administrator connects a client.
+
 == External Services ==
 
 This plugin utilizes several third-party external services to provide its core features (payments, maps, and UI elements).
@@ -564,7 +586,7 @@ Yes. Each agent can have their own weekly working hours, holiday calendar, and s
 Yes. You can create discount coupons with fixed or percentage values, usage limits, validity dates, and targeting rules for specific services, categories, or agents.
 
 = Is customer data stored on my own server? =
-Yes. All booking and customer data is stored in your WordPress database. No data is sent to external servers except for payment processing via Stripe and map services via OpenStreetMap.
+Yes. All booking and customer data is stored in your WordPress database. No data is sent to external servers except for payment processing via Stripe and map services via OpenStreetMap. If you turn on AI Assistant Access (MCP) and connect an AI client, that client can read your booking data and its AI provider processes it.
 
 = Can I customize the booking form fields? =
 Yes. The plugin supports custom fields so you can collect specific information from customers during the booking process, such as special requests, notes, or preferences.

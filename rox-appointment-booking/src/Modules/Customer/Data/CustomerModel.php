@@ -39,6 +39,7 @@ class CustomerModel extends AbstractModel
         'send_notifications',
         'internal_notes',
         'language',
+        'timezone',
     ];
 
     /**

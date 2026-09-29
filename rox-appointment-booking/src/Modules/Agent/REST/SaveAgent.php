@@ -7,6 +7,8 @@ use WP_REST_Response;
 use WP_Error;
 use WP_Session_Tokens;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\Access\LinkedAccount;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\Agent\Data\AgentModel;
 use RoxAppointmentBooking\Modules\Customer\Data\CustomerModel;
 use RoxAppointmentBooking\Modules\Service\Services\ServiceService;
@@ -74,7 +76,7 @@ class SaveAgent extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !current_user_can('manage_options')) {
+        if (!is_user_logged_in() || !Permissions::can('agent.edit')) {
             return false;
         }
 
@@ -291,10 +293,21 @@ class SaveAgent extends AbstractREST
             $fillable_data = array_intersect_key($filtered_params, array_flip($agent->getFillable()));
             $agent->fill($fillable_data);
 
+            // Refuse to link a privileged account that happens to share the e-mail.
+            $link_target = !empty($params['allow_to_login']) ? get_user_by('email', $agent->email) : null;
+            if ($link_target && !LinkedAccount::canChange((int) $link_target->ID, LinkedAccount::AGENT_ROLES)) {
+                return rox_appointment_booking_rest_response(
+                    data : null,
+                    code : 403,
+                    message : esc_html__('This email belongs to a WordPress account you are not allowed to link.', 'rox-appointment-booking'),
+                    headers : ['status' => 403]
+                );
+            }
+
             $agent->save();
 
             // Update WordPress user if linked and agent details changed
-            if ($id && $agent->wp_user_id) {
+            if ($id && $agent->wp_user_id && LinkedAccount::canChange((int) $agent->wp_user_id, LinkedAccount::AGENT_ROLES)) {
                 $wp_user_data = [
                     'ID' => $agent->wp_user_id,
                 ];
@@ -341,8 +354,10 @@ class SaveAgent extends AbstractREST
                     // Link to existing WordPress user
                     $agent->wp_user_id = $existing_wp_user->ID;
                     $agent->save();
-                } else if (!$id) {
-                    // Create new WordPress user only for new agents
+                } else if (!$agent->wp_user_id || !get_userdata((int) $agent->wp_user_id)) {
+                    // Create WordPress user for agents not linked to a live one
+                    // (new agents, agents enabling login later, or a link left
+                    // pointing at a deleted WordPress account).
                     $password = !empty($params['password']) ? $params['password'] : null;
                     $wp_user_result = $this->createWordPressUser($agent, $params, $password);
 

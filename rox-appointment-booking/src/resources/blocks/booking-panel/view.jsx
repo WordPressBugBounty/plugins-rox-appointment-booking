@@ -50,6 +50,9 @@ const isElementorEditPreview = () => {
  */
 const readSettings = (trigger) => ({
 	instance: trigger.dataset.instance || "1",
+	// Which panel design the modal builds. Passed straight through to the mount
+	// node, where the frontend bundle resolves it to a component.
+	styleVariant: trigger.dataset.styleVariant || "",
 	modalWidth: parseInt(trigger.dataset.modalWidth, 10) || 1100,
 	resetOnClose: trigger.dataset.resetOnClose === "true",
 	hideNavigation: trigger.dataset.hideNavigation === "true",

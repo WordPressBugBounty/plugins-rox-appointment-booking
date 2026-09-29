@@ -282,6 +282,13 @@ class EmailTemplateRegistry
             '{appointment_start_time}',
             '{appointment_end_time}',
             '{appointment_status}',
+            // The same appointment read on the customer's own clock, for sites
+            // that let visitors book in their timezone. On a booking made
+            // without one these fall back to the site values above.
+            '{appointment_date_customer_timezone}',
+            '{appointment_start_time_customer_timezone}',
+            '{customer_timezone}',
+            '{customer_timezone_block}',
             '{appointment_id}',
             '{appointment_count}',
             '{meet_link}',
@@ -361,6 +368,9 @@ class EmailTemplateRegistry
             '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>' . esc_html__('Agent:', 'rox-appointment-booking') . '</strong></td><td style="padding: 8px; border: 1px solid #ddd;">{agent_name}</td></tr>' .
             '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>' . esc_html__('Date:', 'rox-appointment-booking') . '</strong></td><td style="padding: 8px; border: 1px solid #ddd;">{appointment_date}</td></tr>' .
             '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>' . esc_html__('Time:', 'rox-appointment-booking') . '</strong></td><td style="padding: 8px; border: 1px solid #ddd;">{appointment_start_time} - {appointment_end_time}</td></tr>' .
+            // Resolves to nothing unless the booking was made in a different
+            // timezone, so a site not using the feature renders no empty row.
+            '{customer_timezone_block}' .
             '</table>';
     }
 

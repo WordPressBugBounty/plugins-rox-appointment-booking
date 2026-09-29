@@ -6,6 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Supports\Traits\RoxAppointmentBookingFilter;
 use RoxAppointmentBooking\Modules\Order\Services\OrderService;
 use RoxAppointmentBooking\Modules\Order\Data\OrderModel;
@@ -105,9 +106,9 @@ class GetOrder extends AbstractREST
                 
                 // Format appointment date
                 if ($appointment->date) {
-                    $appointmentDate = wp_date('F j, Y', strtotime($appointment->date));
+                    $appointmentDate = rox_appointment_booking_format_site_datetime('F j, Y', $appointment->date);
                     if ($appointment->start_time) {
-                        $appointmentDate .= ' - ' . wp_date('g:i A', strtotime($appointment->start_time));
+                        $appointmentDate .= ' - ' . rox_appointment_booking_format_site_datetime('g:i A', $appointment->start_time);
                     }
                 }
                 
@@ -470,8 +471,8 @@ class GetOrder extends AbstractREST
             return '';
         }
 
-        $dateLabel = wp_date('F j, Y', strtotime($date));
-        $timeLabel = $startTime ? wp_date('g:i A', strtotime($startTime)) : '';
+        $dateLabel = rox_appointment_booking_format_site_datetime('F j, Y', $date);
+        $timeLabel = rox_appointment_booking_format_site_datetime('g:i A', $startTime);
 
         return $timeLabel ? $dateLabel . ' at ' . $timeLabel : $dateLabel;
     }
@@ -796,7 +797,7 @@ class GetOrder extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !current_user_can('manage_options')) {
+        if (!is_user_logged_in() || !Permissions::can('order.view')) {
             return false;
         }
 

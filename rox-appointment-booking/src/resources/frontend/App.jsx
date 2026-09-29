@@ -2,7 +2,7 @@ import React from "react";
 import { StrictMode, useMemo } from "react";
 import { createRoot } from "react-dom/client";
 import "./scss/app.scss";
-import BookingService from "./../components/BookingService/index.jsx";
+import { panelForStyle } from "./styles/index.js";
 
 
 import { ConfigProvider } from "antd";
@@ -12,6 +12,7 @@ import { getAntdLocale, siteLocale } from "../lib/locale.js";
 import { dispatch } from "@wordpress/data";
 import { getBookingServiceStore } from "../redux/booking-service-slice.js";
 import { parseIdList } from "../lib/idList.js";
+import { resolveShowBackground } from "../lib/panelStyle.js";
 import { parsePanelContent } from "../lib/panelContent.js";
 import { readAccent, withAccent } from "../lib/accentTheme.js";
 import { registerLanguageMiddleware } from "../lib/apiLanguage.js";
@@ -90,10 +91,15 @@ const App = ({
   allowedLocationIds,
   allowedCategoryIds,
   singleAgentId,
+  styleVariant,
   panelContent,
 }) => {
   // Access frontend config from window object
   const config = window?.rox_appointment_booking?.config?.frontend || {};
+
+  // Which design the surface asked for. Every variant is handed the same props
+  // and takes what it needs, so a surface never has to know which one it got.
+  const Panel = panelForStyle(styleVariant);
 
   // antd renders selects, date pickers and toasts in a portal on <body>, where
   // the CSS variable set on the wrapper below cannot reach them — the theme
@@ -119,8 +125,8 @@ const App = ({
         // falls back to Heebo, so an unset font leaves the panel as it was.
         style={fontFamily ? { "--rox-font-family": fontFamily } : undefined}
       >
-        {/* Frontend booking components will go here */}
-        <BookingService
+        {/* The design the surface picked; see frontend/styles. */}
+        <Panel
           instanceId={instanceId}
           type={type}
           hideNavigation={hideNavigation}
@@ -141,7 +147,6 @@ const App = ({
           // steps entirely and opens on that agent's services. Absent on every
           // other surface, which leaves the normal multi-step flow untouched.
           singleAgentId={singleAgentId}
-          singleAgentConfig={singleAgentId ? { agentId: singleAgentId } : null}
         />
       </div>
     </ConfigProvider>
@@ -182,9 +187,16 @@ const mountRoot = (rootElement) => {
   const headingAlign = rootElement.dataset.headingAlign || "";
   const headingMargin = rootElement.dataset.headingMargin || "";
   const hideInfo = rootElement.dataset.hideInfo === "true";
-  // Absent attribute (the plain shortcode) keeps the frame — only an explicit
-  // "false" from a surface that offers the toggle removes it.
-  const showBackground = rootElement.dataset.showBackground !== "false";
+  // Absent (the plain shortcode, which offers no frame toggle) means nobody
+  // chose, so the design's own default decides — Style 1 frames the panel and
+  // Style 2 sits flat on the page. An explicit "true" / "false" from a surface
+  // that does offer the toggle is the editor's answer and wins either way.
+  const showBackground = resolveShowBackground(
+    rootElement.dataset.showBackground === undefined
+      ? null
+      : rootElement.dataset.showBackground !== "false",
+    rootElement.dataset.styleVariant || ""
+  );
   const backgroundColor = rootElement.dataset.backgroundColor || "";
   // A ready-to-use CSS font stack, already resolved server-side from the
   // FontFamily list. Absent (the plain shortcode) keeps the stylesheet default.
@@ -203,6 +215,9 @@ const mountRoot = (rootElement) => {
     parseInt(rootElement.dataset.agentId, 10) > 0
       ? parseInt(rootElement.dataset.agentId, 10)
       : null;
+  // Which design to render. Every surface writes it; an absent or unknown name
+  // resolves to the default rather than to no panel at all.
+  const styleVariant = rootElement.dataset.styleVariant || "";
 
   root.render(
     <StrictMode>
@@ -225,6 +240,7 @@ const mountRoot = (rootElement) => {
         allowedLocationIds={allowedLocationIds}
         allowedCategoryIds={allowedCategoryIds}
         singleAgentId={singleAgentId}
+        styleVariant={styleVariant}
         panelContent={panelContent}
       />
     </StrictMode>

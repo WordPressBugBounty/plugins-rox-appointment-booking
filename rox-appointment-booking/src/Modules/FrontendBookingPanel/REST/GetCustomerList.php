@@ -6,8 +6,8 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\Customer\Data\CustomerModel;
-use RoxAppointmentBooking\Supports\Security;
 
 /**
  * Class GetCustomerList
@@ -76,7 +76,7 @@ class GetCustomerList extends AbstractREST
             return false;
         }
 
-        return Security::canManageBookings();
+        return Permissions::can('customer.view');
     }
 
     /**

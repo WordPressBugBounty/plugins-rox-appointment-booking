@@ -6,7 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
-use RoxAppointmentBooking\Supports\Security;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\Appointment\Services\AppointmentService;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceAgentRelationModel;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceCategoryRelationModel;
@@ -74,7 +74,7 @@ class GetMyServices extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !Security::canAccessPanel()) {
+        if (!is_user_logged_in() || !Permissions::can('service.view')) {
             return false;
         }
 

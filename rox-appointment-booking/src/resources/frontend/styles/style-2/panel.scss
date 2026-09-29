@@ -1,0 +1,3796 @@
+/**
+ * Style 2 — design tokens + shell + shared card/button patterns.
+ *
+ * Everything is scoped under `.rox-booking-style-2` (never `:root`: the build
+ * rewrites `:root` to `:host`, which only matches inside a shadow root, and
+ * this panel doesn't mount in one). Step-specific rules live in each step's
+ * own file and only ever build on these tokens/patterns — never on Style 1's
+ * `bookingstyle.scss`, and never unscoped, so the two designs can never leak
+ * into each other.
+ */
+
+.rox-booking-style-2 {
+  // ---- Design tokens -------------------------------------------------
+  // Every surface (block, Elementor widget, shortcode) can recolour the panel
+  // by setting `--rox-accent` on the mount node; unset, Style 2 keeps its own
+  // blue. Shades below that must contrast with it stay fixed.
+  --rbs1-primary: var(--rox-accent, #3560fb);
+  // Derived from the accent in the @supports block at the end of these
+  // declarations. The plain values here are the shipped blues, and are what an
+  // engine without color-mix() keeps using, so the panel never renders
+  // uncoloured.
+  --rbs1-primary-hover: #5a7eff;
+  --rbs1-ring: #e3e9fe;
+
+  // The "available" greens on the calendar days and the time slots. They read
+  // the accent when a surface sets one — so a recoloured panel stops mixing a
+  // green calendar with a themed everything-else — and stay green when it does
+  // not, leaving the shipped panel exactly as it was. Mirrors Style 1's
+  // `--rox-available` (see BookingService/bookingstyle.scss).
+  //
+  // A day that is off or fully booked is deliberately not in here: a day nobody
+  // can book is a blocked state, not a themed one, so it keeps its own greys.
+  --rbs1-available: var(--rox-accent, #15a260);
+  --rbs1-available-wash: #e8f7f0;
+  --rbs1-available-soft: #b7e7d1;
+  // Button rest/disabled shades. Fixed rather than derived from the accent:
+  // they are greys and a tint that have to stay legible whatever the accent is.
+  --rbs1-btn-disabled-bg: #f0f1f6;
+  --rbs1-btn-disabled-fg: #727377;
+  --rbs1-btn-back-hover: #d7deff;
+  --rbs1-btn-back-border: #dfe1e8;
+  --rbs1-btn-back-disabled-fg: #929498;
+  --rbs1-text: #151720;
+  --rbs1-text-muted: #494A4C;
+  // One grey for every not-yet-reached step — its dot and its label alike.
+  --rbs1-muted: #d2d4d9;
+  --rbs1-border: #e5e7eb;
+  // The step rail's own surface — a tinted block inset in the panel's white,
+  // not a gutter running to its edges. See `.rbs1-sidebar`.
+  --rbs1-bg-sidebar: #FAFBFE;
+  --rbs1-bg-card: #ffffff;
+  --rbs1-bg-badge: #f0f1f4;
+
+  // The panel is a fixed 792px card with a 220px rail; only its height
+  // follows the content.
+  --rbs1-width: 792px;
+  // The TINTED block you see, not the column it sits in.
+  --rbs1-sidebar-w: 220px;
+  // The white it is inset in, as a border — see `.rbs1-sidebar`.
+  --rbs1-sidebar-frame: 4px;
+  // What the rail actually occupies in the panel: the block plus ONE frame,
+  // the left. It meets the step column flush on the right, so there is no
+  // frame on that side to count. Anything measuring against the rail wants
+  // this, not the width above.
+  --rbs1-rail-w: calc(var(--rbs1-sidebar-w) + var(--rbs1-sidebar-frame));
+  --rbs1-pad: 24px;
+  --rbs1-gap: 13px;
+  // The floor for one row of any step's list, not a fixed height: a card that
+  // carries more than the usual title/subtitle grows past it. Four of them
+  // (plus the three gaps between) are what the list area is tall, so the pane
+  // fits four ordinary rows exactly — see `.rbs1-pane` and `.rbs1-list` below.
+  --rbs1-row-h: 86px;
+  --rbs1-rows: 4;
+  // The panel's height, held constant across every step and state so it never
+  // grows or shrinks under the visitor. It is what a list step adds up to:
+  // the header (63) + four rows and their gaps (383) + the body's bottom gap
+  // (10) + the footer (63). A state that drops the footer — the agent's
+  // details — keeps the height and hands the room to the content instead.
+  //
+  // This is also what decides where the fifth row falls: four rows fit inside
+  // it exactly, so anything past them scrolls. If a scrollbar ever shows with
+  // only four, this number — not the row height — is what to nudge.
+  --rbs1-height: 519px;
+
+  // The Date & Time step's calendar, in the pieces it is built from. They live
+  // up here with the other tokens because the panel's own height is derived
+  // from them on that step alone — see `.rbs1-shell--tall` and the Date & Time
+  // section at the foot of this file. Six weeks, always: February can open on a
+  // Sunday and fit in four rows, but a month that resized the panel under the
+  // visitor would be worse than the room a short one leaves unused.
+  // 70, not the 72 it was drawn at, because seven of those did not fit. The
+  // step column's content box is 520px across:
+  //   792  panel
+  // - 224  rail (220 + its one frame)
+  // -  24  body padding, left
+  // -  15  body padding, right
+  // -   5  scrollbar gutter, reserved whether or not a bar shows
+  // -   4  the gap that holds the bar off the panel's edge
+  // ─────
+  //   520
+  // Seven 72px cells and their six 4px gaps came to 528, and `space-between`
+  // falls back to start alignment once the free space goes negative — so the
+  // 8px over ran out the right-hand side and ate the inset there, leaving the
+  // grid 24px from the left edge and ~16 from the right. At 70 the tracks and
+  // gaps come to 514, and the 6px left over goes where the rule below means it
+  // to: into the gaps, spreading the row to sit flush inside both insets.
+  --rbs1-cal-cell-w: 70px;
+  --rbs1-cal-cell-h: 60px;
+  --rbs1-cal-gap: 4px;
+  --rbs1-cal-weeks: 6;
+  --rbs1-cal-bar: 40px;
+  --rbs1-cal-bar-gap: 14px;
+  --rbs1-cal-head: 28px;
+  --rbs1-cal-head-gap: 10px;
+  // How much of the six-week reserve is given back. Most months run to five
+  // rows, and on those the sixth row's full 64px (60 + its gap) sat under the
+  // grid as a band of nothing. This hands 40px of it back — to the gap and to
+  // the panel's height alike, since the panel is sized from the figure below.
+  //
+  // Trimmed rather than dropping the reserve to five weeks outright: a month
+  // that does run to six rows would then lose its last week entirely. It
+  // instead overruns this by 40px and the step column scrolls that much.
+  --rbs1-cal-trim: 47px;
+  // What all of that adds up to. Every part of the calendar is given a definite
+  // height so this figure is the real one rather than an estimate of it — a
+  // strip left to its own line height would drift and take the fold with it.
+  --rbs1-cal-h: calc(
+    var(--rbs1-cal-bar) + var(--rbs1-cal-bar-gap) + var(--rbs1-cal-head) +
+      var(--rbs1-cal-head-gap) + var(--rbs1-cal-cell-h) * var(--rbs1-cal-weeks) +
+      var(--rbs1-cal-gap) * (var(--rbs1-cal-weeks) - 1) - var(--rbs1-cal-trim)
+  );
+
+  // The width the step column's scrollbar is drawn at. Named because the
+  // column's right padding is derived from it: the bar rides INSIDE the 24px
+  // inset rather than adding to it, so the content sits the same distance from
+  // the panel edge whether or not there is anything to scroll.
+  --rbs1-bar: 5px;
+
+  // The gap kept between that bar and the panel's right edge, so the bar sits
+  // off the edge rather than hard against it. Counted out of the same 24px.
+  --rbs1-bar-gap: 4px;
+
+  // The corner on a selection card — Location, Category, Services, Agents, and
+  // the Extra Services picker, which reuses the same card — plus the agent's
+  // details cover, which sits inside that same step.
+  --rbs1-radius-card: 14px;
+  --rbs1-radius-control: 8px;
+  --rbs1-font: var(--rox-font-family, "Heebo", sans-serif);
+
+  font-family: var(--rbs1-font);
+  color: var(--rbs1-text);
+
+  // Last in the rule so none of the plain declarations above ever follow a
+  // nested block. The percentages are the ones that reproduce the shipped
+  // shades from the default accent — the ring lands exactly, the rest within
+  // 4/255 per channel, since those were picked by hand rather than mixed — and
+  // they track any accent a surface sets instead.
+  @supports (color: color-mix(in srgb, red, blue)) {
+    --rbs1-primary-hover: color-mix(in srgb, var(--rbs1-primary) 82%, #fff);
+    --rbs1-ring: color-mix(in srgb, var(--rbs1-primary) 14%, #fff);
+    --rbs1-available-wash: color-mix(in srgb, var(--rbs1-available) 10%, #fff);
+    --rbs1-available-soft: color-mix(in srgb, var(--rbs1-available) 29%, #fff);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  // Every mark in the panel is an inline `<svg>` carrying its size on the
+  // element itself. Those are presentation attributes, which sit below every
+  // stylesheet in the cascade — so a host theme shipping a blanket rule on
+  // `svg` (`max-width: 100%` and `height: auto` are in almost every theme
+  // reset, Hello Elementor included) outranks them and decides how the panel's
+  // icons are drawn.
+  //
+  // This only lifts the caps; it imposes no size of its own. Anywhere the
+  // exact size matters the panel states it there — see the step rail's tick
+  // and the print control — which is the pattern to follow for a new icon.
+  svg {
+    max-width: none;
+    max-height: none;
+  }
+
+  // The grey frame around the panel, opted INTO — Style 1 frames by default and
+  // opts out with `.no-background`, this design sits flat on the page and opts
+  // in, because that is each one's own default. Same grey, radius and padding
+  // as Style 1's frame so a site running both reads as one plugin.
+  //
+  // The shell keeps its drop shadow either way: unframed is this design's
+  // shipped look, and the shadow is part of it.
+  &.has-background {
+    background-color: #f3f4f9;
+    padding: 40px;
+    border-radius: 10px;
+    // The frame is a block around a fixed-width panel, so it would otherwise
+    // run the full width of the host's column with the panel adrift at its
+    // left edge.
+    width: fit-content;
+
+    // The host theme already supplies the page's side gutter on a small
+    // screen; 40px stacked on top of it left the panel a strip down the
+    // middle. Same breakpoint and padding Style 1 steps down at.
+    @media (max-width: 991px) {
+      width: auto;
+      padding: 16px;
+    }
+  }
+
+  // ---- Shell -----------------------------------------------------------
+  .rbs1-shell {
+    display: flex;
+    align-items: stretch;
+    // The panel keeps its full width even where the theme's content column is
+    // narrower than it — which is what holds the step area at 572px (792 less
+    // the 220 rail) instead of letting it shrink to whatever the column gives.
+    // The viewport is the only thing that overrides it, so a phone can never be
+    // made to scroll sideways.
+    width: min(var(--rbs1-width), calc(100vw - 32px));
+    // Centred on its container. Where the container is wider than the panel
+    // this is what `margin-inline: auto` would do; where it is narrower the
+    // panel breaks out of it evenly on both sides rather than spilling right.
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+    // A definite height, not a floor. It has to be definite for the step column
+    // inside to scroll at all: given only a minimum, the panel simply grows to
+    // whatever the list needs, never overflows, and so never scrolls.
+    height: var(--rbs1-height);
+    background: var(--rbs1-bg-card);
+    border-radius: 16px;
+    box-shadow: 0 30px 50px -20px rgba(10, 11, 15, 0.2);
+    overflow: hidden;
+
+    // Stacked, the two columns need the room they need — a fixed height here
+    // would crush them, and there is no width to hold on to either, so the
+    // panel goes back to filling its container normally.
+    @media (max-width: 991px) {
+      flex-direction: column;
+      height: auto;
+      width: 100%;
+      left: auto;
+      transform: none;
+    }
+  }
+
+  // The one step the panel is allowed to be a different height on. Everywhere
+  // else the height is held constant so the panel never moves under the
+  // visitor; a month cut off mid-week is the worse of the two evils, and a
+  // calendar cannot be scrolled to like a list — you have to see all of it to
+  // choose from it.
+  //
+  // Only the step column changes. Everything else `--rbs1-height` carries — the
+  // header, the footer, the body's bottom gap — is whatever it holds beyond the
+  // four-row fold, so that remainder is added back to the calendar rather than
+  // restated here as a number of its own and left to drift.
+  .rbs1-shell--tall {
+    height: calc(
+      var(--rbs1-height) -
+        (
+          var(--rbs1-row-h) * var(--rbs1-rows) + var(--rbs1-gap) *
+            (var(--rbs1-rows) - 1)
+        ) + var(--rbs1-cal-h)
+    );
+
+    // As above: stacked, nothing holds a height.
+    @media (max-width: 991px) {
+      height: auto;
+    }
+  }
+
+  // No `.rbs1-shell--receipt` rule any more, and none wanted. The Complete step
+  // used to close the panel down to 614px, because the receipt it drew then was
+  // a 346px ticket that floated in a column built for cards. The receipt is now
+  // the order's own sheet, drawn to the full column (see the Complete section
+  // at the foot of this file), so the panel holds the 792px every other step is
+  // and nothing changes width underneath the visitor at the last step.
+
+  .rbs1-sidebar {
+    // The block plus its frame. `width` is the border box here — everything in
+    // this panel is border-box — so asking for 220 would have taken the frame
+    // out of the tint and left 212 of it.
+    width: var(--rbs1-rail-w);
+    flex: 0 0 var(--rbs1-rail-w);
+    background: var(--rbs1-bg-sidebar);
+    padding: var(--rbs1-pad);
+    // The white the tinted rail sits on, as a border — the same device the
+    // order sheet and the reset panel use, and for the same reason: there is
+    // no wrapper element here to hold the padding, and a border paints the
+    // identical picture with nothing added to the DOM.
+    //
+    // Three sides only. The rail runs up against the step column on the right,
+    // so there is nothing to inset it from there and the frame is dropped.
+    border: var(--rbs1-sidebar-frame) solid var(--rbs1-bg-card);
+    border-right-width: 0;
+    // Left corners only — the four values read clockwise from the top left, so
+    // this is top-left and bottom-left rounded, the right pair square against
+    // the step column. 16px is the shell's own corner; the tint's curve
+    // resolves to that less the frame, which keeps the two concentric.
+    border-radius: 16px 0 0 16px;
+    // The panel's height is fixed and the shell clips, so a step list longer
+    // than it scrolls here rather than being cut off.
+    overflow-y: auto;
+
+    // Dropped rather than stacked above the step. It is a column of chrome
+    // around the thing the visitor is actually being asked to do, and nine
+    // labelled steps laid across the top of a phone would push that thing off
+    // the screen before they had read it. `.rbs1-progress` carries what
+    // survives the width.
+    @media (max-width: 991px) {
+      display: none;
+    }
+  }
+
+  .rbs1-sidebar__brand {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.35;
+    margin: 0 0 21px;
+    color: var(--rbs1-text);
+  }
+
+  .rbs1-main {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    // The anchor for the group-capacity sheet, which covers this column —
+    // step and footer both — while leaving the step rail beside it readable.
+    position: relative;
+  }
+
+  .rbs1-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: var(--rbs1-pad) var(--rbs1-pad) 16px;
+  }
+
+  .rbs1-header__title {
+    font-size: 20px;
+    font-weight: 700;
+    // The surface's heading margin, one side at a time so an unset side stays
+    // at the 0 this has always been.
+    margin: var(--rbs1-head-mt, 0) var(--rbs1-head-mr, 0)
+      var(--rbs1-head-mb, 0) var(--rbs1-head-ml, 0);
+    color: var(--rbs1-text);
+    // The header is a flex row with the step counter at its far end, so the
+    // heading has to take the space left over before it has anywhere to align
+    // inside. Unset, `left` is where it already sat.
+    flex: 1 1 auto;
+    text-align: var(--rbs1-head-align, left);
+  }
+
+  .rbs1-header__counter {
+    font-size: 13px;
+    color: var(--rbs1-text-muted);
+    white-space: nowrap;
+  }
+
+  .rbs1-body {
+    flex: 1 1 auto;
+    // A column of its own so the pane inside can take whatever height is left
+    // over — which is how a state without a footer keeps the panel's height
+    // instead of leaving a gap where the footer would have been.
+    display: flex;
+    flex-direction: column;
+    // Lets it shrink below its content, without which the scrolling below
+    // never engages and the panel grows instead.
+    min-height: 0;
+    min-width: 0;
+
+    // The step scrolls here — this is the only scrolling box in the panel, on
+    // every step — and the content keeps a 24px inset on both sides of it,
+    // scrollbar or no scrollbar.
+    //
+    // Two things together are what make that true. The right padding is short
+    // by the bar's width and the gap beside it, so both land INSIDE the 24px
+    // rather than pushing the content that much further in; and
+    // `scrollbar-gutter` reserves that width whether or not a bar is showing,
+    // so nothing shifts sideways the moment a step's content grows past the
+    // fold. Without the second, a short step sat 5px wider than a long one.
+    //
+    // The margin is what holds the bar off the panel's right edge — it is
+    // outside the scrolling box, so the bar is drawn against its edge and the
+    // gap stays clear.
+    overflow-y: auto;
+    padding: 0 calc(var(--rbs1-pad) - var(--rbs1-bar) - var(--rbs1-bar-gap)) 0
+      var(--rbs1-pad);
+    margin-right: var(--rbs1-bar-gap);
+    scrollbar-gutter: stable;
+    // The gap above the footer, as a margin rather than padding: this box is
+    // the one that scrolls, so bottom padding would sit *inside* it and scroll
+    // away with the content — leaving a row that is mid-scroll cut off hard
+    // against the footer's rule. A margin is outside the scrolling area, so the
+    // gap is there whatever the list is doing.
+    margin-bottom: 10px;
+
+    // Firefox styles scrollbars through these two alone — it has no
+    // ::-webkit-scrollbar — so both spellings are needed to get one look.
+    //
+    // Behind @supports rather than declared outright, which is what they used
+    // to be: Chromium 121+ ignores every ::-webkit-scrollbar rule on an element
+    // that also sets scrollbar-width, and fell back to its own `thin` bar —
+    // about twice --rbs1-bar, which is the width the padding above is counting
+    // on. Guarded, Chromium takes the 5px below and only Firefox reads these.
+    @supports not selector(::-webkit-scrollbar) {
+      scrollbar-width: thin;
+      scrollbar-color: #bdbfc6 transparent;
+    }
+
+    &::-webkit-scrollbar {
+      width: var(--rbs1-bar);
+    }
+
+    // No hover state: the bar reads the same whether or not the pointer is
+    // near it.
+    &::-webkit-scrollbar-thumb {
+      background: #bdbfc6;
+      border-radius: 999px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+  }
+
+  // The agent's details and the receipt drop the header, which leaves this
+  // column starting at the panel's own top edge. A scrollbar is drawn down the
+  // full height of its box, so on those two the bar ran into the shell's 16px
+  // corner and `overflow: hidden` sliced its top end off — it came to a stop
+  // mid-curve and read as cut rather than as ending.
+  //
+  // A margin, not padding, for the same reason the bottom gap is one: padding
+  // would sit inside the scrolling box and scroll away with the content, taking
+  // the gap with it — and the bar, which is drawn at the padding box's edge,
+  // would still start hard against the corner. Outside it, the box itself
+  // begins below the curve and the bar begins with it.
+  //
+  // Only the top. `margin-bottom` above already holds the foot of the bar clear
+  // of the bottom pair of corners, on every step.
+  .rbs1-body--flush {
+    margin-top: 6px;
+  }
+
+  .rbs1-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 24px;
+    border-top:1px solid #E2E4EA;
+  }
+
+  // Nothing to go back to on the first step, so the primary action sits alone
+  // on the right rather than drifting left into the gap.
+  .rbs1-footer--end {
+    justify-content: flex-end;
+  }
+
+  // ---- The content area every step shares -------------------------------
+  // Exactly four rows tall, always: a short list keeps the room rather than
+  // collapsing the panel, a long one scrolls inside it, and every other step
+  // (empty states, the order summary) is the same height so the panel never
+  // jumps as you walk through it.
+  .rbs1-pane {
+    // Four rows and their gaps is the floor, so a step with four or fewer of
+    // them keeps the room rather than collapsing the panel.
+    //
+    // It must not shrink: the column above is what scrolls, and a pane that
+    // shrank to fit would never give it anything to scroll.
+    flex: 0 0 auto;
+    min-height: calc(
+      var(--rbs1-row-h) * var(--rbs1-rows) + var(--rbs1-gap) *
+        (var(--rbs1-rows) - 1)
+    );
+    // No inset of its own. The column above carries the full 24px on both
+    // sides now (see `.rbs1-body`), and a second one here would stack on top
+    // of it and leave the right side twice the gap the left has.
+  }
+
+  // Rows are a fixed height so "four rows" means the same thing on every step.
+  //
+  // Deliberately no padding of its own: the pane above is sized to exactly four
+  // rows and three gaps, so any padding here would push the content past that
+  // and clip the fourth row — the selected card's blue edge is drawn inset (see
+  // `.rbs1-card`), so it needs no room around the grid to sit in.
+  .rbs1-list {
+    display: grid;
+    gap: var(--rbs1-gap);
+    // A floor, not a fixed height — a row with more in it than a title and a
+    // subtitle takes the room it needs instead of clipping.
+    grid-auto-rows: minmax(var(--rbs1-row-h), auto);
+    align-content: start;
+  }
+
+  // Location / Category / Services: one card per row.
+  .rbs1-list--single {
+    grid-template-columns: 1fr;
+  }
+
+  // The Services step alone, which the surface's "service columns" control can
+  // take to two per row. It carries `--single` as well, so this has to follow
+  // that rule to win on equal specificity; left unset it resolves to the same
+  // one-per-row, and a narrow screen gets one per row whatever the control says.
+  .rbs1-list--services {
+    grid-template-columns: repeat(var(--rbs1-service-cols, 1), minmax(0, 1fr));
+
+    @media (max-width: 600px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  // Agents: two per row, so four rows show eight.
+  .rbs1-list--pair {
+    grid-template-columns: repeat(2, 1fr);
+
+    @media (max-width: 600px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  // ---- Stepper (sidebar) -----------------------------------------------
+  .rbs1-steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .rbs1-steps__item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    // What the connector needs between one dot and the next: 6px of clearance
+    // under this dot, the line's own 16px, and 6px before the dot below. Change
+    // either figure here and in `.rbs1-steps__line` together — this is the
+    // distance, that is what fills it.
+    padding-bottom: 28px;
+
+    &:last-child {
+      padding-bottom: 0;
+
+      .rbs1-steps__line {
+        display: none;
+      }
+    }
+  }
+
+  .rbs1-steps__marker {
+    position: relative;
+    flex: 0 0 16px;
+    width: 16px;
+    height: 16px;
+  }
+
+  .rbs1-steps__dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--rbs1-muted);
+    position: relative;
+    z-index: 1;
+    color: #fff;
+    // Grey to accent, and the halo out from nothing, as the visitor moves on.
+    // The shadow is listed so the active step's ring grows in rather than
+    // appearing whole — it is the one part of the rail that changes size.
+    transition: background-color 0.25s ease, box-shadow 0.25s ease;
+
+    // Sized here rather than by the icon's own width/height. Those are
+    // presentation attributes, which sit below every stylesheet in the
+    // cascade — a host theme with any rule on `svg` would resize the mark and
+    // the disc would centre whatever came out. Stated here, nothing outside
+    // the panel can reach it.
+    //
+    // `block` so no inline baseline creeps into the measurement; the flex
+    // centring above is then working on the glyph's own box.
+    //
+    // Even, and that matters more than the exact number. Centring an odd size
+    // inside the 16px disc leaves a half pixel a side, and half a pixel is not
+    // a place a glyph can be painted — the browser lands it on one side of the
+    // split or the other, so a mark this small reads as visibly off-centre
+    // however exact its artwork is. 10 leaves a whole 3px either side.
+    //
+    // So it steps 8 → 10 → 12, never 9 or 11. Change the disc above and this
+    // wants to keep its parity with it.
+    svg {
+      display: block;
+      width: 10px;
+      height: 10px;
+      // The tick is mounted only once the step is done, so there is no "before"
+      // for a transition to run from — it fades itself in instead. Slightly
+      // behind the disc's own fade, so the mark lands on a dot that is already
+      // accent rather than racing the colour under it.
+      animation: rbs1-step-tick 0.25s ease 0.1s both;
+    }
+  }
+
+  @keyframes rbs1-step-tick {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .rbs1-steps__line {
+    position: absolute;
+    // The marker is the 16px dot, so 16px is its underside — plus the 6px of
+    // clearance the design leaves before the line starts. The matching 6px
+    // underneath comes out of the item's own bottom padding.
+    top: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 16px;
+    background: var(--rbs1-muted);
+    // With the dot above it, so a completed step and the run of rail beneath it
+    // colour as one movement rather than in two passes.
+    transition: background-color 0.25s ease;
+  }
+
+  .rbs1-steps__label {
+    font-size: 15px;
+    // Pinned to the dot's own height, and load-bearing for the connector above.
+    // The row is as tall as its tallest item, and left to the font this label's
+    // line box came out ~21px against the dot's 16px — so the row grew, the
+    // centred dot sat ~2.5px down inside it, and the 28px of padding that was
+    // meant to read as 6 + line + 6 came out as 11px under the line instead.
+    // Matching the dot makes the row exactly the dot, and the arithmetic holds.
+    line-height: 16px;
+    color: #727377;
+    // Colour only. `font-weight` is deliberately left to snap: the panel loads
+    // Heebo as a set of fixed weights, so an animated 400 → 600 has nothing to
+    // interpolate through and would jump partway rather than ease.
+    transition: color 0.25s ease;
+  }
+
+  // A step already behind the visitor — including one the panel resolved for
+  // them (a single location, a single category) and never showed.
+  .rbs1-steps__item--done {
+    .rbs1-steps__dot {
+      background: var(--rbs1-primary);
+    }
+    .rbs1-steps__line {
+      background: var(--rbs1-primary);
+    }
+    .rbs1-steps__label {
+      color: var(--rbs1-text);
+    }
+  }
+
+  .rbs1-steps__item--active {
+    .rbs1-steps__dot {
+      background: var(--rbs1-primary);
+      // The halo reads as a ring around the dot rather than a bigger dot. A
+      // shadow rather than a border, so it takes no layout space and spends the
+      // 6px clearance the connector already leaves — 5px of ring, 1px of air
+      // before the line starts. Widen it past 6 and it will touch.
+      box-shadow: 0 0 0 5px var(--rbs1-ring);
+    }
+    .rbs1-steps__label {
+      color: var(--rbs1-text);
+      font-weight: 600;
+    }
+  }
+
+  // Anyone who has asked their system not to animate gets the rail switching
+  // straight to its new state, as it did before.
+  @media (prefers-reduced-motion: reduce) {
+    .rbs1-steps__dot,
+    .rbs1-steps__line,
+    .rbs1-steps__label {
+      transition: none;
+    }
+
+    .rbs1-steps__dot svg {
+      animation: none;
+    }
+  }
+
+  // ---- Buttons -----------------------------------------------------------
+  .rbs1-btn {
+    appearance: none;
+    border-radius: var(--rbs1-radius-control);
+    // Half a pixel more above than below — the same optical correction the
+    // work-day chips and "Add a New Booking" carry, and for the same reason:
+    // Heebo keeps 0.42em of descender room under the baseline against 0.34em
+    // over the caps, so "Back" and "Continue", using neither, sat 0.59px high
+    // in a box whose line was centred exactly. The 14px total is unchanged, so
+    // the button still measures 36px.
+    padding: 7.5px 16px 6.5px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.3;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.18s ease, border-color 0.18s ease,
+      color 0.18s ease;
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+
+    // The pointer never leaves the button it was pressed on, so the pressed
+    // state is the hover one — nothing darkens or flashes underneath it.
+    &:focus {
+      outline: none;
+    }
+
+    &.rbs1-hidden {
+      visibility: hidden;
+    }
+  }
+
+  // The footer's forward button — "Continue" in this design, which is why the
+  // surface names its panel that. Its controls reach here as --rox-nav-next-*
+  // custom properties (see Supports\NavButtons and lib/navButtonVars.js), and
+  // every fallback below is the value this design shipped with, so an
+  // untouched control changes nothing.
+  .rbs1-btn--primary {
+    background: var(--rox-nav-next-bg, var(--rbs1-primary));
+    border: var(--rox-nav-next-bw, 2px) var(--rox-nav-next-bs, solid)
+      var(--rox-nav-next-border, var(--rbs1-primary));
+    border-radius: var(--rox-nav-next-br, var(--rbs1-radius-control));
+    color: var(--rox-nav-next-fg, #fff);
+    font-size: var(--rox-nav-next-fs, 14px);
+    font-weight: var(--rox-nav-next-fw, 500);
+    padding: var(--rox-nav-next-pt, 7.5px) var(--rox-nav-next-pr, 16px)
+      var(--rox-nav-next-pb, 6.5px) var(--rox-nav-next-pl, 16px);
+    margin: var(--rox-nav-next-mt, 0) var(--rox-nav-next-mr, 0)
+      var(--rox-nav-next-mb, 0) var(--rox-nav-next-ml, 0);
+
+    &:hover:not(:disabled),
+    &:active:not(:disabled),
+    &:focus-visible:not(:disabled) {
+      // An unset hover colour falls back to the rest colour the editor did
+      // set, and only then to this design's own hover — so setting a
+      // background alone does not make the button jump colour on hover.
+      background: var(
+        --rox-nav-next-bg-hover,
+        var(--rox-nav-next-bg, var(--rbs1-primary-hover))
+      );
+      border-color: var(
+        --rox-nav-next-border-hover,
+        var(--rox-nav-next-border, var(--rbs1-primary-hover))
+      );
+      color: var(--rox-nav-next-fg-hover, var(--rox-nav-next-fg, #fff));
+    }
+
+    &:disabled {
+      background: var(--rbs1-btn-disabled-bg);
+      border-color: var(--rbs1-btn-disabled-bg);
+      color: var(--rbs1-btn-disabled-fg);
+    }
+  }
+
+  // The footer's Back button, driven by --rox-nav-back-* exactly as the
+  // forward button above is driven by --rox-nav-next-*.
+  .rbs1-btn--secondary {
+    background: var(--rox-nav-back-bg, var(--rbs1-bg-card));
+    border: var(--rox-nav-back-bw, 2px) var(--rox-nav-back-bs, solid)
+      var(--rox-nav-back-border, var(--rbs1-btn-back-border));
+    border-radius: var(--rox-nav-back-br, var(--rbs1-radius-control));
+    color: var(--rox-nav-back-fg, var(--rbs1-text));
+    font-size: var(--rox-nav-back-fs, 14px);
+    font-weight: var(--rox-nav-back-fw, 500);
+    padding: var(--rox-nav-back-pt, 7.5px) var(--rox-nav-back-pr, 16px)
+      var(--rox-nav-back-pb, 6.5px) var(--rox-nav-back-pl, 16px);
+    margin: var(--rox-nav-back-mt, 0) var(--rox-nav-back-mr, 0)
+      var(--rox-nav-back-mb, 0) var(--rox-nav-back-ml, 0);
+
+    &:hover:not(:disabled),
+    &:active:not(:disabled),
+    &:focus-visible:not(:disabled) {
+      background: var(
+        --rox-nav-back-bg-hover,
+        var(--rox-nav-back-bg, var(--rbs1-btn-back-hover))
+      );
+      border-color: var(
+        --rox-nav-back-border-hover,
+        var(--rox-nav-back-border, var(--rbs1-btn-back-hover))
+      );
+      color: var(--rox-nav-back-fg-hover, var(--rox-nav-back-fg, var(--rbs1-text)));
+    }
+
+    &:disabled {
+      background: var(--rbs1-bg-card);
+      border-color: var(--rbs1-btn-back-border);
+      color: var(--rbs1-btn-back-disabled-fg);
+    }
+  }
+
+  // A text-only affordance (close a details panel, dismiss a sheet). Hover
+  // and focus both underline the label — the one interaction state the
+  // design handed over explicitly, so every text link in Style 2 honours it.
+  .rbs1-link {
+    background: none;
+    border: none;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--rbs1-text);
+    cursor: pointer;
+
+    .rbs1-link__label {
+      text-decoration: none;
+    }
+
+    &:hover .rbs1-link__label,
+    &:focus-visible .rbs1-link__label {
+      text-decoration: underline;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--rbs1-primary);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+  }
+
+  // ---- Cards --------------------------------------------------------------
+  .rbs1-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--rbs1-bg-card);
+    border: 1px solid var(--rbs1-border);
+    border-radius: var(--rbs1-radius-card);
+    padding: 18px;
+    cursor: pointer;
+    // Its own floor as well as the grid row's, so a card is never shorter than
+    // this wherever it is used. A grid item already stretches to fill its row,
+    // so the two agree; a percentage height here would instead ask the row for
+    // a size the row is still working out from this card.
+    min-height: var(--rbs1-row-h);
+    overflow: hidden;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+
+    // A click focuses the card (it is a `role="button"`), and the browser's
+    // own focus ring for that is a black box. Suppressed here so the design's
+    // blue edge below is the only thing a click draws; keyboard focus keeps a
+    // visible state through `:focus-visible`.
+    &:focus {
+      outline: none;
+    }
+
+    // Hover, keyboard focus and the chosen card all read the same: a 2px blue
+    // edge. Drawn as a 1px border plus a 1px inset shadow rather than a wider
+    // border, so the card never resizes as the state changes.
+    &:hover,
+    &:focus-visible,
+    &.rbs1-card--selected {
+      border-color: var(--rbs1-primary);
+      box-shadow: inset 0 0 0 1px var(--rbs1-primary);
+    }
+  }
+
+  .rbs1-card__icon {
+    flex: 0 0 auto;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: var(--rbs1-bg-badge);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    color: #b6b9c2;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    // The fallback draws its own filled circle, so it stands in for the photo
+    // rather than sitting inside the frame as a small glyph. Sized here rather
+    // than by each caller's `size` prop, so one rule covers every avatar.
+    > svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  .rbs1-card__body {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .rbs1-card__title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #151720;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  // Location is the one list whose cards carry a name and nothing else. With no
+  // subtitle under it the name is the whole card, so it does not need the 700
+  // that sets a title apart from the line beneath it. No bottom margin either —
+  // there is nothing below to clear.
+  .rbs1-list--locations .rbs1-card__title {
+    font-size: 18px;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  .rbs1-card__subtitle {
+    font-size: 14px;
+    color: #494A4C;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .rbs1-card__badge {
+    flex: 0 0 auto;
+    min-width: 26px;
+    height: 26px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: var(--rbs1-bg-badge);
+    color: var(--rbs1-text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .rbs1-card__price {
+    flex: 0 0 auto;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--rbs1-primary);
+  }
+
+  // ---- Agent card ----------------------------------------------------------
+  .rbs1-agent-card__avatar {
+    flex: 0 0 auto;
+    // The same 46px as `.rbs1-card__icon`, so an agent's photo sits in the box
+    // a service or category icon does on the steps either side of it.
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--rbs1-bg-badge);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #b6b9c2;
+
+    // Fills the circle and crops what will not fit, rather than scaling the
+    // whole photo into it. `contain` was tried here and reverted: at 46px a
+    // wide upload came out a thin band of picture in a mostly-grey circle, and
+    // with every agent's photo a different shape the row lost its rhythm. The
+    // same trade Style 1 makes on its own avatars.
+    //
+    // min/max alongside the two lengths, not instead of them: a host theme's
+    // `img { height: auto !important }` beats `height` on its own, the photo
+    // then takes its intrinsic ratio from the width, and object-fit has
+    // nothing left to crop — which is how a wide upload ended up as a short
+    // band sitting inside the circle, badge grey showing above and below it.
+    // Themes override `height`; they do not override these.
+    img {
+      width: 100%;
+      height: 100%;
+      min-width: 100%;
+      max-width: 100%;
+      min-height: 100%;
+      max-height: 100%;
+      object-fit: cover;
+    }
+
+    // As above: the fallback is a complete avatar, not a glyph on a disc.
+    > svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  .rbs1-agent-card__info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    // Without this the name's ellipsis never engages: a flex item defaults to
+    // min-width:auto, so it would rather overflow the card than shrink.
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  // The way into the agent's details, so it is a button — but it reads as the
+  // card's title, and stays on one line however long the name is.
+  .rbs1-agent-card__name {
+    display: block;
+    max-width: 100%;
+    padding: 0;
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.3;
+    text-align: left;
+    color: var(--rbs1-text);
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+
+    &:hover,
+    &:focus-visible {
+      color: var(--rbs1-primary);
+      text-decoration: underline;
+    }
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  .rbs1-agent-card__role {
+    display: block;
+    max-width: 100%;
+    margin: 2px 0 0;
+    font-size: 14px;
+    color: #565858;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  // ---- Agent details (in place of the grid once a name is clicked) ---------
+  // Laid out inside `.rbs1-pane`, so the step keeps its height and a long bio
+  // scrolls instead of stretching the panel.
+
+  // The panel's heading is not drawn while this is up (see `onAgentDetails` in
+  // index.jsx), so the gap above the photo is this pane's to leave — the same
+  // inset the header carried, and the same one the panel keeps at its sides.
+  .rbs1-agent-details {
+    padding-top: var(--rbs1-pad);
+  }
+
+  .rbs1-agent-details__cover {
+    position: relative;
+    height: 190px;
+    // Never squeezed by the content under it: the bio grows, this does not.
+    flex: 0 0 auto;
+    border-radius: var(--rbs1-radius-card);
+    overflow: hidden;
+    background: var(--rbs1-bg-badge);
+  }
+
+  // The wash over the photo, as Style 1 draws it: a gradient rather than a flat
+  // tint, so the picture stays clear at the top and only darkens where the
+  // name, role and social chips sit.
+  .rbs1-agent-details__cover::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(21, 23, 32, 0) 0%,
+      rgba(21, 23, 32, 0.7) 100%
+    );
+    z-index: 1;
+  }
+
+  .rbs1-agent-details__photo {
+    // Pinned to all four edges rather than sized with width/height alone.
+    //
+    // The insets are NOT what holds the height, though they read as if they
+    // should. For an absolutely positioned *replaced* element `height: auto`
+    // resolves to the intrinsic height and `bottom` is simply dropped as
+    // over-constrained (CSS 2.1 §10.6.5) — the opposite of how it works for a
+    // normal block. So a host theme's `img { height: auto !important }` beat
+    // `height: 100%` here, the photo rendered at its own ratio from the width,
+    // and a 16:9 upload came out ~295px tall in a 190px band: clipped to its
+    // top, which is why only the sky showed.
+    //
+    // min/max are what actually pin it. They clamp the used height whatever
+    // `height` itself resolves to, and no theme overrides them, so the box
+    // stays 190px and object-fit gets the frame it needs to crop into.
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    min-height: 100%;
+    max-height: 100%;
+    // Fills the band and crops the overflow. `contain` was tried here and
+    // reverted: scaled to fit, a photo left flat grey bars down both sides of
+    // the header, and the gradient and name below it then sat over background
+    // rather than over the picture.
+    object-fit: cover;
+    // Under the gradient and the caption, both of which layer above it.
+    z-index: 0;
+  }
+
+  .rbs1-agent-details__photo-fallback {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e0e3ec;
+    color: #b6b9c2;
+    z-index: 0;
+  }
+
+  // Sits on the photo, so it carries its own surface rather than the panel's.
+  .rbs1-agent-details__close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    // Above the gradient, same as the caption.
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 7px 12px;
+    border: none;
+    border-radius: 20px;
+    background: var(--rbs1-bg-card);
+    color: var(--rbs1-text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    &:hover,
+    &:focus-visible {
+      background: rgba(255, 255, 255, 0.7);
+    }
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  // Underlined only under the pointer or on keyboard focus — the same way
+  // every other text affordance in Style 2 answers a hover (see `.rbs1-link`).
+  .rbs1-agent-details__close-label {
+    text-decoration: none;
+    transition: all 0.3s ease;
+  }
+
+  .rbs1-agent-details__close:hover .rbs1-agent-details__close-label,
+  .rbs1-agent-details__close:focus-visible .rbs1-agent-details__close-label {
+    text-decoration: underline;
+  }
+
+  .rbs1-agent-details__caption {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    // Feet together, not middles. The chips are one 28px row and the block
+    // beside them is two lines of different sizes — about 48px of name over
+    // role — so centring aligned the chips against that whole block and landed
+    // them across the join between the two, level with neither. Aligned at the
+    // bottom they finish on the role's own last line, which is the line they
+    // read as belonging to.
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 14px 11px;
+    // Above the gradient that gives it its contrast.
+    z-index: 2;
+  }
+
+  .rbs1-agent-details__identity {
+    min-width: 0;
+  }
+
+  .rbs1-agent-details__name {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .rbs1-agent-details__role {
+    display: block;
+    margin-top: 0;
+    font-size: 14px;
+    font-weight:500;
+    color: #fff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .rbs1-agent-details__socials {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    a {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      // White on the photo at rest — the icons resolve their fill to
+      // currentColor, so this is what colours them — and the panel's dark text
+      // once the chip turns solid white under the pointer.
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      background: transparent;
+      transition: background-color 0.18s ease, border-color 0.18s ease,
+        color 0.18s ease;
+
+      &:hover,
+      &:focus-visible {
+        color: #151720;
+        background: #fff;
+        border-color: #fff;
+      }
+    }
+  }
+
+  .rbs1-agent-details__stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    padding: 18px 4px;
+    border-bottom: 1px solid var(--rbs1-border);
+  }
+
+  .rbs1-agent-details__stat {
+    min-width: 0;
+
+    strong {
+      display: block;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--rbs1-text);
+    }
+
+    span {
+      display: block;
+      margin-top: 2px;
+      font-size: 14px;
+      color:#727377;
+    }
+  }
+
+  .rbs1-agent-details__days {
+    padding: 9px 4px 0;
+  }
+
+  .rbs1-agent-details__days-title {
+    margin: 0 0 10px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--rbs1-text);
+  }
+
+  .rbs1-agent-details__days-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .rbs1-workday {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    // Half a pixel more above than below, rather than the even 1px it reads as.
+    // Heebo reserves 0.42em under the baseline for Hebrew descenders — nearly
+    // twice a Latin-only face — and a day name never uses it, so centring the
+    // line box left the words sitting visibly high in the chip. The odd split
+    // is what puts the letters themselves in the middle; the chip's height is
+    // unchanged.
+    padding: 1.5px 8px 0.5px;
+    border-radius: 4px;
+    background: #f9eeff;
+    color: #600890;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  // Inherits the chip's purple rather than taking the accent, so the marker and
+  // the day it marks read as one thing.
+  .rbs1-workday__dot {
+    color: inherit;
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .rbs1-agent-details__bio {
+    // The rule above it matches the one under the stats, so the work days sit
+    // in a band of their own between the two.
+    margin: 16px 4px 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--rbs1-border);
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--rbs1-text-muted);
+  }
+
+  // ---- Order details -------------------------------------------------------
+  // One card per booking, banded rather than ruled: a tinted head carries the
+  // service and when it is, the detail rows sit on white under it, and the
+  // extras are a band of their own again. The bands are what separate the
+  // sections, so the rows inside them need no dividers of their own.
+  .rbs1-order {
+    display: flex;
+    flex-direction: column;
+  }
+
+  // The whole review is one sheet, and the bookings inside it are bands rather
+  // than cards of their own: an order is a single thing being confirmed, and a
+  // stack of separate cards reads as a list of unrelated ones.
+  .rbs1-order__sheet {
+    border: 1px solid transparent;
+    border-radius: 10px;
+    // The tint the white cards sit on, which is what groups them into one
+    // order rather than a run of unrelated panels.
+    background: #F3F4F9;
+    padding: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  // One card per thing that can be acted on: the appointment, its extras, and
+  // the order's own foot. Separated by the sheet showing between them, so none
+  // of them needs a rule or a border of its own.
+  .rbs1-order__card {
+    border-radius: 8px;
+    background: var(--rbs1-bg-card);
+    padding: 2px;
+    // Nothing inside reaches these corners any more — the padding above holds
+    // the head off them, and the head rounds its own. Kept as a guard so a
+    // child that ever does spill cannot square the card off.
+    overflow: hidden;
+  }
+
+  // The head and the rows under it are one card, so they take the same 24px
+  // side inset: the service name, the row labels and the hairlines between them
+  // all start on one line down the card's left edge, and end on one down its
+  // right. Only the vertical differs, the head being a band rather than a row.
+  .rbs1-order__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 18px 18px 20px;
+    // Top corners only. Two values would round all four — the shorthand reads
+    // as top-left/bottom-right then top-right/bottom-left — so all four are
+    // given, in clockwise order from the top left.
+    //
+    // The head carries its own radius at all because the card insets it by
+    // 2px: it no longer reaches the card's edge, so the card's own rounding
+    // has nothing of it to clip.
+    border-radius: 7px 7px 0 0;
+    // A shade deeper than the sheet, so the head reads as the card's own
+    // rather than as a gap the sheet is showing through.
+    background: #F8F9FC;
+  }
+
+  .rbs1-order__heading {
+    min-width: 0;
+  }
+
+  .rbs1-order__service {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--rbs1-text);
+  }
+
+  // The one line of the card in the accent: it is the appointment itself, and
+  // the thing most worth re-reading before paying.
+  .rbs1-order__when {
+    margin: 2px 0 0;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--rbs1-primary);
+  }
+
+  // Deliberately quiet at rest — a destructive action sitting in a review
+  // should not be the brightest thing on the card — and only reddens under the
+  // pointer, once it is clear it is about to be used.
+  .rbs1-order__remove {
+    appearance: none;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 0 0 1px;
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+    color: #97999E;
+    cursor: pointer;
+    // The rule that appears on hover, drawn as a border rather than
+    // `text-decoration: underline`.
+    //
+    // An underline cannot do this job. The control is a flex row and text
+    // decoration does not propagate into flex items — and even where it did it
+    // would stop at the word, the cross being an SVG with no text to decorate.
+    // A border is on the BOX, so one line runs under the pair, which is what
+    // the design draws.
+    //
+    // Transparent at rest rather than added on hover, so the 1px is already in
+    // the box model and nothing shifts as it arrives.
+    border-bottom: 1px solid transparent;
+    transition: color 0.18s ease, border-color 0.18s ease;
+
+    &:hover,
+    &:focus-visible {
+      color: var(--rbs1-text);
+      // Follows the colour above, so the line and the label can never disagree.
+      border-bottom-color: currentColor;
+    }
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  // The same side inset as the head above, so a row's label sits directly under
+  // the service name and the hairlines between rows run the width of the card's
+  // content rather than a wider box of their own.
+  .rbs1-order__body,
+  .rbs1-order__extras {
+    padding: 0 20px;
+    // 2px from the booking's own card, where the sheet puts 6px between every
+    // other pair of cards. `gap` is a single value for the whole column, so the
+    // 4px difference is taken back here instead. Safe to hang off this card:
+    // it is rendered unconditionally, and always directly after the booking's
+    // card, so there is no other join it can close.
+    margin-top: -4px;
+  }
+
+  // Rows are ruled between, not around: `+` skips the first, so no line ever
+  // sits against a card's own edge.
+  .rbs1-order__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 42px;
+    padding: 6px 0;
+    font-size: 14px;
+
+    // NOT `& + &`: inside a nested rule `&` stands for the WHOLE parent
+    // selector, so that expands to `.rox-booking-style-2 .rbs1-order__row +
+    // .rox-booking-style-2 .rbs1-order__row` — which asks for a row whose next
+    // sibling is a panel containing a row, and matches nothing. Naming the
+    // class on the right-hand side is what makes it a plain sibling rule.
+    & + .rbs1-order__row {
+      border-top: 1px solid var(--rbs1-border);
+    }
+  }
+
+  // The extras heading, which carries the add link opposite it. With no extras
+  // yet there is no label, so the link falls to the right on its own.
+  .rbs1-order__row--head {
+    justify-content: space-between;
+
+    &:only-child {
+      justify-content: flex-end;
+    }
+
+    // "Extra Services" heads the rows under it rather than being one of them,
+    // so it carries a little more weight than the labels it introduces.
+    .rbs1-order__label {
+      font-weight: 500;
+    }
+  }
+
+  .rbs1-order__label {
+    color: var(--rbs1-text);
+    min-width: 0;
+  }
+
+  .rbs1-order__value {
+    color: var(--rbs1-text);
+    font-weight: 500;
+    text-align: right;
+  }
+
+  // Price and its remove control travel together, so the price column stays put
+  // whether or not the row can be dropped.
+  .rbs1-order__extra-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .rbs1-order__drop {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: var(--rbs1-bg-badge);
+    color: var(--rbs1-text-muted);
+    cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease;
+
+    &:hover,
+    &:focus-visible {
+      background: #fbe4e3;
+      color: #d5342f;
+    }
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  // Both "add" affordances read as links in the accent — they add to the order
+  // rather than moving the visitor on, which is what the footer's button does.
+  .rbs1-order__add {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 0 2px;
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--rbs1-primary);
+    cursor: pointer;
+    // The rule under the whole control, as a border rather than
+    // `text-decoration: underline`.
+    //
+    // An underline only ever reached the words. The control is a flex row, so
+    // the decoration does not propagate into its items, and the plus is an SVG
+    // with no text to decorate — the line started after the mark and after the
+    // gap. A border is on the BOX, so it runs the full width, mark included.
+    //
+    // `currentColor` rather than the accent restated, so the line follows the
+    // hover shift below with nothing to keep in step.
+    border-bottom: 1px solid currentColor;
+    transition: color 0.18s ease, border-color 0.18s ease;
+
+    &:hover,
+    &:focus-visible {
+      color: var(--rbs1-primary-hover);
+    }
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  // The closing card, last in the sheet with the bookings above it.
+  .rbs1-order__foot {
+    // The side inset the cards above it use, so the dashed button and the
+    // totals line up with the rows rather than sitting a few pixels proud.
+    padding: 18px 20px;
+  }
+
+  // Dashed, because it is an empty slot waiting to be filled rather than a
+  // control acting on something already there.
+  .rbs1-order__new {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    // A stated height, not one the padding adds up to. Left to grow, the box is
+    // the label's line box plus the padding — and that line box is the THEME's
+    // line-height on top of the font, so the button came out a different height
+    // on every site and changed under any type change here. 38 is 38 whatever
+    // the label is set in; `box-sizing: border-box` (set at the top of this
+    // file) keeps the dashed edge inside it.
+    //
+    // `line-height: 1` so the line box is the font size and nothing else, and
+    // `align-items: center` above is then what centres it in the 38.
+    height: 38px;
+    line-height: 1;
+    // Half a pixel lower than centre, which the 1px of top padding is: Heebo
+    // reserves 0.42em under the baseline for Hebrew descenders against 0.34em
+    // of room over the caps, so a label using neither sits that difference high
+    // — 0.67px at this size. Horizontal padding is now all the padding does.
+    padding: 1px 6px 0;
+    margin-bottom:24px;
+    border: 1px dashed var(--rbs1-primary);
+    border-radius: var(--rbs1-radius-control);
+    background: none;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--rbs1-primary);
+    cursor: pointer;
+    transition: border 0.3s ease;
+
+    &:hover,
+    &:focus-visible {
+      border: 1px solid;
+    }
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  // A hairline above the first one separates the money from the actions over
+  // it; `+` leaves a lone total sitting straight under the dashed button.
+  .rbs1-order__total-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 2px;
+    font-size: 15px;
+    border-top: 1px solid var(--rbs1-border);
+
+    // "Discount:" and its figure — the one pair that reaches this band, and
+    // sized here rather than taking the row's 15px. The label stays at the 400
+    // it inherits and the figure carries the 500, so the amount is what the eye
+    // lands on rather than the word naming it.
+    //
+    // The grand total below is unaffected: that row sets its own size and
+    // weight, and its two spans are plain, not these classes.
+    .rbs1-order__label {
+      font-size: 14px;
+      font-weight: 400;
+    }
+
+    .rbs1-order__value {
+      font-size: 14px;
+      font-weight: 500;
+    }
+  }
+
+  // The one rule in the panel drawn in the text colour rather than the border
+  // grey: it closes the order, and the figure under it is what will be charged.
+  .rbs1-order__total-row--grand {
+    border-top: 1px solid var(--rbs1-text);
+    font-size: 16px;
+    font-weight: 500;
+    padding-bottom: 0;
+  }
+
+  // ---- Loading skeleton ----------------------------------------------------
+  // The placeholder cards reuse `.rbs1-card`, so they already sit in the right
+  // box; these only take away what would read as interactive.
+  .rbs1-card--skeleton {
+    cursor: default;
+    pointer-events: none;
+
+    &:hover {
+      border-color: var(--rbs1-border);
+      box-shadow: none;
+    }
+  }
+
+  // The agent details placeholder is built from the real view's classes, the
+  // Close pill included — and that pill carries the button's pointer cursor and
+  // hover wash. There is nothing to close yet, so the whole pane stops
+  // answering the pointer, exactly as the placeholder cards do above.
+  .rbs1-agent-details--skeleton {
+    pointer-events: none;
+  }
+
+  .rbs1-skeleton-block {
+    display: block;
+    border-radius: 4px;
+    // The sweep is a gradient wider than the block, slid across it — cheaper
+    // than animating a colour, and it stays on the compositor.
+    background: linear-gradient(
+        90deg,
+        var(--rbs1-bg-badge) 25%,
+        #e7e9ef 37%,
+        var(--rbs1-bg-badge) 63%
+      )
+      0 0 / 400% 100%;
+    animation: rbs1-shimmer 1.4s ease infinite;
+  }
+
+  // Anyone who has asked their system not to animate gets the flat block.
+  @media (prefers-reduced-motion: reduce) {
+    .rbs1-skeleton-block {
+      animation: none;
+    }
+  }
+
+  // ---- Empty state ---------------------------------------------------------
+  // Style 1's own empty card, which Style 2 now renders (see EmptyState.jsx).
+  // It is drawn at a flat 586px for Style 1's wider content area, and the step
+  // column here is 520px across — so it hung 66px past the fold and the column
+  // put a horizontal scrollbar under it. That bar then took its own height out
+  // of the column, which is what pushed the card past the bottom and brought
+  // the vertical one out beside it: one overflow, two scrollbars.
+  //
+  // Released to the column's width instead of being given a second fixed one.
+  // `max-width` as well as `width`, so nothing it carries can push it back out.
+  .rbs1-body .booking-empty-state {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .rbs1-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    height: 100%;
+    padding: 24px;
+    color: var(--rbs1-text-muted);
+  }
+
+  .rbs1-empty__title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--rbs1-text);
+    margin: 0 0 6px;
+  }
+
+  .rbs1-empty__desc {
+    font-size: 13px;
+    margin: 0 0 16px;
+  }
+
+  .rbs1-empty__actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+
+  // ---- Date & Time ---------------------------------------------------------
+  // Two stacked blocks: the month, and the slots just past its bottom edge. The
+  // step column is exactly as tall as the calendar (the panel grows for this one
+  // step — see `.rbs1-shell--tall`), so the panel opens on a whole month with
+  // nothing of the slots showing, and choosing a day scrolls the column down to
+  // them (see DateTimeStep's `revealSlots`).
+  .rbs1-datetime {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .rbs1-cal {
+    display: flex;
+    flex-direction: column;
+    // Never squeezed by the slots below it: the column is what scrolls.
+    flex: 0 0 auto;
+    // Exactly what the step column shows at once, which is what puts "Pick a
+    // Time" on the far side of the fold. A month of five weeks keeps the room a
+    // sixth would have taken rather than handing it back — give it back and the
+    // slots would sit half in view before a day had been chosen.
+    min-height: var(--rbs1-cal-h);
+
+    // Stacked on a narrow screen the panel's height is no longer fixed and the
+    // page itself scrolls, so holding the month to a viewport it no longer has
+    // would only strand the slots below a band of empty space.
+    @media (max-width: 991px) {
+      min-height: 0;
+    }
+  }
+
+  .rbs1-cal__toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    // Definite, like every other band in the calendar: `--rbs1-cal-h` is the
+    // sum of them, and the panel's height on this step is the sum of that.
+    height: var(--rbs1-cal-bar);
+    margin-bottom: var(--rbs1-cal-bar-gap);
+  }
+
+  // The month and year pickers. The shared `SelectField`, not a native select:
+  // a native one's option list is drawn by the OS and cannot be styled at all,
+  // and the design calls for a panel of its own with a highlighted row.
+  //
+  // Every `.cf-select-*` rule in `bookingstyle.scss` is scoped under
+  // `.form-wrapper .form-group`, so none of it reaches a dropdown standing on
+  // its own outside a form — which is why the whole control, open/closed
+  // mechanics included, is built here rather than adjusted.
+  .rbs1-select {
+    display: inline-flex;
+    flex: 0 1 168px;
+    min-width: 0;
+
+    // The anchor the menu is positioned against.
+    .cf-select {
+      position: relative;
+      width: 100%;
+    }
+
+    .cf-select-trigger {
+      appearance: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      height: var(--rbs1-cal-bar);
+      padding: 0 14px;
+      border: 1px solid var(--rbs1-border);
+      border-radius: var(--rbs1-radius-control);
+      background: var(--rbs1-bg-card);
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1;
+      color: var(--rbs1-text);
+      cursor: pointer;
+      transition: border-color 0.18s ease;
+
+      // Open reads the same as focus — the design draws its blue edge on the
+      // control whose list is showing, which is the control you are using.
+      &:hover,
+      &:focus-visible,
+      &.open {
+        border-color: var(--rbs1-primary);
+      }
+
+      &:focus {
+        outline: none;
+      }
+    }
+
+    .cf-select-value {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .cf-select-arrow {
+      flex: 0 0 auto;
+      color: #A9ACAC;
+      transition: transform 0.18s ease;
+    }
+
+    // Points at the list while it is down.
+    .cf-select-trigger.open .cf-select-arrow {
+      transform: rotate(180deg);
+    }
+
+    .cf-select-menu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      z-index: 20;
+      margin: 0;
+      // The inset the highlighted row sits inside, so it reads as a rounded
+      // block within the panel rather than a band across it — but nothing on
+      // the right edge.
+      //
+      // A classic scrollbar takes its width out of the content box, so with
+      // padding there the highlighted row stopped short of the bar and left a
+      // band of dead space between the two. With none, the row runs the full
+      // width and the bar sits in the space the right padding would have
+      // occupied, filling that inset in its own right.
+      //
+      // Only the month list earns this: twelve rows against a six-row cap, so
+      // it always scrolls. The year list is three rows and never does, and a
+      // list with no bar has nothing filling the inset — it takes its own right
+      // padding back under `.rbs1-select--narrow` below.
+      //
+      // 6px on the left, not the 4 it reads as wanting, because it is matching
+      // the BAR and not a padding: the scrollbar takes its full 6px out of the
+      // content box, so a 4px left inset left the highlighted row sitting 4
+      // from one edge and 6 from the other. The two sides are the same figure
+      // now, and the vertical 4px is untouched — the cap below counts on it.
+      padding: 4px 0 4px 6px;
+      box-sizing: border-box;
+      list-style: none;
+      // As on the rows below: a theme's own `ul` font would otherwise reach
+      // this list ahead of the panel's inherited one.
+      font-family: inherit;
+      // A column with a gap, so the 2px between rows is spacing rather than a
+      // margin that would collapse against the panel's own padding.
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      background: var(--rbs1-bg-card);
+      border: 1px solid var(--rbs1-border);
+      border-radius: 10px;
+      box-shadow: 0 12px 30px -10px rgba(10, 11, 15, 0.25);
+      // Six rows, then scroll — the length the design draws. The box is
+      // border-box, so the cap has to cover every part of it:
+      //   180  6 rows x 30px
+      // +  10  5 gaps x 2px
+      // +   8  4px padding, top and bottom
+      // +   2  1px border, top and bottom
+      // ─────
+      //   200
+      max-height: 200px;
+      overflow-y: auto;
+
+      // The cap above fits six rows exactly, but only from a row boundary.
+      // `SelectField` opens the list with `scrollIntoView({ block: "nearest" })`
+      // on the chosen row, and "nearest" scrolls the least it can get away
+      // with — enough to bring that row just inside the box, and almost never a
+      // whole number of rows. The offset then fell mid-row and sheared the rows
+      // at both ends, the chosen month included.
+      //
+      // Snapping settles every scroll on a boundary instead, so six whole rows
+      // are what the box holds whatever it is showing. Mandatory, not
+      // proximity: proximity leaves the browser free to ignore the snap, which
+      // is the case being fixed. Both lists end on a boundary too — twelve
+      // months cap out at 192px of scroll, seven years at 32 — so neither can
+      // be snapped away from its own last row.
+      scroll-snap-type: y mandatory;
+      // The list's own top padding. Without it a snapped row aligns with the
+      // padding edge and sits under that 4px rather than inside it.
+      scroll-padding-top: 4px;
+
+      // Closed resting state. The list stays mounted so both directions
+      // animate; `visibility` is what keeps it out of the tab order, and its
+      // transition is delayed to the end so the fade-out is not cut short.
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      pointer-events: none;
+      transition: opacity 0.18s ease, transform 0.18s ease,
+        visibility 0s linear 0.18s;
+
+      // Behind @supports, like the step column's: Chromium ignores every
+      // ::-webkit-scrollbar rule on an element that also sets scrollbar-width,
+      // and falls back to its own `thin` bar — roughly twice the 4px the
+      // padding above is counting on.
+      @supports not selector(::-webkit-scrollbar) {
+        scrollbar-width: thin;
+        scrollbar-color: #bdbfc6 transparent;
+      }
+
+      // 6px of track for a 4px thumb — the inset the row no longer pads for,
+      // plus the 2px the thumb is held off the panel's edge by.
+      &::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      // A scrollbar is drawn at the padding box's own edge, so no amount of
+      // padding on the list will hold the thumb off its border. Insetting the
+      // thumb is what puts the 2px there: a transparent right border takes the
+      // width, and `background-clip: padding-box` keeps the grey from painting
+      // out over it.
+      &::-webkit-scrollbar-thumb {
+        background: #bdbfc6;
+        border: 0;
+        border-right: 2px solid transparent;
+        background-clip: padding-box;
+        border-radius: 999px;
+      }
+
+      // The track runs the full height of the box by default, so the thumb was
+      // free to travel into the panel's own 10px corners — it reached the top
+      // on the first month and the bottom on the last, and both ends came out
+      // cut square against the curve instead of ending in their own round.
+      //
+      // 6px is what clears it. The thumb sits 2px in from the right edge, and a
+      // 10px corner is 4px deep at that distance (10 - √(10² - 8²)), plus the
+      // list's 1px border — so six holds it clear of the curve at both ends
+      // with a hair to spare, and reads as the same inset the rows keep.
+      //
+      // Margin on the track rather than padding on the list: a scrollbar is
+      // drawn against the padding box's edge, so padding moves the rows and
+      // leaves the bar exactly where it was. This shortens the track itself.
+      &::-webkit-scrollbar-track {
+        background: transparent;
+        margin: 6px 0;
+      }
+
+      &.open {
+        opacity: 1;
+        visibility: visible;
+        transform: none;
+        pointer-events: auto;
+        transition: opacity 0.18s ease, transform 0.18s ease;
+      }
+
+      // Flipped above the trigger when the step column would clip it below, so
+      // it rises from the trigger rather than dropping toward it. The nested
+      // `.open` outranks the one above it, which is what keeps the flipped
+      // list from sliding the wrong way as it arrives.
+      &.drop-up {
+        top: auto;
+        bottom: calc(100% + 6px);
+        transform: translateY(4px);
+
+        &.open {
+          transform: none;
+        }
+      }
+    }
+
+    .cf-select-option {
+      display: flex;
+      align-items: center;
+      height: 30px;
+      padding: 0 12px;
+      border-radius: 6px;
+      // Stated, not inherited. These rows are `<li>`s, and a host theme that
+      // sets a font on `li` beats the panel's inherited one — an explicit
+      // declaration always outranks inheritance, however far up it comes from.
+      // That is what had the open list in the theme's face while the trigger,
+      // which already claims `inherit`, stayed in the panel's.
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 400;
+      line-height: 1;
+      color: var(--rbs1-text);
+      cursor: pointer;
+      // Never squeezed by the panel's cap: as flex items in a column, rows
+      // would otherwise shrink to fit rather than letting the list scroll.
+      flex: 0 0 auto;
+      // The boundary the list above snaps to — each row's own top edge, so a
+      // row is never left half in and half out of the box.
+      scroll-snap-align: start;
+
+      // The row under the pointer, and the row the keyboard has arrowed onto —
+      // `SelectField` marks both of those `active`.
+      &.active {
+        background: #f5f7ff;
+      }
+
+      // Declared after `.active` on purpose. Opening the list marks the chosen
+      // row active as well, and the pointer passing over it would otherwise
+      // drop it to the hover tint; the later rule is what keeps the chosen row
+      // reading as chosen.
+      &.selected {
+        background: #f0f3ff;
+      }
+    }
+  }
+
+  // The year needs less room than a month name does.
+  .rbs1-select--narrow {
+    flex-basis: 124px;
+
+    // Three rows — last year, this one, next — so this list never scrolls and
+    // never draws the bar the month list leaves its right inset to. Padded on
+    // all four sides instead, which is what the month list's own rule is a
+    // deliberate exception to.
+    //
+    // 6px, matching the left the shared rule now sets: this list is symmetric
+    // in padding where the month list is symmetric in padding against bar, so
+    // a row sits the same distance from both edges on either of them.
+    .cf-select-menu {
+      padding-right: 6px;
+    }
+  }
+
+  .rbs1-cal__nav {
+    // Pushed to the far edge, opposite the two pickers.
+    margin-left: auto;
+    display: inline-flex;
+    gap: 4px;
+  }
+
+  .rbs1-cal__nav-btn {
+    appearance: none;
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid #DDDFE6;
+    border-radius: var(--rbs1-radius-control);
+    background: #fff;
+    color: #494A4C;
+    cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease;
+
+    &:hover,
+    &:focus-visible {
+      background-color: #D7DEFF;
+      border: 1px transparent;
+      color: #151720;
+    }
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  // The day tiles are a fixed 72px, so the seven of them all but fill the step
+  // column. `space-between` hands what is left over to the gaps rather than
+  // letting fixed tracks plus a fixed gap overflow the column — which is also
+  // what keeps the two grids in step as the leftover changes with the
+  // scrollbar. Both grids therefore carry the identical track definition, so a
+  // weekday name always sits over its own column.
+  .rbs1-cal__weekdays,
+  .rbs1-cal__grid {
+    display: grid;
+    grid-template-columns: repeat(7, var(--rbs1-cal-cell-w));
+    justify-content: space-between;
+    // The same gap on both, and from the same token the day grid's rows use.
+    // It has to be declared here rather than left to the day grid alone: the
+    // two are aligned only while their tracks AND their gaps agree, and a
+    // weekday strip spacing its columns differently drifts further off its own
+    // column with every one of them.
+    column-gap: var(--rbs1-cal-gap);
+
+    // Too narrow for seven fixed tiles — the panel is stacked and filling a
+    // phone by now, so the columns go back to sharing the width.
+    @media (max-width: 600px) {
+      grid-template-columns: repeat(7, 1fr);
+      column-gap: 4px;
+    }
+  }
+
+  .rbs1-cal__weekdays {
+    height: var(--rbs1-cal-head);
+    margin-bottom: var(--rbs1-cal-head-gap);
+  }
+
+  .rbs1-cal__weekday {
+    position: relative;
+    // Centred in the strip's own height rather than padded to it, so the band
+    // is the height `--rbs1-cal-h` counts on whatever the label's line box does.
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    // WordPress hands these over capitalised ("Sun"); the design sets them in
+    // caps, and doing it here rather than in the string keeps the site's own
+    // weekday names.
+    text-transform: uppercase;
+    color: #1D2121;
+
+    // The hairline between one column and the next. Drawn on the cell's leading
+    // edge and only from the second column on, so the row is divided rather
+    // than fenced.
+    //
+    // Named on the right rather than written `& + &` — see the note on
+    // `.rbs1-order__row`; that form expands to a selector that never matches,
+    // and these dividers were simply not being drawn.
+    & + .rbs1-cal__weekday::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 1.5px;
+      height: 14px;
+      background: #DDDFE6;
+    }
+  }
+
+  .rbs1-cal__grid {
+    gap: 4px;
+  }
+
+  // Leading blanks belong to the previous month and hold no date, so they are
+  // grid space rather than cells — but they still have to be the height of one,
+  // or the first week would be shorter than the rest.
+  .rbs1-cal__day-empty {
+    height: var(--rbs1-cal-cell-h);
+  }
+
+  .rbs1-cal__day {
+    appearance: none;
+    position: relative;
+    height: var(--rbs1-cal-cell-h);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--rbs1-available);
+    border-radius: 10px;
+    background: transparent;
+    font-family: inherit;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--rbs1-text);
+    cursor: pointer;
+    transition: border-color 0.18s ease, background-color 0.18s ease,
+      color 0.18s ease;
+
+    // The same blue edge every other pickable thing in Style 2 answers a
+    // pointer with (see `.rbs1-card`), so the calendar reads as part of it.
+    &:hover:not(:disabled):not(.rbs1-cal__day--selected),
+    &:focus-visible:not(:disabled):not(.rbs1-cal__day--selected) {
+      border-color: var(--rbs1-available);
+    }
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  // Above the fill, which covers the whole cell.
+  .rbs1-cal__day-number {
+    position: relative;
+    z-index: 1;
+  }
+
+  // A day with slots left on it.
+  .rbs1-cal__day--open {
+    background: var(--rbs1-available-wash);
+    // The tint is the cell, so no edge is drawn around it until the pointer
+    // arrives — the border stays in the box model so nothing shifts when it does.
+    border-color: transparent;
+  }
+
+  // Past, a holiday, a day off, or outside the booking window.
+  .rbs1-cal__day--off {
+    cursor: not-allowed;
+    // Muted through the colours themselves rather than opacity, which would
+    // wash the border out to nothing.
+    border-color: #f0f1f4;
+    color: #b9bcc4;
+  }
+
+  .rbs1-cal__day--selected {
+    background: var(--rbs1-primary);
+    border-color: var(--rbs1-primary);
+    color: #fff;
+    font-weight: 600;
+
+    // The availability bar goes with it. `background` paints on the cell
+    // itself, while the bar is a positioned child — and a positioned child
+    // always paints ABOVE its parent's background, whatever the z-index says,
+    // so the green stayed visible across the bottom of the blue. The day is
+    // chosen now; how much of it was left to choose is no longer the point.
+    .rbs1-cal__fill {
+      display: none;
+    }
+  }
+
+  .rbs1-cal__fill {
+    position: absolute;
+    // -1px, not 0: an absolutely positioned child is placed against the padding
+    // box, so `inset: 0` would stop inside the cell's 1px border and leave a
+    // ring of background around the fill. Pulling out by the border width makes
+    // it span the border box.
+    inset: -1px;
+    display: flex;
+    align-items: flex-end;
+    // The cell's corner plus the border it was pulled out over, so the two
+    // curves sit on top of one another instead of crossing.
+    border-radius: 11px;
+    overflow: hidden;
+    z-index: 0;
+  }
+
+  .rbs1-cal__fill-bar {
+    width: 100%;
+    // Floor: the bar never disappears entirely, so a day with everything still
+    // free carries this sliver as its "open" marker rather than nothing at all.
+    min-height: 3px;
+    // Literal, not `var(--rox-available, …)` as it was: that token is declared
+    // inside `.service-layout-outer`, Style 1's own wrapper, which this panel
+    // never renders — so it never resolved here and the lime fallback was what
+    // actually painted. Same green as the day cell's border above.
+    background: var(--rbs1-available);
+    transition: height 0.3s ease;
+  }
+
+  // ---- Slots ---------------------------------------------------------------
+  .rbs1-slots {
+    flex: 0 0 auto;
+    // The band between the month and the slots. Padding rather than margin so
+    // the reveal, which scrolls this element to the top of the column, lands
+    // with the band above the heading rather than below it.
+    padding-top: 25px;
+  }
+
+  .rbs1-slots__title {
+    display: block;
+    margin: 0 0 14px;
+    padding: 0;
+    font-size: 17px;
+    font-weight: 400;
+    line-height: 1.35;
+    color: var(--rbs1-text);
+  }
+
+  .rbs1-slots__label {
+    font-weight: 700;
+  }
+
+  // Only rendered with the timezone setting on: the heading left, the selector
+  // right. The row takes over the heading's 14px bottom margin, so the slot
+  // grid below sits exactly where it does without the selector. Wraps rather
+  // than squeezing when the column is too narrow for both, the selector
+  // dropping under the heading.
+  .rbs1-slots__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    margin: 0 0 14px;
+
+    .rbs1-slots__title {
+      margin: 0;
+    }
+
+    // Capped like Style 1's, so a long zone name ellipsises in the trigger
+    // instead of pushing the heading onto its own line.
+    .calendar-timezone__select {
+      flex: 0 1 auto;
+      min-width: 0;
+      max-width: 240px;
+    }
+  }
+
+  // Five fixed 100px chips to the row, with the leftover width handed to the
+  // gaps rather than to the chips — same reasoning as the day grid above.
+  .rbs1-slots__grid {
+    display: grid;
+    grid-template-columns: repeat(5, 100px);
+    justify-content: space-between;
+    column-gap: 0;
+    gap: 4px;
+    margin-bottom:12px;
+    // Narrower than five chips and their gaps: fit as many of the same 100px
+    // chip as the width allows instead of squeezing five in.
+    @media (max-width: 600px) {
+      grid-template-columns: repeat(auto-fill, 100px);
+    }
+  }
+
+  // "Show a time range" prints "8:05 AM - 8:10 AM", about twice as wide as a
+  // start time on its own, and a chip is `nowrap` — in the five 100px tracks
+  // above it would simply run past its edge. Half the row instead, with each
+  // chip taking its column's width. Style 1 makes the same trade in
+  // components/BookingService/bookingstyle.scss.
+  .rbs1-slots__grid--range {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+    column-gap: 4px;
+
+    @media (max-width: 600px) {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+  }
+
+  .rbs1-slot {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 30px;
+    // Top-heavy by 2px, which reads as a 1px nudge downward.
+    //
+    // Flex already centres the line BOX evenly — the geometry is not the
+    // problem. What sits off is the ink inside it: a line box reserves the
+    // font's full descent under the baseline, and a time has no descenders to
+    // put there, so the glyphs ride above the box's true middle. At 16px in a
+    // 30px chip there are only ~3.5px of air either side, which is why a
+    // fraction of the descent shows up as plainly as it does.
+    //
+    // No vertical space is lost to it: the box is border-box, so the chip
+    // stays 30px and only its content shifts.
+    padding: 2px 6px 0;
+    // In the box model at rest so the chip cannot resize when the edge appears.
+    border: 1px solid transparent;
+    border-radius: var(--rbs1-radius-control);
+    background: var(--rbs1-available-wash);
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.3;
+    white-space: nowrap;
+    color: var(--rbs1-text);
+    cursor: pointer;
+    transition: border-color 0.18s ease, background-color 0.18s ease,
+      color 0.18s ease;
+
+    // The chosen chip is exempt. `:hover` and `:not()` each add a class's
+    // worth of weight, which put this rule two ahead of `.rbs1-slot--selected`
+    // below — so pointing at the chosen slot repainted its blue with the green
+    // "available" wash. Excluding it here rather than piling specificity onto
+    // the selected rule: the slot is already chosen, and there is nothing left
+    // for a hover to offer.
+    &:hover:not(:disabled):not(.rbs1-slot--selected),
+    &:focus-visible:not(:disabled):not(.rbs1-slot--selected) {
+      background-color: var(--rbs1-available-soft);
+    }
+
+    &:focus {
+      outline: none;
+    }
+
+    // Booked, elapsed, past the booking window, or already in the cart.
+    &:disabled {
+      background: var(--rbs1-btn-disabled-bg);
+      color: var(--rbs1-btn-disabled-fg);
+      cursor: not-allowed;
+    }
+  }
+
+  .rbs1-slot--selected {
+    background: var(--rbs1-primary);
+    border-color: var(--rbs1-primary);
+    color: #fff;
+    
+  }
+
+  // Loading, and the prompt shown before a date is picked — both plain lines
+  // of text, because neither is a problem. "Not Available" is, and takes the
+  // shared notice below instead.
+  .rbs1-slots__message {
+    margin: 0;
+    padding: 16px 0;
+    font-size: 14px;
+    color: var(--rbs1-text-muted);
+  }
+
+  // A day with nothing bookable on it. The box, the mark and the red are the
+  // shared `.booking-notice`; this only matches it to the type on this step,
+  // and to the missing-fields notice on the Information step, which is set at
+  // the same size.
+  .rbs1-slots__notice {
+    font-size: 14px;
+  }
+
+  // ---- Information ---------------------------------------------------------
+  // The one step Style 2 does not draw itself. It renders Style 1's
+  // `CustomerInfo` — the login, the password reset, the Google sign-in, eight
+  // kinds of admin-configured custom field and a JS-measured row fold are far
+  // too much behaviour to keep a second copy of — and re-dresses it here.
+  //
+  // So these selectors are Style 1's class names, not `rbs1-` ones, and that is
+  // deliberate. Every rule is scoped under `.rox-booking-style-2`, which adds an
+  // id-free class to the front of selectors that already carry two or three, so
+  // Style 2 outranks `bookingstyle.scss` on specificity alone and never has to
+  // rely on which stylesheet the bundler emitted first.
+  //
+  // Note that anything Style 1 nests under `.service-layout` — the logged-in
+  // banner among it — never reaches this panel at all, since Style 2 renders no
+  // such element. Those are built from nothing here rather than adjusted.
+  .main-content-container {
+    display: flex;
+    flex-direction: column;
+    // Never squeezed. The column above is what scrolls, and an item that
+    // shrank to fit would never give it anything to scroll — the same reason
+    // `.rbs1-pane` holds its own height on every other step.
+    flex: 0 0 auto;
+    min-width: 0;
+    // Room for the 4px focus ring the fields paint OUTSIDE themselves. The
+    // column clips at its own edges — `overflow-y: auto` computes overflow-x to
+    // `auto` as well — so without this the first and last rows lose the outer
+    // half of their ring. Nothing on the sides: the column's own 24px inset is
+    // already wider than the ring, and a second inset here would push the
+    // fields off the line the cards on every other step sit on.
+    padding: 5px 0;
+  }
+
+  // Style 1 makes this box the step's scroller: it folds the form at a whole
+  // number of field rows and scrolls the rest inside itself. Style 2 doesn't —
+  // the step column scrolls, the way it does on every other step — so this is
+  // turned back into a plain block. `CustomerInfo` is told not to measure a
+  // fold at all (`capRows={false}`), so no `max-height` is ever written here
+  // and there is nothing left for it to clip.
+  //
+  // Its bleeds go with it: they exist to let its own scrollbar ride the panel
+  // edge, and there is no scrollbar here any more.
+  .customer-info-scroll {
+    overflow: visible;
+    margin: 0;
+    padding: 0;
+  }
+
+  // ---- Logged in as ... ----------------------------------------------------
+  // Built from nothing: Style 1's banner lives under `.service-layout`, so
+  // none of it reaches here.
+  .logged-in-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-sizing: border-box;
+    // The gap down to the first field. It belongs here rather than on
+    // `.form-wrapper`, which follows the tabs just as often as it follows this
+    // banner and wants no top margin in that case.
+    margin-bottom: 18px;
+    padding: 4px 10px 4px 4px;
+    border: 1px solid var(--rbs1-border);
+    border-radius: 10px;
+    background: var(--rbs1-bg-card);
+
+    .logged-in-avatar {
+      flex-shrink: 0;
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      background: var(--rbs1-bg-badge);
+      color: #b6b9c2;
+    }
+
+    // Takes the slack so the Logout button stays pinned right, and gives the
+    // email something to ellipsis against instead of pushing the row wider.
+    .logged-in-text {
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .logged-in-label {
+      color: var(--rbs1-text-muted);
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 1.4;
+    }
+
+    .logged-in-email {
+      color: var(--rbs1-text);
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.4;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .logout-link {
+      appearance: none;
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 12px;
+      border: 1px solid var(--rbs1-btn-back-border);
+      border-radius:6px;
+      background: var(--rbs1-bg-card);
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.3;
+      color: var(--rbs1-text);
+      cursor: pointer;
+      transition: background-color 0.18s ease, border-color 0.18s ease;
+
+      // The same answer `.rbs1-btn--secondary` gives, so Logout and Back are
+      // recognisably the same kind of button.
+      &:hover,
+      &:focus-visible {
+        background: var(--rbs1-btn-back-hover);
+        border-color: var(--rbs1-btn-back-hover);
+      }
+
+      &:focus {
+        outline: none;
+      }
+    }
+  }
+
+  // ---- The form ------------------------------------------------------------
+  .form-wrapper {
+    width: 100%;
+    margin-top: 0;
+
+    // Left-aligned rather than pushed to both edges: two tabs spread across a
+    // 520px column read as unrelated headings rather than a pair.
+    .form-tabs {
+      display: flex;
+      justify-content: flex-start;
+      gap: 34px;
+      margin: 0 0 22px;
+      // The drop from the labels to the rule. Named because the active tab's
+      // underline is placed from it too — the underline hangs off the label,
+      // not off the row, so the two have to move together or the line lands
+      // somewhere other than on the rule.
+      --rbs1-tabs-pad: 8px;
+      padding-bottom: var(--rbs1-tabs-pad);
+      border-bottom: 1px solid var(--rbs1-border);
+    }
+
+    .form-tabs span {
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--rbs1-text);
+    }
+
+    .form-tabs .active-tab {
+      color: var(--rbs1-primary);
+    }
+
+    // Style 1 rests the indicator 10px under the label, which was measured
+    // against its own 10px rule gap. Ours is 12px, so the line is moved to sit
+    // on the rule rather than floating above it. The scaleX transition it
+    // animates with is Style 1's and is left exactly as it is.
+    // Style 1's underline is a pair: one per tab, the active one scaled to
+    // full width and the other to nothing, so switching tabs runs one line
+    // shrinking while the other grows. Style 2 slides a single bar between
+    // them instead, the way the dashboard's settings tabs move theirs — so the
+    // per-tab pair is dropped rather than left to animate underneath it.
+    .form-tabs span::after {
+      display: none;
+    }
+
+    // The bar itself. Its two numbers are measured by `CustomerInfo` and
+    // written onto the row — the labels are different words in every language,
+    // so nothing here can know where the active one starts or how wide it is.
+    //
+    // Transform and width rather than `left` and `width`: a transform is
+    // composited, so the bar travels without laying the row out again on every
+    // frame.
+    .form-tabs-slider {
+      position: absolute;
+      left: 0;
+      // -1px, and deliberately NOT the padding-based offset the per-tab
+      // underline used. That one hung off a LABEL, so it had to travel the
+      // row's padding to reach the rule. This hangs off the row itself, and an
+      // absolute child is placed against its padding box — which already ends
+      // where the padding does. Reusing that offset here counted the padding
+      // twice and dropped the bar a full gap below the rule.
+      //
+      // So: 0 would rest the bar on top of the rule, and -1px lifts it over
+      // the rule's own 1px, which is what puts it ON the line.
+      bottom: -1px;
+      height: 2px;
+      border-radius: 999px;
+      background: var(--rbs1-primary);
+      width: var(--rox-tab-w, 0);
+      transform: translateX(var(--rox-tab-x, 0));
+      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+        width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    // Anyone who has asked their system not to animate gets the bar placed
+    // rather than travelling.
+    @media (prefers-reduced-motion: reduce) {
+      .form-tabs-slider {
+        transition: none;
+      }
+    }
+
+    // Rows: everything full width unless the admin marked the field half, in
+    // which case two of them pair up. The gap is restated because the half
+    // width below is derived from it.
+    .form-fields {
+      column-gap: 12px;
+      // The space between one row of fields and the next. A real row gap
+      // rather than a margin under each group, which would hang off the last
+      // row too — where there is no next row to clear, only the notice or the
+      // footer, each with spacing of its own.
+      row-gap: 22px;
+    }
+
+    > .form-fields > .form-group.rox-field-half,
+    .form-fields > .form-group.rox-field-half {
+      flex: 0 0 calc(50% - 8px);
+    }
+
+    // Zeroed, not tuned: Style 1 spaces its rows with this margin, and left in
+    // place it would stack on top of the row gap above and come to 40px.
+    .form-fields .form-group {
+      margin-bottom: 0;
+    }
+
+    .form-group label {
+      margin-bottom: 8px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--rbs1-text);
+    }
+
+    // One box for every control in the form — the built-in fields, the custom
+    // ones, and the login and reset forms' inputs — so an admin-added field
+    // sits flush in the column rather than reading as a different control.
+    .form-group input,
+    .form-group textarea,
+    .form-group .cf-select-trigger,
+    .account-form-wrapper .input-field {
+      width: 100%;
+      border: 1px solid #D5D7DB;
+      border-radius: var(--rbs1-radius-control);
+      // White at rest, unlike Style 1's grey-until-filled: the design draws
+      // every field on the panel's own surface.
+      background: var(--rbs1-bg-card);
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--rbs1-text);
+      box-sizing: border-box;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+      // Style 1's ring, unchanged: 1px of accent on the border and a 4px wash
+      // outside it. It is the one interaction state shared by every input in
+      // the plugin, and the step should not be the place it differs.
+      &:focus,
+      &.open {
+        border-color: var(--rbs1-primary);
+        outline: none;
+        box-shadow:
+          0 0 0 1px var(--rbs1-primary),
+          0 0 0 4px rgba(37, 92, 231, 0.12);
+      }
+
+    }
+
+    .form-group input,
+    .form-group .cf-select-trigger,
+    .account-form-wrapper .input-field {
+      height: 48px;
+      padding: 0 14px;
+    }
+
+    // The two controls the rule above cannot reach, because neither is an
+    // `input`: antd's date picker is a wrapper `div` around one, and a Stripe
+    // field is an iframe in a `div` of Stripe's own. Style 1 dresses both
+    // itself (`.form-group .ant-picker` and `.StripeElement` in
+    // bookingstyle.scss) in its grey-until-filled box, which is what left them
+    // the only grey fields in a column of white ones.
+    //
+    // Given the same surface, edge and corner as every other field here. Only
+    // those three — the heights and the inner resets those rules also carry are
+    // Style 1's and still correct, so they are left where they are.
+    .form-group .ant-picker,
+    .StripeElement {
+      border: 1px solid #D5D7DB;
+      border-radius: var(--rbs1-radius-control);
+      background: var(--rbs1-bg-card);
+    }
+
+    // Style 1 turns its picker white once the field has a value, on the way to
+    // white-when-filled. Already white here, so the pair of rules that did that
+    // — and the hover that pins the grey border — have nothing left to say.
+    .form-group .ant-picker {
+      &:hover {
+        border-color: var(--rbs1-border);
+      }
+
+      &.ant-picker-focused {
+        border-color: var(--rbs1-primary);
+        background: var(--rbs1-bg-card);
+        box-shadow:
+          0 0 0 1px var(--rbs1-primary),
+          0 0 0 4px rgba(37, 92, 231, 0.12);
+      }
+    }
+
+    // The same ring the inputs draw, in the panel's own accent rather than
+    // Style 1's hard-coded blue.
+    .StripeElement--focus {
+      border-color: var(--rbs1-primary);
+      background: var(--rbs1-bg-card);
+      box-shadow:
+        0 0 0 1px var(--rbs1-primary),
+        0 0 0 4px rgba(37, 92, 231, 0.12);
+    }
+
+    .form-group textarea {
+      padding: 12px 14px;
+      min-height: 104px;
+      max-height: 240px;
+      line-height: 1.5;
+    }
+
+    // Chrome paints an autofilled field with a background `background` cannot
+    // override; an inset shadow the size of the field is the only way to cover
+    // it, and it has to repaint the white this design uses.
+    .form-group input {
+      &:-webkit-autofill,
+      &:-webkit-autofill:hover,
+      &:-webkit-autofill:focus,
+      &:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 1000px #fff inset;
+        -webkit-text-fill-color: var(--rbs1-text);
+        caret-color: var(--rbs1-text);
+      }
+    }
+
+    .form-group input::placeholder,
+    .form-group textarea::placeholder,
+    .account-form-wrapper .input-field::placeholder {
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 400;
+      color: #98999d;
+    }
+
+    // The phone field is a plain tel input in a wrapper — same as Style 1, so
+    // what the panel submits is unchanged — and the wrapper must not stop it
+    // filling the row.
+    .phone-input {
+      display: flex;
+      width: 100%;
+    }
+
+    // A radio group is the one field whose control sits under its label with
+    // no box of its own, so it needs the gap set rather than inherited.
+    .form-group .cf-radio-group {
+      margin-top: 0;
+      gap: 10px 28px;
+    }
+
+    // The login / reset forms below the tabs.
+    .footer-btn-container {
+      margin-top: 15px;
+    }
+
+    .primary-submit-btn {
+      padding: 11px 20px;
+      border-radius: var(--rbs1-radius-control);
+      background: var(--rbs1-primary);
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+
+      &:hover {
+        background: var(--rbs1-primary-hover);
+      }
+    }
+
+    .forgot-password-link {
+      font-family: inherit;
+      color: var(--rbs1-primary);
+    }
+
+    // ---- Reset password ----------------------------------------------------
+    // Both screens the shared component puts here: "we'll email you a key" and
+    // "set a new password". A grey frame around a white card.
+    //
+    // Drawn as a 6px BORDER rather than an outer element with padding. The
+    // markup is Style 1's and has no wrapper to colour, and a border is the
+    // same picture: 6px of grey, white inside, and the inner corner rounds
+    // itself to the outer radius less the width — no second element, and
+    // nothing added to the DOM that Style 1 would then have to ignore.
+    .reset-container {
+      position: relative;
+      max-width: none;
+      padding: 15px 20px;
+      border: 6px solid #f3f4f9;
+      border-radius: 12px;
+      background: var(--rbs1-bg-card);
+    }
+
+    // Absolute (from Style 1's own rule), so a long title cannot push it onto a
+    // line of its own.
+    //
+    // Both offsets are measured from the container's PADDING box — the inner
+    // edge of the 6px frame — and NOT from the card's own padding, which is
+    // where everything else in it starts. So they are that padding: 20 and 15,
+    // the same figures `.reset-container` sets. Anything less and the label
+    // hangs past the column the title, the field and the button all line up
+    // on — at 0 it sat against the frame, and at the -4px before that it was
+    // over the frame with the cross on grey.
+    .reset-container .cancel-button {
+      top: 15px;
+      right: 20px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      color:#97999E;
+      margin-top: 4px;
+      // The underline is always drawn and only coloured in on hover, rather
+      // than switched on there. `text-decoration-line` cannot be transitioned —
+      // it is either set or it is not — where its colour can, so this is what
+      // lets the line arrive with the text instead of snapping in ahead of it.
+      text-decoration-line: underline;
+      text-decoration-color: transparent;
+      text-underline-offset: 2px;
+      transition: color 0.18s ease, text-decoration-color 0.18s ease;
+
+      &:hover,
+      &:focus-visible {
+        color: var(--rbs1-text);
+        text-decoration-color: currentColor;
+      }
+    }
+
+    // The mark carries a hardcoded salmon stroke in the shared markup. Handing
+    // it `currentColor` is what makes the label and the cross one control: it
+    // takes the hover colour above with nothing to state twice, and the
+    // transition here is what keeps it in step with the text as it changes.
+    .reset-container .cancel-button svg path,
+    .reset-container .cancel-button:hover svg path {
+      stroke: currentColor;
+      transition: stroke 0.18s ease;
+    }
+
+    .reset-container .title {
+      margin: 0 0 8px;
+      font-family: inherit;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--rbs1-text);
+    }
+
+    .reset-container .description {
+      margin: 0 0 18px;
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--rbs1-text-muted);
+    }
+
+    // Named like the fields on the form proper, since it is one. The gap down
+    // to the input comes from `.account-form-wrapper`'s own column gap, so
+    // there is no margin here to fall out of step with it.
+    .reset-container .account-form-label {
+      display: block;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.3;
+      color: var(--rbs1-text);
+    }
+
+    .reset-container .footer-btn-container {
+      margin-top: 18px;
+    }
+
+    // No hover edge on this one. It stands alone on a card of its own rather
+    // than in a column of fields, so there is nothing for a hover to tell it
+    // apart from — and the pointer is already on it to type. The focus ring is
+    // deliberately left exactly as every other field draws it.
+    .reset-container .account-form-wrapper .input-field:hover:not(:focus) {
+      border-color: var(--rbs1-border);
+    }
+  }
+
+  // The missing-fields notice, held at the foot of the step column instead of
+  // sitting at the end of a form you have to scroll to the bottom of to read.
+  // A list of what is still empty is no use to someone who cannot see it while
+  // they fill the fields in.
+  //
+  // Style 1 gets that by keeping it outside its scroll box. Style 2 scrolls the
+  // whole column, so there is no outside to put it in — `sticky` is what pins
+  // it there instead. It is the column's last child, so its containing block
+  // ends where it does and it stays on the bottom edge until the content is
+  // scrolled right down, at which point it settles into place.
+  .main-content-container > .required-txt {
+    position: sticky;
+    bottom: 0;
+    // Above the fields, which now pass underneath it rather than beside it.
+    z-index: 1;
+    margin-top: 16px;
+    font-size: 14px;
+    // The shared notice's tint is a 4% wash over whatever is behind it, which
+    // was fine when nothing ever was. This is that same colour composited onto
+    // the panel once, so the fields sliding under it do not show through.
+    background: #fef7f7;
+  }
+
+  // The Google sign-in and the OR rule under it, to Style 2's own figures.
+  //
+  // Every gap here is short by 22px on purpose. Both elements are direct
+  // children of `.form-fields`, which is a wrapping flex row carrying
+  // `row-gap: 22px` (see the rule further down), and a flex gap is measured
+  // between margin boxes — so the space under each is that 22 PLUS whatever is
+  // set here. Written as the design's figures outright, each would land 22px
+  // past where it belongs.
+  //
+  // The button's face is drawn by Google Identity Services, not from here — see
+  // `.google-login__button`.
+  .google-login {
+    // The 20px above the button, whole: the tab row hands its own bottom margin
+    // over for it (below), so nothing is stacked underneath this.
+    padding-top: 20px;
+    // 23px down to the rule — 22 of it from the row gap, this is the rest.
+    margin-bottom: 1px;
+  }
+
+  // The tabs' 22px would otherwise sit under the 20px above, putting the button
+  // 42px off the rule. Only where the sign-in is actually rendered: with it off,
+  // the tabs keep their gap and the first field row sits where it always has.
+  .form-wrapper:has(.google-login) .form-tabs {
+    margin-bottom: 0;
+  }
+
+  // The button itself. `min-height` is cleared because Style 1 sets it to 40px,
+  // and a minimum outranks a height — left in place, the 38px would never take.
+  //
+  // `position` is what the transparent GIS button below is placed against, and
+  // `overflow` is what keeps it from overhanging the row: Google draws to its
+  // own size and caps at 400px, neither of which is this slot.
+  .google-login__button {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 38px;
+    min-height: 0;
+    border-radius: var(--rbs1-radius-control);
+    background: #f3f4f9;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  // The face the visitor actually reads: the set's own Google mark and the
+  // label, at the design's colour and weight. `aria-hidden` in the markup —
+  // the accessible name belongs to Google's real button underneath it.
+  .google-login__face {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    height: 100%;
+    color: #494a4c;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  // Google's own button, laid over the face and invisible. It stays clickable
+  // at zero opacity, so the control that opens the account chooser is still
+  // Google's — and it keeps the keyboard route and the accessible name with it.
+  //
+  // It only ever covers the middle 400px of a wider row, which is why the face
+  // forwards its clicks (`handleFaceClick`) rather than relying on this alone.
+  .google-login__gsi {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+  }
+
+  // Full width already — the rule is a flex row whose two halves each take
+  // `flex: 1` (see Style 1), so only the colours are set here.
+  //
+  // No margin at all. The 22px it wants under it is exactly the row gap, and
+  // the 23px above it is the Google block's to leave.
+  .google-login-divider {
+    margin: 0;
+    color: #494a4c;
+
+    &::before,
+    &::after {
+      background: #e2e4ea;
+    }
+  }
+
+  // ---- Coupon --------------------------------------------------------------
+  // The widths the design gives the row's three controls. Style 1 sets its own
+  // (120px input, a button sized by its padding, a 186px Change) from
+  // `.coupon-section .coupon-toggle-row .<control>` — three classes — so these
+  // go through `.rbs1-body .coupon-section` to reach four and win on
+  // specificity rather than on emit order, the same way the payment cards below
+  // do.
+  //
+  // Widths only. The row still lays them out: the input keeps the `margin-left:
+  // auto` that pushes the pair to the far end, away from the toggle, and both
+  // buttons keep `flex-shrink: 0` so neither is squeezed by the other.
+  .rbs1-body .coupon-section {
+    .coupon-input {
+      width: 170px;
+    }
+
+    // Sized rather than left to its padding, so "Apply" and a translation of it
+    // hold the same box.
+    .coupon-apply-btn {
+      width: 64px;
+      padding: 0;
+    }
+
+    .coupon-reapply-btn {
+      width: 240px;
+    }
+  }
+
+  // ---- Payment -------------------------------------------------------------
+  // Style 1's payment form, re-dressed the same way the Information step is
+  // (see the note there for why these are its class names rather than `rbs1-`
+  // ones). Only the method cards change: the design gives each one a radio and
+  // a two-line label in a row, where Style 1 stacks an icon over a bare name.
+  //
+  // Everything is nested a level deeper than it needs to be — through
+  // `.payment-options` — on purpose. Style 1 sizes these cards from
+  // `.payment-options.two-options .payment-option`, three classes, which a
+  // panel-scoped `.rbs1-body .payment-option` would only tie with; the extra
+  // step puts these at four and settles it on specificity rather than on which
+  // stylesheet the bundler happened to emit last.
+  .rbs1-body .payment-options {
+    display: grid;
+    // Two to a row whatever count class the form put on the container, and a
+    // lone method takes the full width rather than half of it.
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 19px;
+
+    @media (max-width: 600px) {
+      grid-template-columns: 1fr;
+    }
+
+    .payment-option {
+      display: flex;
+      // Top, not centre. The card holds two lines of different weight, and
+      // centring aligned the radio against the block as a whole — so it landed
+      // in the gap between the name and the line under it rather than beside
+      // either. Anchored to the top, it sits on the name, which is the thing
+      // it selects. The three-up layout below re-centres for its own column.
+      align-items: flex-start;
+      gap: 12px;
+      // Auto, against the fixed 110px (stacked) and 54px (row) Style 1 sets
+      // per count: a card here is two lines tall and has to say so itself.
+      height: auto;
+      min-height: 74px;
+      padding: 14px 16px;
+      border: 2px solid transparent;
+      border-radius: 10px;
+      background: #eff1f6;
+      text-align: left;
+      transition: border-color 0.18s ease, background-color 0.18s ease;
+    }
+
+    // The chosen method lifts off the grey onto the panel's own surface, with
+    // the accent edge every other chosen thing in Style 2 carries.
+    .payment-option.selected {
+      background: var(--rbs1-bg-card);
+      border-color: var(--rbs1-primary);
+    }
+
+    // The glyph each card stacked above its name. The description under the
+    // title now says what the icon was there to suggest, and the design draws
+    // neither the mark nor the WooCommerce wordmark.
+    .payment-option svg {
+      display: none;
+    }
+
+    // Style 1 pins this into the card's top-right corner; here it leads the
+    // row, so it goes back into the flow.
+    .payment-option input[type="radio"] {
+      position: static;
+      flex: 0 0 auto;
+      width: 20px;
+      height: 20px;
+      // Centred on the name's line rather than flush with its top: the 16px
+      // title sits in a 21.6px line box, so the 20px control drops the 0.8px
+      // that leaves — rounded to 1 — to share that line's centre.
+      margin: 1px 0 0;
+    }
+
+    .payment-option-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      // Without this the ellipsis below never engages: a flex item defaults to
+      // min-width auto, so a long method name widens the card instead.
+      min-width: 0;
+    }
+
+    // Both lines clip rather than wrap — a card that grew a line taller than
+    // the one beside it would leave the row uneven.
+    .payment-option-title,
+    .payment-option-desc {
+      display: block;
+      max-width: 100%;
+      line-height: 1.35;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .payment-option-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--rbs1-text);
+    }
+
+    .payment-option-desc {
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--rbs1-text-muted);
+    }
+  }
+
+  // Three methods is the one count that keeps its marks. Two or four sit two to
+  // a row with room for a line of explanation under each name; three across
+  // leaves about 125px for that line, which would ellipse every one of them —
+  // so the icon carries the meaning there instead, and the description stands
+  // down. Three in a 2-column grid would also strand a half-width card.
+  //
+  // Nested at the same depth as the rules above so it outranks them on source
+  // order with the specificity tied, which is what a modifier should do.
+  .rbs1-body .payment-options.three-options {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+
+    .payment-option {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 118px;
+      padding: 18px 10px;
+      text-align: center;
+    }
+
+    // Back in view, at the size the row layout has no room for.
+    .payment-option svg {
+      display: block;
+      width: 30px;
+      height: 30px;
+      margin: 0;
+      flex: 0 0 auto;
+    }
+
+    // The WooCommerce and Mollie marks are wordmarks, not square glyphs, so
+    // they keep their own ratio rather than being squashed into the box above.
+    .payment-option svg.payment-option-woo-logo,
+    .payment-option svg.payment-option-wordmark {
+      width: 58px;
+      height: 24px;
+    }
+
+    // Any method whose mark has not been drawn yet still has to occupy the
+    // icon's box, or its name would ride up and leave the card short beside
+    // its neighbours. Replace this with the real glyph as each one arrives.
+    .payment-option-mark {
+      flex: 0 0 auto;
+      width: 30px;
+      height: 30px;
+      border: 1.5px dashed var(--rbs1-muted);
+      border-radius: 6px;
+    }
+
+    // Back to the corner it sits in on Style 1's stacked card: centred in a
+    // column, the radio would push the icon and label off-centre.
+    .payment-option input[type="radio"] {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+    }
+
+    .payment-option-text {
+      align-items: center;
+      gap: 0;
+      max-width: 100%;
+    }
+
+    // The mark says what the line would have said, and there is no width for
+    // both.
+    .payment-option-desc {
+      display: none;
+    }
+  }
+
+  // ---- Payment: nothing to pay ---------------------------------------------
+  // A booking that comes to zero — a free service, or a coupon that covered
+  // the lot. There is no method to choose, so the step is one card explaining
+  // that and the footer's Confirm carries the booking through.
+  // The amount due, at the foot of the payment step. A 10% amber wash rather
+  // than Style 1's solid #fef1bc: the band is the one warm note on the step and
+  // reads as a highlight over the panel rather than a block laid on it.
+  .total-price-block {
+    margin-top: 20px;
+    background: rgba(247, 144, 9, 0.1);
+  }
+
+  .free-booking-note {
+    display: block;
+    padding: 18px 20px;
+    border: none;
+    border-radius: 10px;
+    background: #f2f4fa;
+    color: var(--rbs1-text);
+
+    // Floated rather than given a column of its own: the mark belongs on the
+    // title's line, and the paragraph under it starts back at the card's left
+    // edge, which is where the design puts it. As a flex row the two would
+    // share one column and the paragraph would sit indented under the title.
+    svg {
+      float: left;
+      margin: 3px 8px 0 0;
+      color: var(--rbs1-text);
+    }
+
+    .free-booking-note-title {
+      margin-bottom: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.35;
+      color: var(--rbs1-text);
+    }
+
+    .free-booking-note-text {
+      // Guarantees the paragraph starts below the mark however tall the mark
+      // is, rather than wrapping around it.
+      clear: left;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--rbs1-text-muted);
+    }
+  }
+
+  // ---- Complete ------------------------------------------------------------
+  // The receipt is the Order Details step's sheet again — a tinted block with
+  // white cards on it — rather than the 346px ticket this step used to narrow
+  // the whole panel down to. The customer has just come from that review, and
+  // the receipt reading as the thing they confirmed is the point of it.
+  //
+  // Nothing here caps the width: the panel stays the 792px every other step is,
+  // and the column stays the width the cards were drawn against.
+
+  // No panel heading above this step (the header is dropped for it in
+  // index.jsx), so the sheet leaves the gap the header would have — the same
+  // arrangement the agent's details use.
+  .rbs1-done {
+    padding-top: var(--rbs1-pad);
+  }
+
+  .rbs1-done__sheet {
+    border-radius: 12px;
+    background: #f3f4f9;
+    // 4px of tint around the cards and 2px between them: the sheet reads as one
+    // block with hairline joins rather than as a stack of separate panels, and
+    // still shows a clear edge around the group.
+    padding: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .rbs1-done__card {
+    border-radius: 8px;
+    background: var(--rbs1-bg-card);
+    // The rows carry the vertical; only the side inset is the card's.
+    padding: 0 20px;
+    // A guard, as on the order's cards: nothing inside reaches these corners,
+    // but a child that ever did could not square the card off.
+    overflow: hidden;
+  }
+
+  // The two joins that break heavier than the rest: under the head, and between
+  // one booking and the next. 4px against the 2px every other join on the sheet
+  // takes — the head closes the confirmation and a second booking is a separate
+  // appointment, where the customer's details only hang off the booking above
+  // them.
+  //
+  // The sheet's `gap` is one value for the whole column, so the extra 2px is a
+  // margin on the card below each of those joins. Hung off the following
+  // sibling rather than set as a `margin-bottom`, so a head with nothing under
+  // it cannot leave the gap against the sheet's own padding.
+  //
+  // Written out rather than as `& + &`: inside a nested block `&` is the whole
+  // parent selector, which would ask for a card whose previous sibling sits in
+  // another panel entirely.
+  .rbs1-done__head + .rbs1-done__card,
+  .rbs1-done__booking + .rbs1-done__booking {
+    margin-top: 2px;
+  }
+
+  // The head is the one card that is not a list of rows, so it takes its own
+  // padding back and centres what is in it.
+  .rbs1-done__head {
+    position: relative;
+    padding: 20px 20px;
+    text-align: center;
+  }
+
+  // Out of the flow, in the corner the design puts it — so the mark and the
+  // title below stay centred on the card rather than on the space left beside
+  // it.
+  .rbs1-done__print {
+    appearance: none;
+    position: absolute;
+    top: 7px;
+    right: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 30px;
+    border: 1px solid var(--rbs1-border);
+    border-radius: 5px;
+    background: var(--rbs1-bg-card);
+    // The mark itself, not just text beside it: the icon draws in
+    // `currentColor`, so this is what colours it.
+    color: #494a4c;
+    cursor: pointer;
+    // A button does not inherit the page's font size, so without this the mark
+    // below is sized against whatever the host theme leaves on `button` — and
+    // a theme that zeroes it (a common way to kill inline-block gaps) collapses
+    // the glyph to a dot. Stated here, the em the icon is drawn against is the
+    // panel's own.
+    font-size: 16px;
+    line-height: 1;
+    transition: background-color 0.18s ease, border-color 0.18s ease,
+      color 0.18s ease;
+
+    // Sized and painted here rather than by the icon's own attributes — the
+    // same reasoning as the step rail's tick above. `width`, `height`, `fill`
+    // and `stroke` on the artwork are presentation attributes, which sit below
+    // every stylesheet in the cascade, so a host theme with any blanket rule on
+    // `svg` decides them instead. Hello Elementor is the one that surfaced this.
+    svg {
+      display: block;
+      width: 16px;
+      height: 16px;
+      // Undoes the `img, svg { max-width: 100% }` reset nearly every theme
+      // ships, which caps the mark against the button's content box.
+      max-width: none;
+      max-height: none;
+      // The button is an inline-flex row; a theme's `min-width: 0` or
+      // `flex-shrink` reset would let the mark squeeze to nothing.
+      flex: none;
+      // The artwork is strokes on an unfilled canvas. A theme setting `fill`
+      // on every `svg` floods it solid, because the paths carry no fill of
+      // their own and inherit this one.
+      fill: none;
+
+      path {
+        stroke: currentColor;
+      }
+    }
+
+    &:hover,
+    &:focus-visible {
+      background: #E7EAFA;
+      border: transparent;
+      // Darkens with the tint behind it. The icon follows `currentColor`, so
+      // the mark is what this moves, not a label.
+      color: #151720;
+    }
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  .rbs1-done__mark {
+    display: block;
+    margin-bottom: 12px;
+    color: var(--rbs1-primary);
+    line-height: 0;
+  }
+
+  .rbs1-done__title {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 700;
+    color: #1D2121;
+  }
+
+  .rbs1-done__id {
+    margin: 4px 0 0;
+    font-size: 14px;
+    font-weight: 400;
+    color: #565858;
+  }
+
+  // Ruled between, not around — `+` skips the first, so no line ever sits
+  // against a card's own edge. The same rule the order's rows follow, and NOT
+  // `& + &`: inside a nested block `&` stands for the whole parent selector,
+  // which would ask for a row whose previous sibling is a row inside another
+  // panel entirely.
+  .rbs1-done__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 41px;
+    padding: 5px 0;
+
+    & + .rbs1-done__row {
+      border-top: 1px solid #e7eaf1;
+    }
+  }
+
+  .rbs1-done__label {
+    flex: 0 0 auto;
+    font-size: 14px;
+    font-weight: 400;
+    color: #494a4c;
+  }
+
+  // Right-aligned against the label, and allowed to wrap rather than pushing
+  // the row wider: an address or a long service name is the one value here that
+  // can run past the column.
+  .rbs1-done__value {
+    min-width: 0;
+    text-align: right;
+    font-size: 14px;
+    font-weight: 500;
+    color: #151720;
+  }
+
+  // ==========================================================================
+  // Small screens
+  // ==========================================================================
+  // Two tiers, the same two Style 1 uses so the plugin breaks at one pair of
+  // widths rather than each design picking its own:
+  //
+  //   <= 991px  the rail is dropped and the panel goes fluid — tablet and
+  //             phone alike. On a tablet it is then capped and centred, since
+  //             one column stretched edge to edge gives the content a measure
+  //             far wider than anything in it was drawn for.
+  //   <= 600px  phone. Gutters tighten, the fixed-track grids give way, and
+  //             every control comes up to a thumb-sized target.
+  //
+  // The single rule that governs the whole thing: above the breakpoint the
+  // panel is a fixed box that scrolls internally, and below it the panel is
+  // part of the page and the PAGE scrolls. A scroll area nested inside a
+  // scrolling page is the classic way to trap a touch drag, so every internal
+  // scroller is released below.
+
+  // The compact indicator. Hidden here and shown below, rather than gated on a
+  // media query in JS that could drift from this one.
+  .rbs1-progress {
+    display: none;
+  }
+
+  @media (max-width: 991px) {
+    // No second column to lay out once the rail is gone, and no fixed box: the
+    // panel is a block in the host's page like any other.
+    .rbs1-shell {
+      flex-direction: column;
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+      // The desktop rule breaks the panel out of a narrow theme column by
+      // half its own width. Here it fills that column instead, so both have
+      // to go or the panel sits half off the screen.
+      left: auto;
+      transform: none;
+    }
+
+    .rbs1-progress {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      // Its own row above the step's name, full width of the header.
+      flex: 1 0 100%;
+      order: -1;
+      margin-bottom: 12px;
+    }
+
+    // Equal shares of the row, so nine steps read as evenly as four. The zero
+    // basis with min-width released is what lets nine segments fit a phone
+    // rather than each holding a content-based minimum.
+    .rbs1-progress__seg {
+      flex: 1 1 0;
+      min-width: 0;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--rbs1-border);
+      // Steps advance one at a time, so a newly filled segment eases in rather
+      // than snapping as the panel changes.
+      transition: background-color 0.3s ease;
+    }
+
+    // Current and completed both read as filled: the segment IS the step, so
+    // marking the one you are on as empty would say you had not reached it.
+    .rbs1-progress__seg--done {
+      background: var(--rbs1-primary);
+    }
+
+    // The header is a row of title and counter on desktop; here the progress
+    // track takes a line of its own above them.
+    .rbs1-header {
+      flex-wrap: wrap;
+    }
+
+    // The page scrolls now, so the column stops doing it — and gives back the
+    // gutter it was reserving for a scrollbar that no longer appears.
+    .rbs1-body {
+      flex: 0 0 auto;
+      overflow: visible;
+      padding: 0 var(--rbs1-pad);
+      scrollbar-gutter: auto;
+    }
+
+    // Every floor that exists to hold a fold open against a fixed panel
+    // height. With no fixed height there is no fold, and they would only
+    // reserve empty space under a short step.
+    .rbs1-pane,
+    .rbs1-cal {
+      min-height: 0;
+    }
+
+    // The form's own inset, which the column's padding now supplies.
+    .main-content-container {
+      padding-right: 0;
+    }
+
+  }
+
+  // ---- Tablet --------------------------------------------------------------
+  // Capped and centred rather than stretched. The tier above makes the panel
+  // fluid, which is right on a phone and wrong on an iPad: at 768px and up, one
+  // column edge to edge gives the content a ~700px measure, and the pieces that
+  // are deliberately NOT fluid — the calendar's seven 72px tracks, the slot
+  // row's five 100px chips — end up stranded against its left edge.
+  //
+  // 620px of panel leaves 572px of content, which is exactly what the desktop
+  // step column carries, so everything inside keeps the proportions it was
+  // drawn at.
+  @media (min-width: 601px) and (max-width: 991px) {
+    .rbs1-shell {
+      max-width: 620px;
+      margin-inline: auto;
+    }
+
+    // Both are fixed-track grids, and `space-between` would spread their
+    // columns across a measure wider than the tracks were spaced for. Centred
+    // with their own gap instead, so the day cells and the chips sit as drawn.
+    .rbs1-cal__weekdays,
+    .rbs1-cal__grid,
+    .rbs1-slots__grid {
+      justify-content: center;
+      column-gap: var(--rbs1-cal-gap);
+    }
+  }
+
+  // ---- Phone ---------------------------------------------------------------
+  @media (max-width: 600px) {
+    // The panel's gutter, in one place. 24px a side is a seventh of a 360px
+    // screen and it comes off every grid twice over. Every inset in the panel
+    // reads this token, so narrowing it here narrows all of them together and
+    // none can fall out of step.
+    --rbs1-pad: 16px;
+    // Shorter rows and cells: a 41px-wide day cell 60px tall reads as a column
+    // rather than a square, and a list card does not need 86px to hold a name.
+    --rbs1-cal-cell-h: 48px;
+    --rbs1-row-h: 74px;
+
+    .rbs1-shell {
+      // Less of a card and more of a page section at this width.
+      border-radius: 12px;
+    }
+
+    .rbs1-header__title {
+      font-size: 18px;
+    }
+
+    // ---- Lists ----
+    // One per row. Two agents across a phone leaves each ~140px, where a name
+    // wraps to a third line and the card outgrows its row.
+    .rbs1-list--pair {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .rbs1-card {
+      gap: 10px;
+      padding: 14px;
+    }
+
+    // ---- Date & Time ----
+    // The toolbar wraps rather than overflowing: the two pickers alone come to
+    // 302px against a ~295px content box.
+    .rbs1-cal__toolbar {
+      flex-wrap: wrap;
+      height: auto;
+      gap: 8px;
+    }
+
+    .rbs1-select {
+      flex: 1 1 130px;
+    }
+
+    // Beside two wrapped pickers the arrows keep their own line, pushed right.
+    .rbs1-cal__nav {
+      margin-left: auto;
+    }
+
+    // A thumb-sized target; 36px is below what a finger reliably hits.
+    .rbs1-cal__nav-btn {
+      width: 44px;
+      height: 44px;
+    }
+
+    // Fixed 72px tracks come to 528px, well past the screen. The columns share
+    // what there is instead — the only place in the panel where the day cell
+    // gives up its drawn width.
+    .rbs1-cal__weekdays,
+    .rbs1-cal__grid {
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      justify-content: stretch;
+      column-gap: 4px;
+    }
+
+    .rbs1-cal__day {
+      font-size: 15px;
+    }
+
+    .rbs1-cal__weekday {
+      font-size: 10px;
+    }
+
+    // As many whole chips as fit, each filling its share. `auto-fill` with a
+    // minimum rather than a fixed count: 5 across is unreadable here and 2 is
+    // wasteful on a phablet, and this lands on whichever suits the width.
+    .rbs1-slots__grid {
+      grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+      justify-content: stretch;
+      column-gap: 6px;
+    }
+
+    // A range needs about twice the room, on a phone as anywhere else.
+    .rbs1-slots__grid--range {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+
+    // ---- Information ----
+    // Half-width fields go full width: half of a 311px column is 150px, which
+    // is not a field anyone can read what they typed into.
+    .form-wrapper > .form-fields > .form-group.rox-field-half,
+    .form-wrapper .form-fields > .form-group.rox-field-half {
+      flex: 0 0 100%;
+    }
+
+    // The tabs are two long labels; they wrap rather than ellipsing.
+    .form-wrapper .form-tabs {
+      gap: 18px;
+    }
+
+    // ---- Order details ----
+    // The head is a title and a Remove link; on a narrow card they stack
+    // rather than squeezing the service name to nothing.
+    .rbs1-order__head {
+      flex-wrap: wrap;
+    }
+
+    // Long location names and agent names wrap onto their own line under the
+    // label instead of forcing the row wider than the card.
+    .rbs1-order__row {
+      flex-wrap: wrap;
+      row-gap: 2px;
+    }
+
+    .rbs1-order__value {
+      text-align: left;
+    }
+
+    // ---- Payment ----
+    // One method per row at every count, the three-up icon layout included:
+    // three cards across a phone leaves ~95px each, which fits neither a name
+    // nor a mark.
+    .rbs1-body .payment-options,
+    .rbs1-body .payment-options.three-options {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    // ---- Footer ----
+    // Two equal halves, each a full-width target. Side by side at their
+    // content width they sit in opposite corners with a phone's width of
+    // nothing between them.
+    .rbs1-footer {
+      gap: 10px;
+      padding: 12px var(--rbs1-pad);
+    }
+
+    .rbs1-btn {
+      flex: 1 1 0;
+      justify-content: center;
+      // 44px of target, the size a finger actually hits.
+      min-height: 44px;
+    }
+  }
+}
+
+// Kept at the root: keyframe names are global whatever they are nested in, and
+// declaring them here rather than inside the panel block keeps that plain.
+// Prefixed so they cannot collide with Style 1's own.
+@keyframes rbs1-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: 0 0;
+  }
+}

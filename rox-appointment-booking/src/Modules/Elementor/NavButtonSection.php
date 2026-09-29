@@ -48,11 +48,17 @@ class NavButtonSection
             $modal_selector
         );
 
+        // Named for both designs: Style 1 labels this button "Next" and Style 2
+        // labels it "Continue", and Elementor fixes a section's title when the
+        // widget type registers its controls — so it cannot follow the design
+        // the way the block's sidebar does. Splitting it in two would mean two
+        // sets of the controls below under different names, and styling lost
+        // on every switch between designs, which is a poor trade for a title.
         self::section(
             $widget,
             'nav_next',
             'next',
-            esc_html__('Next button', 'rox-appointment-booking'),
+            esc_html__('Next / Continue button', 'rox-appointment-booking'),
             $modal_selector
         );
     }

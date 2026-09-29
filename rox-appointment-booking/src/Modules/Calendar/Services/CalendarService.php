@@ -8,7 +8,7 @@ use RoxAppointmentBooking\Modules\Agent\Services\AgentService;
 use RoxAppointmentBooking\Modules\Service\Services\ServiceService;
 use RoxAppointmentBooking\Modules\Settings\Services\SettingsService;
 use RoxAppointmentBooking\Modules\Appointment\Services\AppointmentService;
-use RoxAppointmentBooking\Supports\Security;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 
 /**
  * Class CalendarService
@@ -60,7 +60,7 @@ class CalendarService
             // Non-managers only ever see their own agent's events. A panel user who
             // is not an agent (or whose login has no agent record) must NOT fall
             // through to an unfiltered query — return nothing instead.
-            if (!Security::canManageBookings()) {
+            if (Permissions::scopeFor('calendar') !== Permissions::SCOPE_ALL) {
                 $currentAgentId = AppointmentService::isAgentUser()
                     ? AppointmentService::getCurrentAgentId()
                     : null;
@@ -277,8 +277,8 @@ class CalendarService
             $slotStart = gmdate('H:i', $currentTime);
             $slotEnd = gmdate('H:i', $currentTime + ($slotDuration * 60));
             
-            $isBooked = $this->isSlotBooked($slotStart, $slotEnd, $bookedSlots);
-            
+            $isBooked = $this->isSlotBooked($date, $slotStart, $slotEnd, $bookedSlots);
+
             $slots[] = [
                 'start' => $slotStart,
                 'end' => $slotEnd,
@@ -303,7 +303,9 @@ class CalendarService
     {
         $slots = [];
 
-        $query = AppointmentModel::query()->where('date', $date);
+        $query = AppointmentModel::query()
+            ->where('date', $date)
+            ->whereNotIn('status', ['cancelled', 'canceled', 'rejected']);
         if ($agentId) {
             $query->where('agent_id', $agentId);
         }
@@ -314,9 +316,12 @@ class CalendarService
 
         foreach ($appointments as $appointment) {
             if (!empty($appointment->start_time) && !empty($appointment->end_time)) {
+                // Each booking holds its own buffer time (Pro) on either side.
+                $before = ServiceService::appointmentBufferBeforeMinutes($appointment);
+                $after = ServiceService::appointmentBufferAfterMinutes($appointment);
                 $slots[] = [
-                    'start' => $appointment->start_time,
-                    'end' => $appointment->end_time,
+                    'start' => $before ? gmdate('Y-m-d H:i:s', strtotime($appointment->start_time) - $before * 60) : $appointment->start_time,
+                    'end' => $after ? gmdate('Y-m-d H:i:s', strtotime($appointment->end_time) + $after * 60) : $appointment->end_time,
                 ];
             }
         }
@@ -327,15 +332,20 @@ class CalendarService
     /**
      * Check if a time slot is booked
      *
+     * @param string $date Date the slot is on (Y-m-d); a bare "H:i" slot is read on it
      * @param string $slotStart
      * @param string $slotEnd
      * @param array $bookedSlots
+     * @param int $bufferBefore Buffer minutes the slot needs before it
+     * @param int $bufferAfter Buffer minutes the slot needs after it
      * @return bool
      */
-    private function isSlotBooked(string $slotStart, string $slotEnd, array $bookedSlots): bool
+    private function isSlotBooked(string $date, string $slotStart, string $slotEnd, array $bookedSlots, int $bufferBefore = 0, int $bufferAfter = 0): bool
     {
-        $slotStartTime = strtotime($slotStart);
-        $slotEndTime = strtotime($slotEnd);
+        // The booked ranges are full datetimes on $date; a bare time would be
+        // read as today and never meet them on any other day.
+        $slotStartTime = strtotime(preg_match('/^\d{4}-\d{2}-\d{2}/', $slotStart) ? $slotStart : "{$date} {$slotStart}") - $bufferBefore * 60;
+        $slotEndTime = strtotime(preg_match('/^\d{4}-\d{2}-\d{2}/', $slotEnd) ? $slotEnd : "{$date} {$slotEnd}") + $bufferAfter * 60;
 
         foreach ($bookedSlots as $booked) {
             $bookedStart = strtotime($booked['start']);
@@ -704,14 +714,25 @@ class CalendarService
             // Normalize slot to HH:MM:SS format for comparison
             $slotNormalized = strlen($slot) === 5 ? $slot . ':00' : $slot;
             
-            // Calculate end time based on service duration
-            $slotEndTime = $slot;
+            // Calculate end time based on service duration, on the requested
+            // date (and on the next one when the slot runs past midnight)
+            $slotStartTime = $date . ' ' . $slotNormalized;
+            $slotEndTime = $slotStartTime;
             if ($serviceInfo && !empty($serviceInfo['duration'])) {
-                $slotEndTimestamp = strtotime($slot) + ($serviceInfo['duration'] * 60);
-                $slotEndTime = gmdate('H:i', $slotEndTimestamp);
+                $slotEndTimestamp = strtotime($slotStartTime) + ($serviceInfo['duration'] * 60);
+                $slotEndTime = gmdate('Y-m-d H:i:s', $slotEndTimestamp);
             }
-            
-            $isBooked = $this->isSlotBooked($slot, $slotEndTime, $bookedSlots);
+
+            // Buffer time (Pro): the slot needs the service's preparation /
+            // wrap-up clear too, and each booking brings its own.
+            $isBooked = $this->isSlotBooked(
+                $date,
+                $slotStartTime,
+                $slotEndTime,
+                $bookedSlots,
+                ServiceService::bufferBeforeMinutes($service ?? null),
+                ServiceService::bufferAfterMinutes($service ?? null)
+            );
             
             if ($isBooked) {
                 $available = false;
@@ -853,7 +874,7 @@ class CalendarService
         // Same rule as the events query: a non-manager sees only their own agent
         // row, and a non-agent panel user sees no roster at all (rather than the
         // full agent list).
-        if (!Security::canManageBookings()) {
+        if (Permissions::scopeFor('calendar') !== Permissions::SCOPE_ALL) {
             $currentAgentId = AppointmentService::isAgentUser()
                 ? AppointmentService::getCurrentAgentId()
                 : null;

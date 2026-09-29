@@ -6,6 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\Order\Data\OrderModel;
 use RoxAppointmentBooking\Modules\Payment\Data\PaymentModel;
 use RoxAppointmentBooking\Modules\Notification\Data\NotificationModel;
@@ -60,7 +61,7 @@ class GetNotification extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !current_user_can('manage_options')) {
+        if (!is_user_logged_in() || !Permissions::can('notification.view')) {
             return false;
         }
 

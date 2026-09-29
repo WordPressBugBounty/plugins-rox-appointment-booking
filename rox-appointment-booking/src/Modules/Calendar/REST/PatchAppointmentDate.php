@@ -6,10 +6,12 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
-use RoxAppointmentBooking\Supports\Security;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\Appointment\Data\AppointmentModel;
 use RoxAppointmentBooking\Modules\Customer\Data\CustomerModel;
 use RoxAppointmentBooking\Modules\Service\Data\ServiceModel;
+use RoxAppointmentBooking\Modules\Service\Services\ServiceService;
+use RoxAppointmentBooking\Modules\Appointment\REST\GetAppointmentSchedule;
 use RoxAppointmentBooking\Modules\Notification\Services\NotificationService;
 
 /**
@@ -61,7 +63,7 @@ class PatchAppointmentDate extends AbstractREST
         // Rescheduling is an edit, so it is admin/manager only. Agents get a
         // read-only panel: their calendar is not draggable and this endpoint used
         // to accept any appointment id from them (no ownership check).
-        if (!is_user_logged_in() || !Security::canManageBookings()) {
+        if (!is_user_logged_in() || !Permissions::can('appointment.edit')) {
             return false;
         }
 
@@ -119,10 +121,38 @@ class PatchAppointmentDate extends AbstractREST
             ? $newDate . ' ' . gmdate('H:i:s', strtotime($oldEndTime))
             : null;
 
+        // The booking keeps the buffer it was booked with; only the stretch of
+        // schedule it blocks moves with it.
+        $block = ServiceService::movedBlockColumns($appointment, $newStartTime, $newEndTime);
+
+        // WORKING HOURS: the day dropped onto may close earlier, or break at a
+        // different time, than the day the booking came from, so the whole
+        // stretch it holds is measured against the new date's hours.
+        $working_windows = GetAppointmentSchedule::workingWindowsForDate(
+            !empty($appointment->agent_id) ? (int) $appointment->agent_id : null,
+            !empty($appointment->service_id) ? (int) $appointment->service_id : null,
+            $newDate
+        );
+
+        if (
+            is_array($working_windows)
+            && !GetAppointmentSchedule::blockFitsWindows(
+                $working_windows,
+                (string) ($block['block_start_time'] ?? $newStartTime),
+                (string) ($block['block_end_time'] ?? $newEndTime)
+            )
+        ) {
+            return new WP_Error(
+                'outside_working_hours',
+                esc_html__('This time is outside the working hours for that day, or it runs into a break. Please choose a different time.', 'rox-appointment-booking'),
+                ['status' => 409]
+            );
+        }
+
         // Dropping an event onto a date where the same agent is already busy would
         // silently double-book them, so apply the same hard overlap check the
         // create paths run.
-        $conflict = $this->checkRescheduleConflict($appointment, $newDate, $newStartTime, $newEndTime);
+        $conflict = $this->checkRescheduleConflict($appointment, $newDate, $newStartTime, $newEndTime, $block);
         if (is_wp_error($conflict)) {
             return $conflict;
         }
@@ -132,7 +162,9 @@ class PatchAppointmentDate extends AbstractREST
             'start_time' => $newStartTime,
             'end_time'   => $newEndTime,
             'updated_by' => get_current_user_id(),
-        ];
+            // The block range moves with the booking, and is simply absent
+            // without the Pro plugin that owns those columns.
+        ] + $block;
 
         $result = $appointment->update($updateData);
 
@@ -212,15 +244,17 @@ class PatchAppointmentDate extends AbstractREST
      *
      * Mirrors the hard conflict check the create paths run
      * (SaveAppointment::checkSlotAvailability): per agent for a normal booking,
-     * per service capacity for an agent-less one.
+     * per service capacity for an agent-less one. Buffer time (Pro) widens both
+     * sides of the overlap test, see ServiceService::scheduleOverlap().
      *
      * @param AppointmentModel $appointment
      * @param string $newDate
      * @param string|null $newStartTime
      * @param string|null $newEndTime
+     * @param array $block Block range at the new time (ServiceService::movedBlockColumns()).
      * @return WP_Error|true
      */
-    private function checkRescheduleConflict($appointment, string $newDate, $newStartTime, $newEndTime)
+    private function checkRescheduleConflict($appointment, string $newDate, $newStartTime, $newEndTime, array $block = [])
     {
         if (empty($newStartTime) || empty($newEndTime)) {
             return true;
@@ -228,6 +262,7 @@ class PatchAppointmentDate extends AbstractREST
 
         $appointmentId = (int) $appointment->getID();
         $agentId = (int) ($appointment->agent_id ?? 0);
+        $scheduleOverlap = ServiceService::scheduleOverlap($newDate, $newStartTime, $newEndTime, $block);
 
         if (!$agentId) {
             $maxCapacity = 1;
@@ -239,13 +274,9 @@ class PatchAppointmentDate extends AbstractREST
             }
 
             $overlappingCount = AppointmentModel::where('service_id', $appointment->service_id)
-                ->where('date', $newDate)
                 ->where('id', '!=', $appointmentId)
                 ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
-                ->where(function ($query) use ($newStartTime, $newEndTime) {
-                    $query->where('start_time', '<', $newEndTime)
-                          ->where('end_time', '>', $newStartTime);
-                })
+                ->where($scheduleOverlap)
                 ->count();
 
             if ($overlappingCount >= $maxCapacity) {
@@ -260,19 +291,17 @@ class PatchAppointmentDate extends AbstractREST
         }
 
         $existing = AppointmentModel::where('agent_id', $agentId)
-            ->where('date', $newDate)
             ->where('id', '!=', $appointmentId)
             ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
-            ->where(function ($query) use ($newStartTime, $newEndTime) {
-                $query->where('start_time', '<', $newEndTime)
-                      ->where('end_time', '>', $newStartTime);
-            })
+            ->where($scheduleOverlap)
             ->first();
 
         if ($existing) {
             return new WP_Error(
                 'slot_already_booked',
-                esc_html__('The agent already has an appointment at this time on the selected date. Please choose a different date.', 'rox-appointment-booking'),
+                ServiceService::overlapsOnlyThroughBuffer($existing, $newStartTime, $newEndTime)
+                    ? esc_html__('This time is too close to another appointment with the same agent. Preparation and wrap-up time is needed in between, so please choose a different time.', 'rox-appointment-booking')
+                    : esc_html__('The agent already has an appointment at this time on the selected date. Please choose a different date.', 'rox-appointment-booking'),
                 ['status' => 409]
             );
         }

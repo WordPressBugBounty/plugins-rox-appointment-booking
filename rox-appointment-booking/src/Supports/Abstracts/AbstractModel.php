@@ -211,11 +211,18 @@ abstract class AbstractModel
     /**
      * Get fillable attributes list.
      *
+     * The list a save is filtered through, so a column no plugin claims can
+     * never be written. An add-on that brings its own columns to one of these
+     * tables adds them here — that is how it keeps its own fields out of this
+     * plugin, and how a site without it never writes a column it does not have.
+     *
      * @return array
      */
     public function getFillable(): array
     {
-        return $this->fillable;
+        $fillable = apply_filters('rox_appointment_booking_model_fillable', $this->fillable, static::class, $this);
+
+        return is_array($fillable) ? $fillable : $this->fillable;
     }
 
     /**

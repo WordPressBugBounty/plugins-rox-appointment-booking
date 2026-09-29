@@ -4,7 +4,7 @@ import Button from "../ui/Button.jsx";
 import MiniCalendar from "../ui/MiniCalendar.jsx";
 import SlotPicker from "../ui/SlotPicker.jsx";
 import { apiGet } from "../../data/api.js";
-import { daySlotsFor, isDateOff } from "../../data/schedule.js";
+import { displaySlotsFor, isDisplayDateOff } from "../../data/schedule.js";
 
 // Reschedule drawer (real, D5): current-booking banner + a date picker + the
 // real available slots for the booking's service/agent. Availability comes from
@@ -43,6 +43,10 @@ export default function RescheduleDrawer({ open, booking, onClose, onConfirm, su
     apiGet("public/appointment-schedule", {
       ...(booking.service_id ? { service_id: booking.service_id } : {}),
       ...(booking.agent_id ? { agent_id: booking.agent_id } : {}),
+      // A reschedule keeps the booking's length, extras included.
+      ...(Array.isArray(booking.extra_service_ids) && booking.extra_service_ids.length
+        ? { extra_services: booking.extra_service_ids.join(",") }
+        : {}),
     })
       .then((res) => active && setSchedule((res && res.data) || null))
       .catch(() => active && setSchedule(null))
@@ -53,7 +57,7 @@ export default function RescheduleDrawer({ open, booking, onClose, onConfirm, su
   }, [open, booking]);
 
   // Slots for the picked day, derived from the schedule (booked ones disabled).
-  const slots = useMemo(() => daySlotsFor(schedule, date), [schedule, date]);
+  const slots = useMemo(() => displaySlotsFor(schedule, date), [schedule, date]);
 
   // Reset the picked slot whenever the date changes.
   useEffect(() => {
@@ -69,7 +73,14 @@ export default function RescheduleDrawer({ open, booking, onClose, onConfirm, su
         variant="primary"
         style={{ flex: 1 }}
         disabled={!slot || submitting}
-        onClick={() => onConfirm && onConfirm(date, slot)}
+        onClick={() => {
+          if (!onConfirm) return;
+          // Always the site pair, never what the customer is reading: the
+          // reschedule endpoint speaks site-local wall time. Identical to
+          // `date`/`slot` unless a timezone shift moved this slot.
+          const picked = slots.find((s) => s.value === slot);
+          onConfirm(picked?.siteDate || date, picked?.siteTime || slot);
+        }}
       >
         {submitting ? "Rescheduling…" : "Confirm Reschedule"}
       </Button>
@@ -104,7 +115,7 @@ export default function RescheduleDrawer({ open, booking, onClose, onConfirm, su
             value={date}
             onChange={setDate}
             minDate={today()}
-            isDisabled={(d) => isDateOff(schedule, d)}
+            isDisabled={(d) => isDisplayDateOff(schedule, d)}
           />
 
           <h3 style={{ margin: "18px 0 12px", fontSize: "14px" }}>

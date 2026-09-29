@@ -6,6 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 
 /**
  * Class GetGeneral
@@ -56,7 +57,7 @@ class GetGeneral extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !current_user_can('manage_options')) {
+        if (!is_user_logged_in() || !Permissions::can('settings_general.view')) {
             return false;
         }
 
@@ -82,6 +83,9 @@ class GetGeneral extends AbstractREST
                 'time_system' => '12_hour',
                 'date_format' => 'MM/DD/YYYY',
                 'show_appointment_end_time' => false,
+                // Off by default: with the selector hidden the booking panel
+                // shows every time on the site's clock, exactly as before.
+                'timezone_selector_enable' => false,
                 'thousand_separator' => 'comma',
                 'hide_price_breakdown_for_free_services' => false,
                 // Site-wide booking window. A service can switch on its own and
@@ -104,9 +108,18 @@ class GetGeneral extends AbstractREST
                 // On by default: the booking panel has always offered the
                 // "Already have an account?" login tab.
                 'customer_login_tab_enable' => true,
+                // Time Slots: label a time on offer with its end as well as its
+                // start. Site-wide — see ServiceService::showSlotTimeRange().
+                'show_slot_time_range' => false,
             ];
 
             $general_settings = wp_parse_args($general_settings, $defaults);
+
+            // A real boolean for the switch, whatever was stored.
+            $general_settings['show_slot_time_range'] = filter_var(
+                $general_settings['show_slot_time_range'],
+                FILTER_VALIDATE_BOOLEAN
+            );
 
             // Stored on the Payments settings option (read/used everywhere via
             // rox_appointment_booking_payment_settings()), surfaced here since

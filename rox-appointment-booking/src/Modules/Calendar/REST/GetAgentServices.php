@@ -6,7 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
-use RoxAppointmentBooking\Supports\Security;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceAgentRelationModel;
 use RoxAppointmentBooking\Modules\Agent\Services\AgentService;
 use RoxAppointmentBooking\Modules\Service\Services\ServiceService;
@@ -182,7 +182,7 @@ class GetAgentServices extends AbstractREST
         // An agent's own list comes from `agent/my-services`, which takes no id and
         // never falls back. Note: nothing in the UI calls this route any more — it
         // is a deletion candidate, kept for now in case an integration uses it.
-        if (!is_user_logged_in() || !Security::canManageBookings()) {
+        if (!is_user_logged_in() || !Permissions::can('agent.view')) {
             return false;
         }
 

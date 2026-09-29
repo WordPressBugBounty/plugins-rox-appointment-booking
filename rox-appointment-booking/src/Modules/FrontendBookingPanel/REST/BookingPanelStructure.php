@@ -86,6 +86,11 @@ class BookingPanelStructure extends AbstractREST
 
         $integrations_settings = get_option('rox_appointment_booking_integrations_settings', []);
 
+        $timezone_selector_enabled = (bool) filter_var(
+            rox_appointment_booking_general_settings('timezone_selector_enable', false),
+            FILTER_VALIDATE_BOOLEAN
+        );
+
         // The "Sign in with Google" button config comes from a filter that ONLY a
         // Pro version shipping the Google-login backend answers (see the Pro
         // Integrations Provider). Any Pro that predates the feature — or no Pro at
@@ -111,6 +116,17 @@ class BookingPanelStructure extends AbstractREST
             // extra service, summary, confirmation), resolved from the Payments
             // settings currency code — mirrors App.php's admin `currencySymbol`.
             "currencySymbol" => rox_appointment_booking__get_currency_symbol(rox_appointment_booking_payment_settings('payment_currency') ?? 'USD'),
+
+            // Timezone selector on the Date & Time step. Off by default, and
+            // the ~400-entry zone list is only sent when it is on, since it is
+            // the single largest thing in this payload. `siteTimezone` may be
+            // a bare offset ("+06:00") on a site configured by UTC offset
+            // rather than by city — the panel handles both.
+            "timezone" => [
+                "selectorEnabled" => $timezone_selector_enabled,
+                "siteTimezone" => wp_timezone_string(),
+                "zones" => $timezone_selector_enabled ? rox_appointment_booking_timezone_choices() : [],
+            ],
 
             // The Mailchimp opt-in checkbox on the Customer Information step only
             // shows when the integration is enabled AND fully configured (API key

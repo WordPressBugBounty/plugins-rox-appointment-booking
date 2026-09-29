@@ -14,6 +14,7 @@
 namespace RoxAppointmentBooking\Modules\Core\Services;
 
 use RoxAppointmentBooking\Supports\Assets;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\UserManagement\Util\UserInfo;
 use RoxAppointmentBooking\Modules\Service\Services\ServiceService;
 
@@ -154,6 +155,15 @@ class App
             'siteUrl' => esc_url_raw(site_url()),
             'adminUrl' => esc_url_raw(admin_url()),
             'userRoles' => $user_roles,
+            // What this user may do, answered by the same facade the REST
+            // endpoints gate on. The sidebar menu and the route guard are built
+            // from this rather than from their own role lists.
+            'capabilities' => Permissions::grantedCapabilities(),
+            // Whether each scoped resource resolves to the caller's own rows or
+            // to every row. Read by the pages that shape themselves around it —
+            // the Appointments table drops its Agent column only for a reader
+            // limited to their own bookings.
+            'scopes' => Permissions::grantedScopes(),
             'isProUser' => rox_appointment_booking_is_pro_user(),
             // Whether the Locations module should appear in the UI. Previously
             // computed inside AppConfig::getLocationMenuItem(); now surfaced as a
@@ -164,13 +174,6 @@ class App
             // exists. Kept separate from the flag above so the Locations menu and
             // settings stay reachable even when there are zero locations.
             'locationsExist' => $this->hasLocations(),
-            // Settings > Booking > "Allow Agent To Re-Schedule Their
-            // Appointment". Only shapes the agent UI — an administrator is not
-            // governed by it (see config/env.js agentCanReschedule()).
-            'agentCanReschedule' => rox_appointment_booking_agent_can_reschedule(),
-            // Settings > Booking > "Allow Agent To Cancel Their Appointment",
-            // same rules as the reschedule flag above.
-            'agentCanCancel' => rox_appointment_booking_agent_can_cancel(),
             // Current-user display data for the topbar avatar, previously built
             // server-side in AppConfig::getAppConfigStructure().
             'currentUser' => [

@@ -1,4 +1,5 @@
 import { createReduxStore, register } from "@wordpress/data";
+import { configureTimezone } from "../lib/timezone.js";
 
 // Session storage key. Each panel instance persists under its own suffix so
 // that two booking surfaces on one page cannot restore each other's progress;
@@ -228,6 +229,12 @@ const actions = {
   
   // Config actions
   setContent(content) {
+    // Every booking surface (panel, service-list block, single-agent block)
+    // funnels its booking-panel-structure response through here, so the
+    // timezone module is configured from this one place — and before anything
+    // renders off the new content, which a component effect could not promise.
+    configureTimezone(content?.timezone);
+
     return { type: "SET_CONTENT", content };
   },
   setHasLocations(hasLocations) {

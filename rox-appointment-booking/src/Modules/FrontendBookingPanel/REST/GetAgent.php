@@ -143,7 +143,10 @@ class GetAgent extends AbstractREST
             return [
                 'id' => $agent->getID(),
                 'thumbnail' => $agent->thumbnail_id ? wp_get_attachment_url($agent->thumbnail_id) : '',
-                'name' => $agent->getFullName()
+                'name' => $agent->getFullName(),
+                // Role text shown under the agent's name in the Style 2 grid
+                // (see frontend/styles/style-2/AgentsStep.jsx); Style 1 ignores it.
+                'title' => rox_appointment_booking_translate('agent', $agent->getID(), 'title', (string) ($agent->title ?? '')),
             ];
         }
         if ($mode === 'list') {

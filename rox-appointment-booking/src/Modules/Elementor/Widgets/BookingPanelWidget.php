@@ -46,6 +46,7 @@ use RoxAppointmentBooking\Supports\BookingPanel\PanelContent;
 use RoxAppointmentBooking\Supports\Color;
 use RoxAppointmentBooking\Supports\FontFamily;
 use RoxAppointmentBooking\Supports\IdList;
+use RoxAppointmentBooking\Supports\PanelStyle;
 use RoxAppointmentBooking\Modules\Category\Data\CategoryModel;
 
 if (! defined('ABSPATH')) exit; // Exit if accessed directly
@@ -94,8 +95,6 @@ class BookingPanelWidget extends Widget_Base
         // The heading above each step's cards.
         'panel_location_heading'       => 'locationHeading',
         'panel_category_heading'       => 'categoryHeading',
-        'panel_services_heading'       => 'servicesHeading',
-        'panel_agents_heading'         => 'agentsHeading',
         'panel_datetime_heading'       => 'dateTimeHeading',
         'panel_information_heading'    => 'informationHeading',
         // The left step list, from the second step onward.
@@ -109,6 +108,30 @@ class BookingPanelWidget extends Widget_Base
         'panel_step_complete_label'    => 'stepCompleteLabel',
         // The summary sidebar's row labels.
         'panel_summary_agent_label'    => 'summaryAgentLabel',
+    ];
+
+    /**
+     * The panel copy controls whose wording differs per design, as the override
+     * key => the control each variant reads it from.
+     *
+     * Elementor fills a control with its own default and {@see panelContent()}
+     * passes that straight through, so a control can only ever carry one
+     * design's wording. These two headings differ between the designs, so each
+     * design gets its own field and the right one is read at render.
+     *
+     * `default` is the control for any variant not named.
+     *
+     * @var array<string, array<string, string>>
+     */
+    protected const PANEL_CONTENT_TEXT_BY_STYLE = [
+        'servicesHeading' => [
+            'style-2' => 'panel_services_heading_s2',
+            'default' => 'panel_services_heading',
+        ],
+        'agentsHeading'   => [
+            'style-2' => 'panel_agents_heading_s2',
+            'default' => 'panel_agents_heading',
+        ],
     ];
 
     /**
@@ -278,7 +301,11 @@ class BookingPanelWidget extends Widget_Base
     }
 
     /**
-     * Display: whether the panel sits on the page or behind a button.
+     * Display: which design the panel renders, and whether it sits on the page
+     * or behind a button.
+     *
+     * The style comes first because it decides what the panel below looks like;
+     * every other control applies whichever style is picked.
      *
      * @return void
      */
@@ -287,6 +314,17 @@ class BookingPanelWidget extends Widget_Base
         $this->start_controls_section(
             'display',
             ['label' => esc_html__('Display', 'rox-appointment-booking')]
+        );
+
+        $this->add_control(
+            'panel_style',
+            [
+                'label'       => esc_html__('Panel style', 'rox-appointment-booking'),
+                'type'        => Controls_Manager::SELECT,
+                'default'     => PanelStyle::DEFAULT_STYLE,
+                'options'     => PanelStyle::options(),
+                'description' => esc_html__('The design this widget renders. Every control below applies to all of them.', 'rox-appointment-booking'),
+            ]
         );
 
         $this->add_control(
@@ -324,11 +362,19 @@ class BookingPanelWidget extends Widget_Base
             ['label' => esc_html__('Panel content', 'rox-appointment-booking')]
         );
 
+        // The whole group belongs to a design that draws an illustrated sidebar
+        // on its first step. Style 2 opens on a card list instead, so these
+        // fields would rewrite copy it never renders.
+        $sidebar_condition = [
+            'panel_style' => PanelStyle::stylesSupporting('firstStepSidebar'),
+        ];
+
         $this->add_control(
             'panel_sidebar_group',
             [
-                'label' => esc_html__('First step sidebar', 'rox-appointment-booking'),
-                'type'  => Controls_Manager::HEADING,
+                'label'     => esc_html__('First step sidebar', 'rox-appointment-booking'),
+                'type'      => Controls_Manager::HEADING,
+                'condition' => $sidebar_condition,
             ]
         );
 
@@ -340,6 +386,7 @@ class BookingPanelWidget extends Widget_Base
                 'media_types' => ['image'],
                 'default'     => ['url' => ''],
                 'description' => esc_html__('Leave empty to keep the panel\'s own illustration.', 'rox-appointment-booking'),
+                'condition'   => $sidebar_condition,
             ]
         );
 
@@ -362,6 +409,7 @@ class BookingPanelWidget extends Widget_Base
                     esc_html__('The sidebar column is %d px wide, so the image is scaled down to fit rather than past it.', 'rox-appointment-booking'),
                     $width['max']
                 ),
+                'condition'   => $sidebar_condition,
             ]
         );
 
@@ -369,25 +417,32 @@ class BookingPanelWidget extends Widget_Base
             'panel_sidebar_title',
             esc_html__('Title', 'rox-appointment-booking'),
             __('Location Selection', 'rox-appointment-booking'),
-            esc_html__('Shown whichever step comes first, so a panel that starts on Category or Services uses this too.', 'rox-appointment-booking')
+            esc_html__('Shown whichever step comes first, so a panel that starts on Category or Services uses this too.', 'rox-appointment-booking'),
+            $sidebar_condition
         );
 
         $this->contentField(
             'panel_sidebar_subtitle',
             esc_html__('Subtitle', 'rox-appointment-booking'),
-            __('Select the location where you\'d like to book your appointment.', 'rox-appointment-booking')
+            __('Select the location where you\'d like to book your appointment.', 'rox-appointment-booking'),
+            '',
+            $sidebar_condition
         );
 
         $this->contentField(
             'panel_help_title',
             esc_html__('Help box title', 'rox-appointment-booking'),
-            __('Need Help?', 'rox-appointment-booking')
+            __('Need Help?', 'rox-appointment-booking'),
+            '',
+            $sidebar_condition
         );
 
         $this->contentField(
             'panel_help_button_text',
             esc_html__('Help button text', 'rox-appointment-booking'),
-            __('Help', 'rox-appointment-booking')
+            __('Help', 'rox-appointment-booking'),
+            '',
+            $sidebar_condition
         );
 
         // A plain field rather than Elementor's link picker: the panel renders
@@ -396,13 +451,17 @@ class BookingPanelWidget extends Widget_Base
         $this->contentField(
             'panel_help_button_url',
             esc_html__('Help button link', 'rox-appointment-booking'),
-            '/help'
+            '/help',
+            '',
+            $sidebar_condition
         );
 
         $this->contentField(
             'panel_help_note',
             esc_html__('Help box note', 'rox-appointment-booking'),
-            __('If you have any questions', 'rox-appointment-booking')
+            __('If you have any questions', 'rox-appointment-booking'),
+            '',
+            $sidebar_condition
         );
 
         $this->add_control(
@@ -432,17 +491,42 @@ class BookingPanelWidget extends Widget_Base
             __('Available Category', 'rox-appointment-booking')
         );
 
+        // These two headings are the only ones whose wording differs between
+        // the designs, so each gets a field per design: Elementor fills a
+        // control with its own default and the widget passes that straight
+        // through, which means one shared field would push the wrong design's
+        // wording onto the panel. Both write the same override key — see
+        // PANEL_CONTENT_TEXT_BY_STYLE.
         $this->contentField(
             'panel_services_heading',
             esc_html__('Services step', 'rox-appointment-booking'),
             __('Services', 'rox-appointment-booking'),
-            esc_html__('Follows the chosen category\'s name, as in "Haircut Services".', 'rox-appointment-booking')
+            esc_html__('Follows the chosen category\'s name, as in "Haircut Services".', 'rox-appointment-booking'),
+            ['panel_style' => PanelStyle::stylesSupporting('servicesHeadingFollowsCategory')]
+        );
+
+        $this->contentField(
+            'panel_services_heading_s2',
+            esc_html__('Services step', 'rox-appointment-booking'),
+            __('Available Services', 'rox-appointment-booking'),
+            '',
+            ['panel_style' => ['style-2']]
         );
 
         $this->contentField(
             'panel_agents_heading',
             esc_html__('Agents step', 'rox-appointment-booking'),
-            __('Select Agent', 'rox-appointment-booking')
+            __('Select Agent', 'rox-appointment-booking'),
+            '',
+            ['panel_style' => ['style-1']]
+        );
+
+        $this->contentField(
+            'panel_agents_heading_s2',
+            esc_html__('Agents step', 'rox-appointment-booking'),
+            __('Available Agents', 'rox-appointment-booking'),
+            '',
+            ['panel_style' => ['style-2']]
         );
 
         $this->contentField(
@@ -573,19 +657,29 @@ class BookingPanelWidget extends Widget_Base
      * @param string $description Optional note under the field.
      * @return void
      */
-    protected function contentField(string $name, string $label, string $default, string $description = ''): void
-    {
-        $this->add_control(
-            $name,
-            [
-                'label'       => $label,
-                'type'        => Controls_Manager::TEXT,
-                'default'     => $default,
-                'placeholder' => $default,
-                'label_block' => true,
-                'description' => $description,
-            ]
-        );
+    protected function contentField(
+        string $name,
+        string $label,
+        string $default,
+        string $description = '',
+        array $condition = []
+    ): void {
+        $args = [
+            'label'       => $label,
+            'type'        => Controls_Manager::TEXT,
+            'default'     => $default,
+            'placeholder' => $default,
+            'label_block' => true,
+            'description' => $description,
+        ];
+
+        // Left off entirely when there is none: Elementor treats an empty
+        // `condition` as a condition that is never met.
+        if ($condition !== []) {
+            $args['condition'] = $condition;
+        }
+
+        $this->add_control($name, $args);
     }
 
     /**
@@ -759,6 +853,8 @@ class BookingPanelWidget extends Widget_Base
                 'return_value' => 'yes',
                 'default'      => '',
                 'description'  => esc_html__('The right info / booking summary appears from the Date & Time step onward, so it is not visible on the first step.', 'rox-appointment-booking'),
+                // Only for a design that has a right-hand column to hide.
+                'condition'    => ['panel_style' => PanelStyle::stylesSupporting('hideInfo')],
             ]
         );
 
@@ -839,6 +935,11 @@ class BookingPanelWidget extends Widget_Base
             ]
         );
 
+        // One switch per design, because their defaults differ and an Elementor
+        // control's default is fixed at registration: Style 1 has always framed
+        // the panel, Style 2's design sits flat on the page. Only one is ever
+        // visible, and {@see showBackground()} reads the one belonging to the
+        // design being rendered.
         $this->add_control(
             'show_background',
             [
@@ -847,6 +948,19 @@ class BookingPanelWidget extends Widget_Base
                 'return_value' => 'yes',
                 'default'      => 'yes',
                 'description'  => esc_html__('Draws the grey frame (background, padding and shadow) around the panel.', 'rox-appointment-booking'),
+                'condition'    => ['panel_style' => ['style-1']],
+            ]
+        );
+
+        $this->add_control(
+            'show_background_s2',
+            [
+                'label'        => esc_html__('Enable background', 'rox-appointment-booking'),
+                'type'         => Controls_Manager::SWITCHER,
+                'return_value' => 'yes',
+                'default'      => '',
+                'description'  => esc_html__('Draws the grey frame (background and padding) around the panel. Off by default for this design, which sits flat on the page.', 'rox-appointment-booking'),
+                'condition'    => ['panel_style' => ['style-2']],
             ]
         );
 
@@ -857,8 +971,15 @@ class BookingPanelWidget extends Widget_Base
                 'type'        => Controls_Manager::COLOR,
                 'default'     => '',
                 'description' => esc_html__('Leave empty to keep the default grey.', 'rox-appointment-booking'),
-                // Only meaningful while the frame is drawn.
-                'condition'   => ['show_background' => 'yes'],
+                // Only meaningful while the frame is drawn — and each design
+                // has its own switch, so either one being on is enough.
+                'conditions'  => [
+                    'relation' => 'or',
+                    'terms'    => [
+                        ['name' => 'show_background', 'operator' => '===', 'value' => 'yes'],
+                        ['name' => 'show_background_s2', 'operator' => '===', 'value' => 'yes'],
+                    ],
+                ],
             ]
         );
 
@@ -1497,7 +1618,7 @@ class BookingPanelWidget extends Widget_Base
             // The instance id decides which store the panel gets, so two of
             // these widgets on one page keep their selections apart. Elementor's
             // element id is unique per widget and stable across renders.
-            '<div class="rox-appointment-booking-frontend-root" data-instance="%7$s" data-type="booking-form" data-hide-navigation="%1$s" data-hide-info="%2$s" data-service-columns="%14$s" data-show-dashboard-button="%15$s" data-dashboard-button-text="%16$s" data-dashboard-button-url="%17$s" data-show-background="%3$s" data-background-color="%4$s" data-locations="%5$s" data-categories="%6$s" data-font-family="%8$s" data-font-url="%9$s" data-content-margin="%10$s" data-heading-align="%11$s" data-heading-margin="%12$s" data-panel-content="%13$s"></div>',
+            '<div class="rox-appointment-booking-frontend-root" data-instance="%7$s" data-type="booking-form" data-style-variant="%18$s" data-hide-navigation="%1$s" data-hide-info="%2$s" data-service-columns="%14$s" data-show-dashboard-button="%15$s" data-dashboard-button-text="%16$s" data-dashboard-button-url="%17$s" data-show-background="%3$s" data-background-color="%4$s" data-locations="%5$s" data-categories="%6$s" data-font-family="%8$s" data-font-url="%9$s" data-content-margin="%10$s" data-heading-align="%11$s" data-heading-margin="%12$s" data-panel-content="%13$s"></div>',
             esc_attr($hide_navigation),
             esc_attr($hide_info),
             esc_attr($show_background),
@@ -1516,8 +1637,24 @@ class BookingPanelWidget extends Widget_Base
             esc_attr((string) $this->serviceColumns($settings)),
             esc_attr(($settings['show_dashboard_button'] ?? 'yes') === 'yes' ? 'true' : 'false'),
             esc_attr((string) ($settings['dashboard_button_text'] ?? '')),
-            esc_attr(esc_url_raw((string) ($settings['dashboard_button_url'] ?? '')))
+            esc_attr(esc_url_raw((string) ($settings['dashboard_button_url'] ?? ''))),
+            esc_attr($this->styleVariant($settings))
         );
+    }
+
+    /**
+     * The panel design this widget renders, validated against the known list.
+     *
+     * Elementor validates nothing on the way in, so a setting saved by an older
+     * build — or by hand — falls back to the default rather than reaching the
+     * frontend, where it would resolve to no panel at all.
+     *
+     * @param array $settings Resolved widget settings.
+     * @return string
+     */
+    protected function styleVariant(array $settings): string
+    {
+        return PanelStyle::sanitize($settings['panel_style'] ?? '');
     }
 
     /**
@@ -1565,6 +1702,15 @@ class BookingPanelWidget extends Widget_Base
         $content = [];
 
         foreach (self::PANEL_CONTENT_TEXT as $control => $key) {
+            $content[$key] = $settings[$control] ?? '';
+        }
+
+        // The headings that are worded per design: read the field belonging to
+        // the design actually being rendered.
+        $style = $this->styleVariant($settings);
+
+        foreach (self::PANEL_CONTENT_TEXT_BY_STYLE as $key => $controls) {
+            $control = $controls[$style] ?? $controls['default'];
             $content[$key] = $settings[$control] ?? '';
         }
 
@@ -1642,6 +1788,8 @@ class BookingPanelWidget extends Widget_Base
         // attribute through esc_attr() / esc_html().
         // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
         echo BookingButtonMarkup::render([
+            // The design the panel behind this button renders.
+            'styleVariant'         => $this->styleVariant($settings),
             'text'                 => (string) ($settings['button_text'] ?? ''),
             'align'                => $align,
             'width'                => $width,
@@ -1687,6 +1835,13 @@ class BookingPanelWidget extends Widget_Base
      */
     protected function showBackground(array $settings): bool
     {
+        // Each design has its own switch, with its own default; see where they
+        // are registered. Anything but Style 2 reads the long-standing one, so
+        // an existing widget keeps the frame it was saved with.
+        if ($this->styleVariant($settings) === 'style-2') {
+            return ($settings['show_background_s2'] ?? '') === 'yes';
+        }
+
         return ($settings['show_background'] ?? 'yes') === 'yes';
     }
 }

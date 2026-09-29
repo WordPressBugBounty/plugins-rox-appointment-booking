@@ -12,6 +12,11 @@
 	}
 }
 
+// Style 2's canvas preview needs nothing of its own: it draws from the real
+// panel stylesheet (frontend/styles/style-2/panel.scss, imported by its
+// Preview), and its wrapper already carries .rox-booking-panel-block-editor
+// above for the loading state.
+
 .rox-booking-button-block-editor {
 	// The preview button keeps its pointer events so hovering it previews the
 	// hover colours; the click itself is swallowed in ButtonPreview. Clicks

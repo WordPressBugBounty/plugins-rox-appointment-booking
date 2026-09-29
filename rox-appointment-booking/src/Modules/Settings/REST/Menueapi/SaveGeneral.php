@@ -6,6 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 
 /**
  * Class SaveGeneral
@@ -56,7 +57,7 @@ class SaveGeneral extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !current_user_can('manage_options')) {
+        if (!is_user_logged_in() || !Permissions::can('settings_general.edit')) {
             return false;
         }
 
@@ -121,6 +122,17 @@ class SaveGeneral extends AbstractREST
             }
             if (array_key_exists('portal_title', $params)) {
                 $params['portal_title'] = sanitize_text_field((string) $params['portal_title']);
+            }
+
+            // Timezone selector on the booking panel. Cast here so an unchecked
+            // toggle arriving as "false"/"0" is stored as a real boolean.
+            if (array_key_exists('timezone_selector_enable', $params)) {
+                $params['timezone_selector_enable'] = filter_var($params['timezone_selector_enable'], FILTER_VALIDATE_BOOLEAN);
+            }
+
+            // Time Slots: stored as a real boolean, like the other switches.
+            if (array_key_exists('show_slot_time_range', $params)) {
+                $params['show_slot_time_range'] = filter_var($params['show_slot_time_range'], FILTER_VALIDATE_BOOLEAN);
             }
 
             // The Booking settings menu (SaveBooking) persists its toggles on

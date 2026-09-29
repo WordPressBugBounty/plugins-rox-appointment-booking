@@ -228,6 +228,7 @@ const BookingModal = ({
 		// trigger and BookingPanelBlock writes onto its inline root.
 		root.dataset.instance = settings.instance || "1";
 		root.dataset.type = "booking-form";
+		root.dataset.styleVariant = settings.styleVariant || "";
 		root.dataset.hideNavigation = settings.hideNavigation ? "true" : "false";
 		root.dataset.serviceColumns = settings.serviceColumns || "";
 		root.dataset.showDashboardButton =

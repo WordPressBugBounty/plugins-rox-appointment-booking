@@ -7,8 +7,10 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
-use RoxAppointmentBooking\Supports\Security;
+use RoxAppointmentBooking\Supports\Access\Permissions;
+use RoxAppointmentBooking\Supports\Access\OwnedRecords;
 use RoxAppointmentBooking\Modules\Service\Data\ServiceModel;
+use RoxAppointmentBooking\Modules\Agent\Data\AgentModel;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceCategoryRelationModel;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceLocationRelationModel;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceAgentRelationModel;
@@ -63,7 +65,7 @@ class GetService extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !Security::canAccessPanel()) {
+        if (!is_user_logged_in() || !Permissions::can('service.view')) {
             return false;
         }
 
@@ -79,6 +81,7 @@ class GetService extends AbstractREST
     {
         // Get the first category ID (primary category)
         $categoryIds = $this->getCategoryIdsByServiceId($service->getID());
+        $agents = $this->getAgentsByServiceId($service->getID());
 
         $data = [
             'id' => $service->getID(),
@@ -91,6 +94,8 @@ class GetService extends AbstractREST
             'sort_order' => $service->sort_order,
             'icon' => $service->thumbnail_id ? wp_get_attachment_image_url($service->thumbnail_id, 'medium') : null,
             'status' => $service->status,
+            'agents' => $agents,
+            'total_agent' => count($agents),
         ];
 
         if ($detailed) {
@@ -140,7 +145,12 @@ class GetService extends AbstractREST
             ];
         }
 
-        return $data;
+        // Fields that belong to another plugin's columns on this row — the
+        // service form's buffer time among them. Whoever owns a column also
+        // decides how the form reads it, so nothing here has to know.
+        $data = apply_filters('rox_appointment_booking_service_payload', $data, $service, $detailed);
+
+        return is_array($data) ? $data : [];
     }
 
     /**
@@ -158,7 +168,7 @@ class GetService extends AbstractREST
         // single-record and default payloads carry admin-only fields
         // (internal_notes, agent_ids, created_by/updated_by, weekly_schedule).
         // Their own assigned-service list is served by `agent/my-services`.
-        if (!Security::canManageBookings()) {
+        if (!Permissions::can('service.edit')) {
             $requestedMode = $request->get_param('mode') ?? 'default';
             if ($id || $requestedMode !== 'list') {
                 return rox_appointment_booking_rest_response(
@@ -171,7 +181,7 @@ class GetService extends AbstractREST
         }
 
         if ($id) {
-            $service = ServiceModel::find($id);
+            $service = OwnedRecords::ownsService((int) $id) ? ServiceModel::find($id) : null;
             if (!$service) {
                 return rox_appointment_booking_rest_response(
                     data : null,
@@ -197,7 +207,7 @@ class GetService extends AbstractREST
         $agent_id = $request->get_param('agent_id') ?? null;
         $location_id = $request->get_param('location_id') ?? null;
 
-        $query = ServiceModel::query();
+        $query = OwnedRecords::restrictServices(ServiceModel::query());
 
         // Filter by category if cat_id is provided
         if (!empty($cat_id)) {
@@ -277,8 +287,8 @@ class GetService extends AbstractREST
 
         $data = [];
         
-        // If cat_id, agent_id is provided or mode is list, return value/label format
-        if( $mode === 'list' || !empty($cat_id) || !empty($agent_id) || !empty($location_id) ) {
+        // Only mode=list requests the value/label format (used for select options).
+        if( $mode === 'list' ) {
             foreach ($services as $service) {
                 $data[] = $this->getServiceData($service, false, 'list');
             }
@@ -410,6 +420,35 @@ class GetService extends AbstractREST
         }
         
         return $agentIds;
+    }
+
+    /**
+     * Get agents (id, name, thumbnail) assigned to a service, for the table's
+     * avatar-group column.
+     *
+     * @param int $serviceId Service ID
+     * @return array Array of ['id' => int, 'name' => string, 'thumbnail' => string]
+     */
+    protected function getAgentsByServiceId($serviceId): array
+    {
+        $agentIds = $this->getAgentIdsByServiceId($serviceId);
+
+        if (empty($agentIds)) {
+            return [];
+        }
+
+        $agents = AgentModel::whereIn('id', $agentIds)->get();
+        $data = [];
+
+        foreach ($agents as $agent) {
+            $data[] = [
+                'id' => $agent->getID(),
+                'name' => $agent->getFullName(),
+                'thumbnail' => $agent->thumbnail_id ? wp_get_attachment_image_url($agent->thumbnail_id, 'medium') : '',
+            ];
+        }
+
+        return $data;
     }
 
     /**

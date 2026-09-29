@@ -245,3 +245,24 @@ if (!function_exists('rox_appointment_booking_system_fields')) {
 	}
 }
 
+
+if (!function_exists('rox_appointment_booking_mcp_settings')) {
+	/**
+	 * Retrieve MCP settings for the Booking Engine plugin.
+	 *
+	 * @param string|null $key
+	 * @param mixed       $default
+	 *
+	 * @return mixed
+	 */
+	function rox_appointment_booking_mcp_settings($key = null, $default = null)
+	{
+		$settings = get_option('rox_appointment_booking_mcp_settings', []);
+
+		if (!is_array($settings)) {
+			$settings = [];
+		}
+
+		return $key ? ($settings[$key] ?? $default) : $settings;
+	}
+}

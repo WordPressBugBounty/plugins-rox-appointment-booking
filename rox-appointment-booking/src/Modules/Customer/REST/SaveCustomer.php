@@ -7,6 +7,8 @@ use WP_REST_Response;
 use WP_Error;
 use WP_Session_Tokens;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\Access\LinkedAccount;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\Customer\Data\CustomerModel;
 use RoxAppointmentBooking\Modules\Agent\Data\AgentModel;
 use RoxAppointmentBooking\Modules\Email\Services\AccountCredentialsMailer;
@@ -63,7 +65,7 @@ class SaveCustomer extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !current_user_can('manage_options')) {
+        if (!is_user_logged_in() || !Permissions::can('customer.edit')) {
             return false;
         }
 
@@ -220,10 +222,22 @@ class SaveCustomer extends AbstractREST
 
             $fillable_data = array_intersect_key($params, array_flip($customer->getFillable()));
             $customer->fill($fillable_data);
+
+            // Refuse to link a privileged account that happens to share the e-mail.
+            $link_target = $params['allow_to_login'] ? get_user_by('email', $customer->email) : null;
+            if ($link_target && !LinkedAccount::canChange((int) $link_target->ID, LinkedAccount::CUSTOMER_ROLES)) {
+                return rox_appointment_booking_rest_response(
+                    data : null,
+                    code : 403,
+                    message : esc_html__('This email belongs to a WordPress account you are not allowed to link.', 'rox-appointment-booking'),
+                    headers : ['status' => 403]
+                );
+            }
+
             $customer->save();
 
             // Update WordPress user if linked and customer details changed
-            if ($id && $customer->wp_user_id) {
+            if ($id && $customer->wp_user_id && LinkedAccount::canChange((int) $customer->wp_user_id, LinkedAccount::CUSTOMER_ROLES)) {
                 $wp_user_data = [
                     'ID' => $customer->wp_user_id,
                 ];
@@ -268,9 +282,10 @@ class SaveCustomer extends AbstractREST
                     // Link to existing WordPress user
                     $customer->wp_user_id = $existing_wp_user->ID;
                     $customer->save();
-                } else if (!$customer->wp_user_id) {
-                    // Create WordPress user for customers not yet linked to one
-                    // (new customers, or existing customers enabling login later).
+                } else if (!$customer->wp_user_id || !get_userdata((int) $customer->wp_user_id)) {
+                    // Create WordPress user for customers not linked to a live one
+                    // (new customers, existing customers enabling login later, or
+                    // a link left pointing at a deleted WordPress account).
                     $password = !empty($params['password']) ? $params['password'] : null;
                     $wp_user_result = $this->createWordPressUser($customer, $params, $password);
 

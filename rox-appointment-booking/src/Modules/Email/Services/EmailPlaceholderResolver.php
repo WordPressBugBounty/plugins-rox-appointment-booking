@@ -10,6 +10,7 @@ use RoxAppointmentBooking\Modules\Category\Data\CategoryModel;
 use RoxAppointmentBooking\Modules\Customer\Data\CustomerModel;
 use RoxAppointmentBooking\Modules\Order\Data\OrderModel;
 use RoxAppointmentBooking\Modules\Service\Data\ServiceModel;
+
 use RoxAppointmentBookingPro\Modules\Location\Data\LocationModel;
 
 /**
@@ -30,23 +31,25 @@ class EmailPlaceholderResolver
      *
      * @param string $eventKey Event key.
      * @param array $context Event context.
+     * @param string $recipientType Recipient type, e.g. 'customer'.
      * @return array<string, string> Token (with braces) => value.
      */
-    public static function resolve(string $eventKey, array $context = []): array
+    public static function resolve(string $eventKey, array $context = [], string $recipientType = ''): array
     {
         $appointments = self::appointments($context);
         $first        = $appointments[0] ?? null;
         $order        = self::order($context);
         $customer     = self::customer($context, $first);
         $agent        = self::agent($context, $first);
+        $readerZone   = self::readerZone($eventKey, $recipientType, $first);
 
         $map = array_merge(
             self::siteValues(),
             self::customerValues($customer),
             self::agentValues($agent),
-            self::appointmentValues($appointments, $first, $context),
+            self::appointmentValues($appointments, $first, $context, $readerZone),
             self::orderValues($order, $context),
-            self::tableValues($appointments, $order, $context),
+            self::tableValues($appointments, $order, $context, $readerZone),
             self::changeValues($context),
             self::accountValues($context),
             self::linkValues($first)
@@ -55,11 +58,12 @@ class EmailPlaceholderResolver
         /**
          * Filter the placeholder map used to render an e-mail.
          *
-         * @param array  $map      Token => value.
-         * @param string $eventKey Event key.
-         * @param array  $context  Event context.
+         * @param array  $map           Token => value.
+         * @param string $eventKey      Event key.
+         * @param array  $context       Event context.
+         * @param string $recipientType Recipient type.
          */
-        return apply_filters('rox_appointment_booking_email_placeholders', $map, $eventKey, $context);
+        return apply_filters('rox_appointment_booking_email_placeholders', $map, $eventKey, $context, $recipientType);
     }
 
     /* ---------------------------------------------------------------------
@@ -232,9 +236,10 @@ class EmailPlaceholderResolver
      * @param AppointmentModel[] $appointments All appointments.
      * @param AppointmentModel|null $first First appointment.
      * @param array $context Event context.
+     * @param string $readerZone Zone to read the times on, '' for site time.
      * @return array<string, string>
      */
-    private static function appointmentValues(array $appointments, ?AppointmentModel $first, array $context): array
+    private static function appointmentValues(array $appointments, ?AppointmentModel $first, array $context, string $readerZone = ''): array
     {
         if (!$first) {
             return [
@@ -244,6 +249,10 @@ class EmailPlaceholderResolver
                 '{appointment_date}'       => '',
                 '{appointment_start_time}' => '',
                 '{appointment_end_time}'   => '',
+                '{appointment_date_customer_timezone}'       => '',
+                '{appointment_start_time_customer_timezone}' => '',
+                '{customer_timezone}'       => '',
+                '{customer_timezone_block}' => '',
                 '{appointment_status}'     => (string) ($context['appointment_status'] ?? ''),
                 '{appointment_id}'         => '',
                 '{appointment_count}'      => '0',
@@ -262,14 +271,34 @@ class EmailPlaceholderResolver
 
         $status = (string) ($context['appointment_status'] ?? ($first->status ?? ''));
 
+        $inCustomerZone = self::customerZoneValues($first);
+
+        // Empty for every e-mail that stays on site time, so those keep the
+        // original strtotime()/gmdate() formatting untouched.
+        $onReaderClock = $readerZone === '' ? null : self::readOnZone($first, $readerZone);
+
         return [
             '{service_name}'           => $service ? (string) $service->title : '',
             '{category_name}'          => $category ? (string) $category->title : '',
             '{location_name}'          => $location ? (string) $location->title : '',
-            '{appointment_date}'       => self::formatDate($first->date ?? ''),
-            '{appointment_start_time}' => self::formatTime($first->start_time ?? ''),
-            '{appointment_end_time}'   => self::formatTime($first->end_time ?? ''),
+            // The appointment itself, read on the reader's clock when they have
+            // one. A time on offer may have read longer — the service's "Show
+            // buffer time in the slot's time" runs the times together so no gap
+            // shows — but what is recorded is the booking.
+            '{appointment_date}'       => $onReaderClock
+                ? self::formatDateOn($onReaderClock['start'])
+                : self::formatDate($first->date ?? ''),
+            '{appointment_start_time}' => $onReaderClock
+                ? $onReaderClock['start']->format('h:i A')
+                : self::formatTime($first->start_time ?? ''),
+            '{appointment_end_time}'   => $onReaderClock
+                ? $onReaderClock['end']->format('h:i A')
+                : self::formatTime($first->end_time ?? ''),
             '{appointment_status}'     => $status === '' ? '' : ucfirst(str_replace('_', ' ', $status)),
+            '{appointment_date_customer_timezone}'       => $inCustomerZone['date'],
+            '{appointment_start_time_customer_timezone}' => $inCustomerZone['start_time'],
+            '{customer_timezone}'       => $inCustomerZone['zone'],
+            '{customer_timezone_block}' => $inCustomerZone['block'],
             '{appointment_id}'         => (string) ($first->id ?? ''),
             '{appointment_count}'      => (string) count($appointments),
             '{meet_link}'              => (string) $meetLink,
@@ -391,12 +420,13 @@ class EmailPlaceholderResolver
      * @param AppointmentModel[] $appointments Appointments.
      * @param OrderModel|null $order Order model.
      * @param array $context Event context.
+     * @param string $readerZone Zone to read the times on, '' for site time.
      * @return array<string, string>
      */
-    private static function tableValues(array $appointments, ?OrderModel $order, array $context): array
+    private static function tableValues(array $appointments, ?OrderModel $order, array $context, string $readerZone = ''): array
     {
         return [
-            '{appointments_table}'    => self::buildAppointmentsTable($appointments),
+            '{appointments_table}'    => self::buildAppointmentsTable($appointments, $readerZone),
             '{payment_details_table}' => self::buildPaymentDetailsTable($order, (array) ($context['payment'] ?? [])),
             '{custom_fields_table}'   => self::buildCustomFieldsTable($order),
             '{meet_link_block}'       => self::buildMeetLinkBlock($appointments),
@@ -468,9 +498,10 @@ class EmailPlaceholderResolver
      * can still use the standalone {meet_link} token.
      *
      * @param AppointmentModel[] $appointments Appointments.
+     * @param string $readerZone Zone to read the times on, '' for site time.
      * @return string
      */
-    private static function buildAppointmentsTable(array $appointments): string
+    private static function buildAppointmentsTable(array $appointments, string $readerZone = ''): string
     {
         if (empty($appointments)) {
             return '';
@@ -493,6 +524,10 @@ class EmailPlaceholderResolver
             $category = CategoryModel::find($appointment->category_id);
             $location = self::location($appointment);
 
+            // A shifted row can land on another day, so the date moves with the
+            // clock; null keeps the original site-time rendering.
+            $onReaderClock = $readerZone === '' ? null : self::readOnZone($appointment, $readerZone);
+
             $rows .= sprintf(
                 '<tr>' .
                 '<td style="padding: 8px; border: 1px solid #ddd;">%s</td>' .
@@ -508,8 +543,10 @@ class EmailPlaceholderResolver
                 $category ? $category->title : 'N/A',
                 $agent ? $agent->getFullName() : 'N/A',
                 $location ? $location->title : 'N/A',
-                $appointment->date ?? 'N/A',
-                gmdate('h:i A', strtotime($appointment->start_time)) . ' - ' . gmdate('h:i A', strtotime($appointment->end_time)),
+                $onReaderClock ? $onReaderClock['start']->format('Y-m-d') : ($appointment->date ?? 'N/A'),
+                $onReaderClock
+                    ? $onReaderClock['start']->format('h:i A') . ' - ' . $onReaderClock['end']->format('h:i A')
+                    : gmdate('h:i A', strtotime($appointment->start_time)) . ' - ' . gmdate('h:i A', strtotime($appointment->end_time)),
                 ucfirst($appointment->status ?? 'Pending'),
                 // A whole cell, or nothing at all when no appointment in this
                 // e-mail has a meeting — the header below is dropped to match.
@@ -526,7 +563,10 @@ class EmailPlaceholderResolver
             '<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Agent</th>' .
             '<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Location</th>' .
             '<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Date</th>' .
-            '<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Time</th>' .
+            // Named only when the row is not on site time, so the reader knows
+            // whose clock they are looking at.
+            '<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Time' .
+            ($readerZone === '' ? '' : ' (' . esc_html($readerZone) . ')') . '</th>' .
             '<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Status</th>' .
             ($hasMeetLinks
                 ? '<th style="padding: 8px; border: 1px solid #ddd; text-align: left;">' . esc_html__('Video Call', 'rox-appointment-booking') . '</th>'
@@ -738,6 +778,127 @@ class EmailPlaceholderResolver
      * @param string $date Date string.
      * @return string
      */
+    /**
+     * The appointment read on the timezone the customer booked in.
+     *
+     * Bookings are stored in site-local wall time, so this converts for display
+     * only. When the booking carries no timezone — every booking made before
+     * the selector existed, and every booking on a site not using it — or when
+     * it matches the site's own, the site values are returned unchanged and the
+     * summary block resolves to nothing, so no e-mail gains an empty row.
+     *
+     * @param AppointmentModel $appointment First appointment of the booking.
+     * @return array{date:string, start_time:string, zone:string, block:string}
+     */
+    private static function customerZoneValues(AppointmentModel $appointment): array
+    {
+        $zone = (string) ($appointment->customer_timezone ?? '');
+        $site = wp_timezone_string();
+
+        $values = [
+            'date'       => self::formatDate($appointment->date ?? ''),
+            'start_time' => self::formatTime($appointment->start_time ?? ''),
+            'zone'       => $zone,
+            'block'      => '',
+        ];
+
+        if ($zone === '' || $zone === $site || !function_exists('rox_appointment_booking_is_valid_timezone')) {
+            return $values;
+        }
+
+        if (!rox_appointment_booking_is_valid_timezone($zone)) {
+            $values['zone'] = '';
+            return $values;
+        }
+
+        $onCustomerClock = self::readOnZone($appointment, $zone);
+
+        if (!$onCustomerClock) {
+            return $values;
+        }
+
+        $values['date']       = self::formatDateOn($onCustomerClock['start']);
+        $values['start_time'] = $onCustomerClock['start']->format('h:i A');
+
+        $values['block'] = '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>'
+            . esc_html__('Your timezone:', 'rox-appointment-booking')
+            . '</strong></td><td style="padding: 8px; border: 1px solid #ddd;">'
+            . esc_html($values['date'] . ', ' . $values['start_time'] . ' (' . $zone . ')')
+            . '</td></tr>';
+
+        return $values;
+    }
+
+    /**
+     * The clock one e-mail is written on.
+     *
+     * Only the customer's own booking-confirmation e-mail follows the timezone
+     * the visitor booked in — every other e-mail, and every other recipient of
+     * this one, stays on site time. Empty means "no conversion at all", so the
+     * original formatting is used untouched.
+     *
+     * @param string $eventKey Event key.
+     * @param string $recipientType Recipient type.
+     * @param AppointmentModel|null $first First appointment of the booking.
+     * @return string Zone name, or '' for site time.
+     */
+    private static function readerZone(string $eventKey, string $recipientType, ?AppointmentModel $first): string
+    {
+        if ($eventKey !== 'booking_confirmed' || $recipientType !== EmailTemplateRegistry::RECIPIENT_CUSTOMER) {
+            return '';
+        }
+
+        if (!$first || !rox_appointment_booking_general_settings('timezone_selector_enable', false)) {
+            return '';
+        }
+
+        $zone = (string) ($first->customer_timezone ?? '');
+
+        if ($zone === '' || $zone === wp_timezone_string() || !function_exists('rox_appointment_booking_is_valid_timezone')) {
+            return '';
+        }
+
+        return rox_appointment_booking_is_valid_timezone($zone) ? $zone : '';
+    }
+
+    /**
+     * An appointment's stored site-local start and end, read on another zone.
+     *
+     * @param AppointmentModel $appointment Appointment.
+     * @param string $zone Zone name.
+     * @return array{start:\DateTime, end:\DateTime}|null Null when either end is unreadable.
+     */
+    private static function readOnZone(AppointmentModel $appointment, string $zone): ?array
+    {
+        try {
+            $timezone = new \DateTimeZone($zone);
+
+            $start = new \DateTime((string) $appointment->start_time, wp_timezone());
+            $end   = new \DateTime((string) $appointment->end_time, wp_timezone());
+
+            $start->setTimezone($timezone);
+            $end->setTimezone($timezone);
+        } catch (\Exception $e) {
+            return null;
+        }
+
+        return ['start' => $start, 'end' => $end];
+    }
+
+    /**
+     * A converted instant's own wall date in the site's date format.
+     *
+     * date_i18n() always renders on the site's zone, so the instant's offset is
+     * folded into the timestamp to get the date the reader actually sees.
+     *
+     * @param \DateTime $at Converted instant.
+     * @return string
+     */
+    private static function formatDateOn(\DateTime $at): string
+    {
+        return date_i18n((string) get_option('date_format'), $at->getTimestamp() + $at->getOffset());
+    }
+
     private static function formatDate(string $date): string
     {
         if ($date === '') {
@@ -748,6 +909,7 @@ class EmailPlaceholderResolver
 
         return $timestamp ? date_i18n((string) get_option('date_format'), $timestamp) : $date;
     }
+
 
     /**
      * Format a time for display.

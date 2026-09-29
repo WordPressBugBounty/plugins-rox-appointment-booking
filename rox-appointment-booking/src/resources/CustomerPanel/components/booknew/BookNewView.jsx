@@ -6,7 +6,8 @@ import SlotPicker from "../ui/SlotPicker.jsx";
 import ChoiceCard from "./ChoiceCard.jsx";
 import { useToast } from "../../context/ToastContext.jsx";
 import { apiGet, apiPost } from "../../data/api.js";
-import { daySlotsFor, isDateOff } from "../../data/schedule.js";
+import { displaySlotsFor, isDisplayDateOff } from "../../data/schedule.js";
+import { getCustomerTimezone } from "../../../lib/timezone.js";
 import BookNewBootSkeleton, {
   ChoiceListSkeleton,
 } from "../skeletons/BookNewSkeleton.jsx";
@@ -268,11 +269,11 @@ export default function BookNewView({ onNavigate, prefill = null }) {
 
   // Whether a calendar date is unbookable (holiday > special day off > weekly
   // day_off) — shared with Reschedule via data/schedule.js.
-  const isDateDisabled = (dateStr) => isDateOff(schedule, dateStr);
+  const isDateDisabled = (dateStr) => isDisplayDateOff(schedule, dateStr);
 
   // Slots for the picked day, derived from the schedule (booked ones disabled).
   const daySlots = useMemo(
-    () => daySlotsFor(schedule, sel.day),
+    () => displaySlotsFor(schedule, sel.day),
     [schedule, sel.day]
   );
 
@@ -294,7 +295,15 @@ export default function BookNewView({ onNavigate, prefill = null }) {
 
   const selectSlot = (value) => {
     const found = daySlots.find((s) => s.value === value);
-    setSel((p) => ({ ...p, slot: value, slotLabel: found ? found.label : value }));
+    setSel((p) => ({
+      ...p,
+      slot: value,
+      slotLabel: found ? found.label : value,
+      // What the booking endpoint is given. Equal to `sel.day`/`value` unless a
+      // timezone shift moved this slot onto another site day.
+      siteDay: found?.siteDate || p.day,
+      siteSlot: found?.siteTime || value,
+    }));
   };
 
   const stepperSteps = steps.map((def, i) => ({
@@ -580,14 +589,17 @@ export default function BookNewView({ onNavigate, prefill = null }) {
       payment_type: "later",
       amount: price,
       original_amount: price,
+      // Recorded on the booking for the receipt and the e-mail only.
+      customer_timezone: getCustomerTimezone(),
       appointments: [
         {
           service_id: sel.service.id,
           agent_id: sel.agent ? sel.agent.id : null,
           category_id: sel.category ? sel.category.id : null,
           location_id: sel.location ? sel.location.id : null,
-          date: sel.day,
-          start_time: sel.slot,
+          // The site pair, not the customer's — see selectSlot().
+          date: sel.siteDay || sel.day,
+          start_time: sel.siteSlot || sel.slot,
           extra_service_ids: [],
           total_attendees: 1,
         },

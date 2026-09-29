@@ -44,7 +44,20 @@ const Group = ({ label, children }) => (
  * @param {Function} props.onChange        Receives the next overrides object.
  * @return {JSX.Element} The controls.
  */
-const PanelContentControls = ({ content, hasLocationStep, onChange }) => {
+const PanelContentControls = ({
+	content,
+	hasLocationStep,
+	// Whether the chosen design draws an illustrated sidebar on its first step.
+	// Off for a design that does not, so its fields are not offered at all.
+	showFirstStepSidebar = true,
+	// What the chosen design's step headings say before anyone rewrites them.
+	// A design that names none keeps the wording below, which is Style 1's.
+	stepHeadings,
+	// Whether that design puts the chosen category's name in front of the
+	// Services heading, which decides what the field is actually rewriting.
+	servicesHeadingFollowsCategory = true,
+	onChange,
+}) => {
 	const overrides = content || {};
 
 	// Fields emptied in this session. The attribute can't tell "cleared" from
@@ -76,6 +89,11 @@ const PanelContentControls = ({ content, hasLocationStep, onChange }) => {
 	// it. It is still only stored once they change it, and clearing the field
 	// drops the override — the default stays visible as the placeholder and
 	// is what the panel renders.
+	// What a step heading says before anyone rewrites it: the chosen design's
+	// wording where it names one, else the fallback passed in — which is the
+	// wording Style 1 has always shown.
+	const heading = (key, fallback) => stepHeadings?.[key] || fallback;
+
 	const field = (key, label, defaultText, help) => (
 		<TextControl
 			label={label}
@@ -90,6 +108,7 @@ const PanelContentControls = ({ content, hasLocationStep, onChange }) => {
 
 	return (
 		<>
+			{showFirstStepSidebar && (
 			<Group label={__("First step sidebar", "rox-appointment-booking")}>
 				<BaseControl
 					id="rox-booking-panel-sidebar-image"
@@ -193,6 +212,7 @@ const PanelContentControls = ({ content, hasLocationStep, onChange }) => {
 					__("If you have any questions", "rox-appointment-booking"),
 				)}
 			</Group>
+			)}
 
 			<Group label={__("Step headings", "rox-appointment-booking")}>
 				{/* The Location step is Pro's, and it only reaches the visitor
@@ -204,36 +224,56 @@ const PanelContentControls = ({ content, hasLocationStep, onChange }) => {
 					field(
 						"locationHeading",
 						__("Location step", "rox-appointment-booking"),
-						__("Select Location", "rox-appointment-booking"),
+						heading(
+							"locationHeading",
+							__("Select Location", "rox-appointment-booking"),
+						),
 					)}
 				{field(
 					"categoryHeading",
 					__("Category step", "rox-appointment-booking"),
-					__("Available Category", "rox-appointment-booking"),
+					heading(
+						"categoryHeading",
+						__("Available Category", "rox-appointment-booking"),
+					),
 				)}
 				{field(
 					"servicesHeading",
 					__("Services step", "rox-appointment-booking"),
-					__("Services", "rox-appointment-booking"),
-					__(
-						"Follows the chosen category's name, as in “Haircut Services”.",
-						"rox-appointment-booking",
+					heading(
+						"servicesHeading",
+						__("Services", "rox-appointment-booking"),
 					),
+					servicesHeadingFollowsCategory
+						? __(
+								"Follows the chosen category's name, as in “Haircut Services”.",
+								"rox-appointment-booking",
+							)
+						: undefined,
 				)}
 				{field(
 					"agentsHeading",
 					__("Agents step", "rox-appointment-booking"),
-					__("Select Agent", "rox-appointment-booking"),
+					heading(
+						"agentsHeading",
+						__("Select Agent", "rox-appointment-booking"),
+					),
 				)}
 				{field(
 					"dateTimeHeading",
 					__("Date & Time step", "rox-appointment-booking"),
-					__("Date & Time Selection", "rox-appointment-booking"),
+					heading(
+						"dateTimeHeading",
+						__("Date & Time Selection", "rox-appointment-booking"),
+					),
 				)}
 				{field(
 					"informationHeading",
 					__("Information step", "rox-appointment-booking"),
-					__("Customer Information", "rox-appointment-booking"),
+					heading(
+						"informationHeading",
+						__("Customer Information", "rox-appointment-booking"),
+					),
 				)}
 			</Group>
 

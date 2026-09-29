@@ -20,6 +20,7 @@ export default function PayNowModal({ order, onClose, onPaid }) {
   const [loading, setLoading] = useState(true); // loading config / Stripe.js
   const [available, setAvailable] = useState(true); // Stripe enabled + configured
   const [publishableKey, setPublishableKey] = useState("");
+  const [collectPostalCode, setCollectPostalCode] = useState(true);
   const [cardReady, setCardReady] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState("");
@@ -50,6 +51,7 @@ export default function PayNowModal({ order, onClose, onPaid }) {
           if (cancelled) return;
           const data = (res && res.data) || {};
           if (data.stripeEnable && data.stripe_key) {
+            setCollectPostalCode(data.stripeCollectPostalCode !== false);
             setPublishableKey(data.stripe_key);
             setLoading(false);
           } else {
@@ -104,7 +106,7 @@ export default function PayNowModal({ order, onClose, onPaid }) {
     try {
       stripeRef.current = window.Stripe(publishableKey);
       const elements = stripeRef.current.elements();
-      cardElementRef.current = elements.create("card", { hidePostalCode: false });
+      cardElementRef.current = elements.create("card", { hidePostalCode: !collectPostalCode });
       cardElementRef.current.mount(cardRef.current);
       cardElementRef.current.on("ready", () => !cancelled && setCardReady(true));
       cardElementRef.current.on("change", (event) => {
@@ -126,7 +128,7 @@ export default function PayNowModal({ order, onClose, onPaid }) {
         cardElementRef.current = null;
       }
     };
-  }, [publishableKey]);
+  }, [publishableKey, collectPostalCode]);
 
   const handlePay = async () => {
     if (!cardReady || processing) return;

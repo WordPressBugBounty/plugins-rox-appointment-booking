@@ -6,7 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
-use RoxAppointmentBooking\Supports\Security;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\Customer\Services\CustomerService;
 use RoxAppointmentBooking\Modules\Agent\Services\AgentService;
 use RoxAppointmentBooking\Modules\Service\Services\ServiceService;
@@ -100,7 +100,7 @@ class GetAppointment extends AbstractREST
             $isOwnBooking = $currentCustomerId
                 && (int) ($appointmentData['customer_id'] ?? 0) === $currentCustomerId;
 
-            if (!Security::canManageBookings()) {
+            if (Permissions::scopeFor('appointment') !== Permissions::SCOPE_ALL) {
                 // Otherwise only an agent may read a single record, and only their
                 // own. Note the checks are NOT conditional on $isAgentUser: a panel
                 // user who is not an agent must be denied, not waved through to a
@@ -185,6 +185,10 @@ class GetAppointment extends AbstractREST
                     'end_time' => $this->formatTimeForFrontend($appointmentData['end_time'] ?? null),
                 ],
                 'date_time' => $this->formatAppointmentDateTime($appointmentData),
+                // Read-only note. The admin always works on the site's clock;
+                // this only says what the customer saw when they booked, and is
+                // empty on every booking made without a timezone selected.
+                'customer_timezone_note' => $this->customerTimezoneNote($appointmentData),
                 'service_title' => $service ? ($service->title ?? '') : '',
                 'total_duration' => $this->formatDurationFromMinutes($appointmentDurationMinutes),
                 'service_duration' => $service ? $service->getFormattedDuration() : '',
@@ -239,7 +243,7 @@ class GetAppointment extends AbstractREST
             // assigned to serve, an agent's view is the appointment plus the
             // customer to contact, never what was charged. Stripped here rather
             // than only hidden in the UI, so the data never reaches them.
-            if (!Security::canManageBookings()) {
+            if (!Permissions::can('order.view')) {
                 $stripFields = [
                     'order_id',
                     'order_number',
@@ -311,7 +315,7 @@ class GetAppointment extends AbstractREST
             }
 
             $query->where('customer_id', $currentCustomerId);
-        } elseif (!Security::canManageBookings()) {
+        } elseif (Permissions::scopeFor('appointment') !== Permissions::SCOPE_ALL) {
             // Only an agent may see a scoped list. Anything else that gets past the
             // panel permission check must not fall through to an UNFILTERED list.
             if (!$isAgentUser) {
@@ -394,7 +398,7 @@ class GetAppointment extends AbstractREST
             return false;
         }
 
-        return Security::canAccessPanel();
+        return Permissions::can('appointment.view');
     }
 
     /**
@@ -676,6 +680,39 @@ class GetAppointment extends AbstractREST
      * @param array $appointmentData
      * @return string
      */
+    /**
+     * What this appointment read as on the customer's own clock.
+     *
+     * Informational only — the admin's calendar, forms and every other screen
+     * stay on the site's timezone. Empty unless the booking actually carries a
+     * different one, so nothing is added for a site not using the feature.
+     *
+     * @param array $appointmentData Appointment row.
+     * @return string Note, or an empty string.
+     */
+    private function customerTimezoneNote(array $appointmentData): string
+    {
+        $zone = (string) ($appointmentData['customer_timezone'] ?? '');
+
+        if ($zone === '' || $zone === wp_timezone_string() || !rox_appointment_booking_is_valid_timezone($zone)) {
+            return '';
+        }
+
+        try {
+            $start = new \DateTime((string) ($appointmentData['start_time'] ?? ''), wp_timezone());
+            $start->setTimezone(new \DateTimeZone($zone));
+        } catch (\Exception $exception) {
+            return '';
+        }
+
+        return sprintf(
+            // translators: 1: timezone name, 2: date and time on that timezone
+            esc_html__('%1$s — %2$s', 'rox-appointment-booking'),
+            $zone,
+            $start->format('M j, Y g:i A')
+        );
+    }
+
     private function formatAppointmentDateTime(array $appointmentData): string
     {
         $date = $appointmentData['date'] ?? '';
@@ -689,8 +726,16 @@ class GetAppointment extends AbstractREST
             return '';
         }
 
-        $dateLabel = wp_date('F j, Y', strtotime($date));
-        $timeLabel = $startTime ? wp_date('g:i A', strtotime($startTime)) : '';
+        $dateLabel = rox_appointment_booking_format_site_datetime('F j, Y', $date);
+        $timeLabel = rox_appointment_booking_format_site_datetime('g:i A', $startTime);
+
+        // The appointment itself — staff need the time the customer is actually
+        // with the agent, not the stretch the slot list ran together.
+        $endTime = (string) ($appointmentData['end_time'] ?? '');
+
+        if ($timeLabel !== '' && $endTime !== '') {
+            $timeLabel .= ' – ' . rox_appointment_booking_format_site_datetime('g:i A', $endTime);
+        }
 
         return $timeLabel ? $dateLabel . ' at ' . $timeLabel : $dateLabel;
     }

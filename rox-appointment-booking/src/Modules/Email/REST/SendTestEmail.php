@@ -8,6 +8,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\Email\Services\EmailService;
 use RoxAppointmentBooking\Modules\Email\Services\EmailTemplateRegistry;
 
@@ -61,7 +62,7 @@ class SendTestEmail extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !current_user_can('manage_options')) {
+        if (!is_user_logged_in() || !Permissions::can('settings_email.edit')) {
             return false;
         }
 

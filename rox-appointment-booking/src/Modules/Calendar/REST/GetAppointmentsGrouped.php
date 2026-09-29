@@ -6,7 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
-use RoxAppointmentBooking\Supports\Security;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\Appointment\Data\AppointmentModel;
 use RoxAppointmentBooking\Modules\Appointment\Services\AppointmentService;
 use RoxAppointmentBooking\Modules\Agent\Services\AgentService;
@@ -70,7 +70,7 @@ class GetAppointmentsGrouped extends AbstractREST
             // Non-managers only ever see their own agent's appointments. A panel
             // user who is not an agent (or whose login has no agent record) must
             // NOT fall through to an unfiltered query — deny instead.
-            if (!Security::canManageBookings()) {
+            if (Permissions::scopeFor('appointment') !== Permissions::SCOPE_ALL) {
                 $currentAgentId = AppointmentService::isAgentUser()
                     ? AppointmentService::getCurrentAgentId()
                     : null;
@@ -147,9 +147,15 @@ class GetAppointmentsGrouped extends AbstractREST
                     }
                 }
 
-                // Format time as "10:00 AM"
+                // Format time as "10:00 AM – 10:45 AM" — the appointment
+                // itself, not the stretch the slot list ran together.
                 $startTime     = $apptData['start_time'] ?? '';
                 $timeFormatted = $startTime ? gmdate('g:i A', strtotime($startTime)) : '';
+                $endTime       = (string) ($apptData['end_time'] ?? '');
+
+                if ($timeFormatted && $endTime !== '') {
+                    $timeFormatted .= ' – ' . gmdate('g:i A', strtotime($endTime));
+                }
 
                 $event = [
                     'id'    => $apptData['id'],
@@ -200,7 +206,7 @@ class GetAppointmentsGrouped extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !Security::canAccessPanel()) {
+        if (!is_user_logged_in() || !Permissions::can('appointment.view')) {
             return false;
         }
 

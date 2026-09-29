@@ -134,6 +134,13 @@ class LoginFormShortcode
      */
     public function renderShortcode($atts = []): string
     {
+        // The config printed below carries a fresh `wp_rest` nonce. A cached
+        // page would hand every later visitor the first visitor's nonce, which
+        // expires and then fails the login request with a 403.
+        if (!defined('DONOTCACHEPAGE')) {
+            define('DONOTCACHEPAGE', true);
+        }
+
         $atts = shortcode_atts([
             'redirect' => '',
         ], $atts, self::SHORTCODE);

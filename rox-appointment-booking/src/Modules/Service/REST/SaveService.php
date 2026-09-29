@@ -6,6 +6,9 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\Access\Permissions;
+use RoxAppointmentBooking\Supports\Access\OwnedRecords;
+use RoxAppointmentBooking\Modules\Appointment\Services\AppointmentService;
 use RoxAppointmentBooking\Modules\Service\Data\ServiceModel;
 use RoxAppointmentBooking\Modules\Category\Data\CategoryModel;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceCategoryRelationModel;
@@ -63,7 +66,7 @@ class SaveService extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !current_user_can('manage_options')) {
+        if (!is_user_logged_in() || !Permissions::can('service.edit')) {
             return false;
         }
 
@@ -102,6 +105,15 @@ class SaveService extends AbstractREST
             );
         }
         $params = $request->get_params();
+
+        if ($id && !OwnedRecords::ownsService((int) $id)) {
+            return rox_appointment_booking_rest_response(
+                data : null,
+                code : 403,
+                message : esc_html__('You are not allowed to edit this service.', 'rox-appointment-booking'),
+                headers : ['status' => 403]
+            );
+        }
 
         // Validate required fields for new services only
         if (!$id) {
@@ -336,6 +348,7 @@ class SaveService extends AbstractREST
                 }
             }
 
+
             // Group booking is a Pro feature — block a non-Pro save from newly
             // setting capacity to 'group'. But if the service was ALREADY 'group'
             // before this save (Pro active at the time), leave it alone: the form
@@ -401,6 +414,21 @@ class SaveService extends AbstractREST
             if (empty($params['agent_ids']) && !empty($params['agent_id'])) {
                 $params['agent_ids'] = $params['agent_id'];
             }
+
+            // An own-scoped user keeps themselves assigned, or the service drops out of their reach.
+            if (OwnedRecords::serviceIds() !== null && (!$id || isset($params['agent_ids']))) {
+                $ownAgentId = AppointmentService::getCurrentAgentId();
+                if ($ownAgentId) {
+                    $agentIds = ServiceService::normalizeIds($params['agent_ids'] ?? []);
+                    $params['agent_ids'] = array_values(array_unique(array_merge(array_map('intval', $agentIds), [$ownAgentId])));
+                }
+            }
+
+            // Fields that belong to another plugin's columns on this row — the
+            // service form's buffer time among them. It sanitises its own, and
+            // decides what an absent field means; anything it does not claim is
+            // dropped by the fillable list below.
+            $params = apply_filters('rox_appointment_booking_service_save_params', $params, $id, $service);
 
             // Remove relationship arrays from params before saving to service table
             $relationship_fields = ['category_ids', 'location', 'agent_ids', 'extra_services'];

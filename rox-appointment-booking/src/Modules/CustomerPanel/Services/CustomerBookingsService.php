@@ -4,6 +4,7 @@ namespace RoxAppointmentBooking\Modules\CustomerPanel\Services;
 
 use RoxAppointmentBooking\Modules\Agent\Services\AgentService;
 use RoxAppointmentBooking\Modules\Service\Data\ServiceModel;
+
 use RoxAppointmentBooking\Modules\Order\Data\OrderModel;
 use RoxAppointmentBooking\Modules\Appointment\Data\AppointmentModel;
 
@@ -142,8 +143,22 @@ class CustomerBookingsService
         ]);
         $withText = implode(' · ', $withParts);
 
-        $startLabel = !empty($appt['start_time']) ? gmdate('g:i A', strtotime($appt['start_time'])) : '';
-        $endLabel = !empty($appt['end_time']) ? gmdate('g:i A', strtotime($appt['end_time'])) : '';
+        // Read on the customer's clock when they have one. A shift can move the
+        // day as well as the hour, so `$date` is re-derived from the same
+        // conversion rather than left on the site's calendar.
+        $zone = $this->viewerTimezone($appt);
+        $startOn = $this->readOn((string) ($appt['start_time'] ?? ''), $zone);
+        $endOn = $this->readOn((string) ($appt['end_time'] ?? ''), $zone);
+
+        if ($startOn) {
+            $date = $startOn->format('Y-m-d');
+        }
+
+        // Both ends are the appointment itself, which is also what the
+        // "⏱ 5m" beside them says — a time on offer may have read longer
+        // (see ServiceService::bufferInTimeSlots()), the record does not.
+        $startLabel = $startOn ? $startOn->format('g:i A') : '';
+        $endLabel = $endOn ? $endOn->format('g:i A') : '';
         $timeMeta = $startLabel ? ('🕐 ' . $startLabel . ($endLabel ? ' – ' . $endLabel : '')) : '';
         $durationLabel = $this->formatDuration($durationMinutes);
 
@@ -160,6 +175,9 @@ class CustomerBookingsService
             'order_id' => $order ? (int) $order->getID() : null,
             'service_id' => !empty($appt['service_id']) ? (int) $appt['service_id'] : null,
             'agent_id' => !empty($appt['agent_id']) ? (int) $appt['agent_id'] : null,
+            // The booking's own extra services, so a reschedule asks for slots
+            // the whole booking still fits. Ids only, whole and positive.
+            'extra_service_ids' => array_values(array_filter(array_map('intval', array_filter(is_array($appt['extra_services'] ?? null) ? $appt['extra_services'] : [], 'is_scalar')))),
             'category_id' => !empty($appt['category_id']) ? (int) $appt['category_id'] : null,
             'location_id' => !empty($appt['location_id']) ? (int) $appt['location_id'] : null,
             'date' => $date,
@@ -202,6 +220,59 @@ class CustomerBookingsService
     /**
      * Detail-drawer payload (Booking Information / Payment / Notes).
      */
+    /**
+     * The clock this customer should read their appointments on.
+     *
+     * Their saved preference first, then whatever zone they had selected when
+     * they made this particular booking, then the site's. Display only — the
+     * reschedule endpoint still speaks site-local wall time.
+     *
+     * @param array $appt Appointment row.
+     * @return string|null Zone name, or null to leave everything on site time.
+     */
+    private function viewerTimezone(array $appt): ?string
+    {
+        if (!rox_appointment_booking_general_settings('timezone_selector_enable', false)) {
+            return null;
+        }
+
+        $customer = CustomerPanelService::currentCustomer();
+
+        foreach ([$customer ? (string) $customer->timezone : '', (string) ($appt['customer_timezone'] ?? '')] as $candidate) {
+            if (rox_appointment_booking_is_valid_timezone($candidate) && $candidate !== wp_timezone_string()) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * A stored site datetime, read on the given zone.
+     *
+     * @param string $datetime Stored datetime.
+     * @param string|null $zone Zone, or null for no conversion.
+     * @return \DateTime|null
+     */
+    private function readOn(string $datetime, ?string $zone): ?\DateTime
+    {
+        if ($datetime === '') {
+            return null;
+        }
+
+        try {
+            $at = new \DateTime($datetime, wp_timezone());
+
+            if ($zone !== null) {
+                $at->setTimezone(new \DateTimeZone($zone));
+            }
+
+            return $at;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
     private function buildDetail(array $appt, array $ctx): array
     {
         $order = $ctx['order'];

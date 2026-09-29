@@ -6,6 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\Category\Data\CategoryModel;
 
 /**
@@ -57,7 +58,9 @@ class SaveCategory extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !current_user_can('manage_options')) {
+        $capability = $request->get_param('id') ? 'service.edit' : 'service.create';
+
+        if (!is_user_logged_in() || !Permissions::can($capability)) {
             return false;
         }
 

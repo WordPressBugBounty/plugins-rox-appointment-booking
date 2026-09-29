@@ -37,11 +37,15 @@ class AppointmentModel extends AbstractModel
         'date',
         'start_time',
         'end_time',
+        // The buffer a booking was written with, and the stretch of schedule it
+        // blocks: claimed by the plugin that owns those columns through
+        // rox_appointment_booking_model_fillable, exactly like the service row.
         'coupon_id',
         'purchase_details',
         'status',
         'payment_status',
         'total_attendees',
+        'customer_timezone',
         'internal_notes',
         'send_notification',
         'reminder_notification',
@@ -64,6 +68,8 @@ class AppointmentModel extends AbstractModel
         'agent_id' => 'int',
         'customer_id' => 'int',
         'total_attendees' => 'int',
+        'buffer_before' => 'int',
+        'buffer_after' => 'int',
         'location_id' => 'int',
         'category_id' => 'int',
     ];

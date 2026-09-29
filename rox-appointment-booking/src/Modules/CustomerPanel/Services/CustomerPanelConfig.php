@@ -45,6 +45,11 @@ class CustomerPanelConfig
             ? wp_get_attachment_url((int) $customer->thumbnail_id)
             : '';
 
+        $timezoneEnabled = (bool) filter_var(
+            rox_appointment_booking_general_settings('timezone_selector_enable', false),
+            FILTER_VALIDATE_BOOLEAN
+        );
+
         return [
             'nonce'       => wp_create_nonce('wp_rest'),
             // The language the customer is reading the panel in, passed back as
@@ -76,6 +81,16 @@ class CustomerPanelConfig
             // White Label (Pro): the header shows the business logo and portal
             // title instead of the plugin's own when `enabled` is true.
             'branding' => rox_appointment_booking_branding(),
+            // Same shape the booking panel is handed, so one module answers for
+            // both surfaces. `customerTimezone` is this customer's saved
+            // preference, which outranks the browser's guess here — unlike on
+            // the public panel, we know who is looking.
+            'timezone' => [
+                'selectorEnabled' => $timezoneEnabled,
+                'siteTimezone' => wp_timezone_string(),
+                'customerTimezone' => $customer ? (string) $customer->timezone : '',
+                'zones' => $timezoneEnabled ? rox_appointment_booking_timezone_choices() : [],
+            ],
             'currentUser' => [
                 'name'  => $userInfo->getFullName(),
                 'email' => $userInfo->getEmail(),

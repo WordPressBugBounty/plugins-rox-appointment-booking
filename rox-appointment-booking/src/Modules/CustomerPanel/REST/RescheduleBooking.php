@@ -6,9 +6,12 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\CustomerPanel\Services\CustomerPanelService;
 use RoxAppointmentBooking\Modules\Appointment\Data\AppointmentModel;
 use RoxAppointmentBooking\Modules\Service\Data\ServiceModel;
+use RoxAppointmentBooking\Modules\Service\Services\ServiceService;
+use RoxAppointmentBooking\Modules\Appointment\REST\GetAppointmentSchedule;
 
 if (! defined('ABSPATH')) exit; // Exit if accessed directly
 
@@ -58,7 +61,7 @@ class RescheduleBooking extends AbstractREST
         if (CustomerPanelService::isCurrentUserCustomer()) {
             $allowed = rox_appointment_booking_customer_can_reschedule();
         } elseif (!current_user_can('manage_options') && current_user_can('rox_appointment_booking_agent')) {
-            $allowed = rox_appointment_booking_agent_can_reschedule();
+            $allowed = Permissions::can('appointment.reschedule');
         } else {
             $allowed = true;
         }
@@ -124,9 +127,38 @@ class RescheduleBooking extends AbstractREST
         $startDateTime = $date . ' ' . $startTime;
         $endDateTime = gmdate('Y-m-d H:i:s', strtotime($startDateTime) + $durationMinutes * 60);
 
+        // The booking keeps the buffer it was booked with; only the stretch of
+        // schedule it blocks moves with it.
+        $block = ServiceService::movedBlockColumns($booking, $startDateTime, $endDateTime);
+
+        // WORKING HOURS: the times offered for the new date already leave room
+        // for the whole booking, buffer time included, so anything else sent
+        // here is refused rather than parked outside the working day.
+        $workingWindows = GetAppointmentSchedule::workingWindowsForDate(
+            !empty($booking->agent_id) ? (int) $booking->agent_id : null,
+            !empty($booking->service_id) ? (int) $booking->service_id : null,
+            $date
+        );
+
+        if (
+            is_array($workingWindows)
+            && !GetAppointmentSchedule::blockFitsWindows(
+                $workingWindows,
+                (string) ($block['block_start_time'] ?? $startDateTime),
+                (string) ($block['block_end_time'] ?? $endDateTime)
+            )
+        ) {
+            return rox_appointment_booking_rest_response(
+                data: null,
+                code: 409,
+                message: esc_html__('This time is outside the working hours for that day, or it runs into a break. Please choose a different time.', 'rox-appointment-booking'),
+                headers: ['status' => 409]
+            );
+        }
+
         // Agent conflict check (skipped for agent-less/service-capacity bookings).
         $agentId = (int) ($booking->agent_id ?? 0);
-        if ($agentId && $this->hasConflict($agentId, $id, $date, $startDateTime, $endDateTime)) {
+        if ($agentId && $this->hasConflict($agentId, $id, $date, $startDateTime, $endDateTime, $block)) {
             return rox_appointment_booking_rest_response(
                 data: null,
                 code: 409,
@@ -142,7 +174,9 @@ class RescheduleBooking extends AbstractREST
             'date' => $date,
             'start_time' => $startDateTime,
             'end_time' => $endDateTime,
-        ]);
+            // The block range moves with the booking, and is simply absent
+            // without the Pro plugin that owns those columns.
+        ] + $block);
 
         do_action(
             'rox_appointment_booking_email_event',
@@ -190,15 +224,19 @@ class RescheduleBooking extends AbstractREST
         return $duration > 0 ? $duration : 30;
     }
 
-    private function hasConflict(int $agentId, int $excludeId, string $date, string $startDateTime, string $endDateTime): bool
+    /**
+     * Whether the agent is busy at the new time. Buffer time (Pro) widens both
+     * sides of the overlap test, see ServiceService::scheduleOverlap().
+     *
+     * @param array $block Block range at the new time (ServiceService::movedBlockColumns()).
+     */
+    private function hasConflict(int $agentId, int $excludeId, string $date, string $startDateTime, string $endDateTime, array $block = []): bool
     {
         return AppointmentModel::query()
             ->where('agent_id', $agentId)
-            ->where('date', $date)
             ->where('id', '!=', $excludeId)
             ->whereNotIn('status', ['cancelled', 'canceled', 'rejected'])
-            ->where('start_time', '<', $endDateTime)
-            ->where('end_time', '>', $startDateTime)
+            ->where(ServiceService::scheduleOverlap($date, $startDateTime, $endDateTime, $block))
             ->exists();
     }
 }

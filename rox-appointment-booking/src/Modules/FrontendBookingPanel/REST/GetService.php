@@ -8,6 +8,7 @@ use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
 use RoxAppointmentBooking\Modules\Service\Data\ServiceModel;
+use RoxAppointmentBooking\Modules\Service\Services\ServiceService;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceCategoryRelationModel;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceLocationRelationModel;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceAgentRelationModel;
@@ -85,6 +86,7 @@ class GetService extends AbstractREST
             'price' => $service->price,
             'hide_price_booking_panel' => (bool) $service->hide_price_booking_panel,
             'duration' => (int) $service->duration,
+
             // Agent-optional booking is a Pro feature — flag is false unless Pro is active.
             'allow_without_agent' => defined('ROX_APPOINTMENT_BOOKING_PRO_VERSION') && (bool) $service->allow_without_agent,
             // Group booking is a Pro feature — degrade to 'alone' if Pro isn't active.

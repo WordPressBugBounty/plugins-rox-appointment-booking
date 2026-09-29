@@ -670,4 +670,296 @@ class ServiceService
 
         return implode(' ', $parts);
     }
+
+    /**
+     * Whether this service uses buffer time at all (the service's Settings tab
+     * → "Add buffer time").
+     *
+     * Buffer time is a Pro feature: the Pro plugin owns the columns behind it
+     * and every rule about them, and answers serviceBufferSettings(). Nothing
+     * answering means there is no buffer to switch on, so this is false.
+     *
+     * @param ServiceModel|null $service Service being booked.
+     * @return bool
+     */
+    public static function bufferEnabled(?ServiceModel $service): bool
+    {
+        return !empty(self::serviceBufferSettings($service)['buffer_enable']);
+    }
+
+    /**
+     * Whether a time on offer reads to the end of the wrap-up (the service's
+     * Settings tab → "Include buffer in displayed slot time"). It changes only
+     * the lists people choose from — the booking panels and the admin slot
+     * picker — where running the times together means a customer sees no gap
+     * between them. It does not change which times are offered (those always
+     * sit one whole booking apart), and nothing that records a booking uses it:
+     * the confirmation e-mail, the customer's list and the admin views all show
+     * the appointment itself. False without the plugin that owns the setting,
+     * because there is no buffer to read into a label then.
+     *
+     * @param ServiceModel|null $service Service being booked.
+     * @return bool
+     */
+    public static function bufferInTimeSlots(?ServiceModel $service): bool
+    {
+        return !empty(self::serviceBufferSettings($service)['buffer_in_time_slots']);
+    }
+
+    /**
+     * A service's buffer settings, as the plugin that owns them reports them.
+     *
+     * The free plugin stores none of this and reads no column for it: it asks,
+     * and an unanswered filter means the site has no buffer time — not that it
+     * is switched off. That is what keeps the paid feature out of the free
+     * plugin (WordPress.org guideline 5) while every free code path above
+     * carries on working on a schedule without buffers.
+     *
+     * @param ServiceModel|null $service Service being booked.
+     * @return array buffer_enable, buffer_before, buffer_after, buffer_in_time_slots — empty when nothing answers.
+     */
+    public static function serviceBufferSettings(?ServiceModel $service): array
+    {
+        if (!$service) {
+            return [];
+        }
+
+        $settings = apply_filters('rox_appointment_booking_service_buffer_settings', [], $service);
+
+        return is_array($settings) ? $settings : [];
+    }
+
+    /**
+     * Whether the booking panels label a time as a range ("8:05 - 8:10")
+     * instead of just its start (Settings → General → Time Slot → "Show a time
+     * range"). Site-wide, so a customer meets one style of time wherever
+     * they look; off by default. Display only — it changes no booking and no
+     * time on offer, and it is a free setting: without buffer time a range
+     * simply runs from the start of the appointment to its end.
+     *
+     * @return bool
+     */
+    public static function showSlotTimeRange(): bool
+    {
+        return filter_var(
+            rox_appointment_booking_general_settings('show_slot_time_range', false),
+            FILTER_VALIDATE_BOOLEAN
+        );
+    }
+
+    /**
+     * How long the label of a time on offer runs, in minutes.
+     *
+     * The appointment itself — extras included — unless something extends it,
+     * which is what "Include buffer in displayed slot time" does. Only the lists
+     * people choose from use this; nothing that records a booking does.
+     *
+     * @param int $appointment_minutes The appointment's own length, extras included.
+     * @param ServiceModel|null $service Service being booked.
+     * @param int $buffer_after Wrap-up minutes of the service, as the grid counted them.
+     * @return int
+     */
+    public static function slotLabelMinutes(int $appointment_minutes, ?ServiceModel $service, int $buffer_after = 0): int
+    {
+        return max(
+            0,
+            (int) apply_filters(
+                'rox_appointment_booking_slot_label_minutes',
+                $appointment_minutes,
+                $service,
+                $buffer_after
+            )
+        );
+    }
+
+    /**
+     * Preparation time: minutes the agent's schedule stays blocked before an
+     * appointment of this service starts.
+     *
+     * @param ServiceModel|null $service Service to read the buffer from.
+     * @return int Minutes, 0 when there is no buffer.
+     */
+    public static function bufferBeforeMinutes(?ServiceModel $service): int
+    {
+        return max(0, (int) (self::serviceBufferSettings($service)['buffer_before'] ?? 0));
+    }
+
+    /**
+     * Wrap-up time: minutes the agent's schedule stays blocked after an
+     * appointment of this service ends.
+     *
+     * @param ServiceModel|null $service Service to read the buffer from.
+     * @return int Minutes, 0 when there is no buffer.
+     */
+    public static function bufferAfterMinutes(?ServiceModel $service): int
+    {
+        return max(0, (int) (self::serviceBufferSettings($service)['buffer_after'] ?? 0));
+    }
+
+    /**
+     * Preparation time an existing booking holds, as snapshotted on its row
+     * when it was written — a later change to the service's buffer does not
+     * move bookings that already exist.
+     *
+     * @param AppointmentModel|null $appointment Booking to read the buffer from.
+     * @return int Minutes, 0 when there is no buffer.
+     */
+    public static function appointmentBufferBeforeMinutes(?AppointmentModel $appointment): int
+    {
+        return self::appointmentBufferMinutes($appointment, 'before');
+    }
+
+    /**
+     * Wrap-up time an existing booking holds, as snapshotted on its row.
+     *
+     * @param AppointmentModel|null $appointment Booking to read the buffer from.
+     * @return int Minutes, 0 when there is no buffer.
+     */
+    public static function appointmentBufferAfterMinutes(?AppointmentModel $appointment): int
+    {
+        return self::appointmentBufferMinutes($appointment, 'after');
+    }
+
+    /**
+     * The booking-row columns that carry buffer time: the service's buffer as
+     * it stands now — snapshotted, so a later change to the service never moves
+     * this booking — and the stretch of schedule it blocks.
+     *
+     * Empty when nothing answers, and callers spread it into the row they are
+     * building, so a site without the Pro plugin writes no buffer column at all
+     * (it does not have them).
+     *
+     * @param ServiceModel|null $service Service being booked.
+     * @param string|null $start_time Booking start (a full datetime).
+     * @param string|null $end_time Booking end (a full datetime, on the next day when the booking runs past midnight).
+     * @return array buffer_before, buffer_after, block_start_time, block_end_time — or empty.
+     */
+    public static function bufferColumns(?ServiceModel $service, ?string $start_time, ?string $end_time): array
+    {
+        return self::blockColumns($service, $start_time, $end_time);
+    }
+
+    /**
+     * The block range of a booking being moved to a new time. It keeps the
+     * buffer snapshotted when it was booked — read as stored, so a move made
+     * while the feature is unavailable neither wipes nor loses it — and only
+     * the range is restamped around the new interval.
+     *
+     * @param AppointmentModel $booking Booking being moved.
+     * @param string|null $start_time New start (a full datetime).
+     * @param string|null $end_time New end (a full datetime).
+     * @return array block_start_time, block_end_time — or empty.
+     */
+    public static function movedBlockColumns(AppointmentModel $booking, ?string $start_time, ?string $end_time): array
+    {
+        return self::blockColumns($booking, $start_time, $end_time);
+    }
+
+    /**
+     * The buffer columns for a row being written, asked of whoever owns them.
+     *
+     * @param ServiceModel|AppointmentModel|null $record Service being booked, or the booking being moved.
+     * @param string|null $start_time Interval start (a full datetime).
+     * @param string|null $end_time Interval end (a full datetime).
+     * @return array Columns to write, empty when nothing answers.
+     */
+    private static function blockColumns(?object $record, ?string $start_time, ?string $end_time): array
+    {
+        if (!$record) {
+            return [];
+        }
+
+        $columns = apply_filters(
+            'rox_appointment_booking_booking_block_columns',
+            [],
+            $record,
+            $start_time,
+            $end_time
+        );
+
+        return is_array($columns) ? $columns : [];
+    }
+
+    /**
+     * Query constraint matching bookings whose schedule overlaps a new
+     * booking's.
+     *
+     * On its own this is the plain test the plugin has always used: same date,
+     * start before the new end, end after the new start. Buffer time widens it
+     * on both sides, which is why the block columns are passed along — whoever
+     * owns them can return a constraint that compares those instead.
+     *
+     * @param string $date Booking date (Y-m-d).
+     * @param string $start_time Booking start, as the raw test compares it.
+     * @param string $end_time Booking end, as the raw test compares it.
+     * @param array $buffer Columns from bufferColumns().
+     * @return \Closure For AppointmentModel::query()->where().
+     */
+    public static function scheduleOverlap(string $date, string $start_time, string $end_time, array $buffer): \Closure
+    {
+        $raw = function ($query) use ($date, $start_time, $end_time) {
+            $query->where('date', $date)
+                  ->where('start_time', '<', $end_time)
+                  ->where('end_time', '>', $start_time);
+        };
+
+        $overlap = apply_filters(
+            'rox_appointment_booking_schedule_overlap',
+            $raw,
+            $date,
+            $start_time,
+            $end_time,
+            $buffer
+        );
+
+        return $overlap instanceof \Closure ? $overlap : $raw;
+    }
+
+    /**
+     * Whether an overlapping booking only reaches the new one through a buffer —
+     * the two appointments themselves do not overlap — so the error can say
+     * preparation / wrap-up time is the reason.
+     *
+     * False on its own: without buffer time an overlap is always a real one.
+     *
+     * @param AppointmentModel $booking Booking found by scheduleOverlap().
+     * @param string $start_time New booking start (a full datetime).
+     * @param string $end_time New booking end (a full datetime).
+     * @return bool
+     */
+    public static function overlapsOnlyThroughBuffer(AppointmentModel $booking, string $start_time, string $end_time): bool
+    {
+        return (bool) apply_filters(
+            'rox_appointment_booking_overlap_is_buffer_only',
+            false,
+            $booking,
+            $start_time,
+            $end_time
+        );
+    }
+
+    /**
+     * One side of the buffer an existing booking holds, asked of whoever owns
+     * the snapshot on its row.
+     *
+     * @param AppointmentModel|null $appointment Booking to read the buffer from.
+     * @param string $side 'before' or 'after'.
+     * @return int Minutes, floored at 0.
+     */
+    private static function appointmentBufferMinutes(?AppointmentModel $appointment, string $side): int
+    {
+        if (!$appointment) {
+            return 0;
+        }
+
+        return max(
+            0,
+            (int) apply_filters(
+                'rox_appointment_booking_appointment_buffer_minutes',
+                0,
+                $appointment,
+                $side
+            )
+        );
+    }
 }

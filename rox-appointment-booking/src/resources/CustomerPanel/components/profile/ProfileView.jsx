@@ -4,6 +4,11 @@ import Field from "../ui/Field.jsx";
 import { useToast } from "../../context/ToastContext.jsx";
 import { apiGet, apiPost, apiUpload } from "../../data/api.js";
 import { genderOptions } from "../../data/mockData.js";
+import {
+  setCustomerTimezone,
+  timezoneSelectorEnabled,
+  timezoneZones,
+} from "../../../lib/timezone.js";
 import ProfileSkeleton from "../skeletons/ProfileSkeleton.jsx";
 
 // Gender round-trips as a lowercase value in the DB (matches the admin form) but
@@ -51,6 +56,7 @@ const EMPTY_FORM = {
   phone: "",
   dob: "",
   gender: "",
+  timezone: "",
 };
 const EMPTY_PREFS = { email: true, sms: false, marketing: false };
 
@@ -63,6 +69,7 @@ function toForm(profile) {
     phone: profile.phone || "",
     dob: profile.dob || "",
     gender: GENDER_TO_LABEL[profile.gender] || "",
+    timezone: profile.timezone || "",
   };
 }
 
@@ -122,9 +129,13 @@ export default function ProfileView({ currentUser = {} }) {
         phone: form.phone,
         dob: form.dob,
         gender: GENDER_TO_VALUE[form.gender] || "",
+        timezone: form.timezone,
         prefs,
       });
       if (res && res.data) applyProfile(res.data);
+      // Apply it to this page too, so the bookings list redraws on the new
+      // clock without a reload.
+      if (form.timezone) setCustomerTimezone(form.timezone);
       showToast("success", "Profile updated", "Your changes have been saved.");
     } catch (e) {
       showToast(
@@ -191,6 +202,10 @@ export default function ProfileView({ currentUser = {} }) {
   // Show a blank leading option when no gender is set, so an unset field doesn't
   // masquerade as the first real option.
   const genderFieldOptions = form.gender ? genderOptions : ["", ...genderOptions];
+
+  // This Field renders a plain list of strings, so only the identifiers are
+  // taken. The blank leading row means "follow the site's timezone".
+  const timezoneFieldOptions = ["", ...timezoneZones().map((zone) => zone.value)];
 
   return (
     <>
@@ -260,6 +275,18 @@ export default function ProfileView({ currentUser = {} }) {
               options={genderFieldOptions}
             />
           </div>
+          {/* Only offered when Settings > General switches the feature on.
+              Identifiers rather than pretty names: they are unambiguous, and
+              a native select lets a customer type to jump to theirs. */}
+          {timezoneSelectorEnabled() && (
+            <Field
+              label="Timezone"
+              type="select"
+              value={form.timezone}
+              onChange={set("timezone")}
+              options={timezoneFieldOptions}
+            />
+          )}
           <div className="profile-actions">
             <Button variant="secondary" onClick={handleCancel} disabled={saving}>
               Cancel

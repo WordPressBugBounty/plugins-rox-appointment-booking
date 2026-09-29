@@ -6,7 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
-use RoxAppointmentBooking\Supports\Security;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 
 /**
  * Class UserMenu
@@ -68,7 +68,7 @@ class UserMenu extends AbstractREST
         if (!wp_verify_nonce($request->get_header('X-WP-Nonce'), 'wp_rest')) {
             return false;
         }
-        if (!is_user_logged_in() || !Security::canAccessPanel()) {
+        if (!is_user_logged_in() || !Permissions::can('profile.view')) {
             return false;
         }
         return true;
@@ -98,7 +98,7 @@ class UserMenu extends AbstractREST
 
         // The "Setting" item links to the admin-only global settings page, so
         // only surface it for users who can manage bookings (admin/manager).
-        if (Security::canManageBookings()) {
+        if (Permissions::can('settings.view')) {
             $items[] = [
                 "key" => "settings",
                 "label" => esc_html__('Setting', 'rox-appointment-booking'),

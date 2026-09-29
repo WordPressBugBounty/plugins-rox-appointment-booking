@@ -93,6 +93,11 @@ class PaymentFormStructure extends AbstractREST
         if (!empty($stripeEnable) && !empty($publishableKey) && $stripeConnectionStatus === 'connected') {
             $structure['stripeEnable'] = true;
             $structure['stripe_key'] = $publishableKey;
+            // Unset on sites that never saved this toggle, which keeps the field on.
+            $structure['stripeCollectPostalCode'] = filter_var(
+                $payment_settings['stripe_collect_postal_code'] ?? true,
+                FILTER_VALIDATE_BOOLEAN
+            );
         }
 
         // Let Pro (or any add-on) extend the payment form with its own

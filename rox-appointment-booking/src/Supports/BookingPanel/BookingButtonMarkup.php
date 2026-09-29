@@ -4,6 +4,7 @@ namespace RoxAppointmentBooking\Supports\BookingPanel;
 
 use RoxAppointmentBooking\Supports\Color;
 use RoxAppointmentBooking\Supports\IdList;
+use RoxAppointmentBooking\Supports\PanelStyle;
 
 if (!defined('ABSPATH')) exit; // Exit if accessed directly
 
@@ -266,6 +267,9 @@ class BookingButtonMarkup
             // sends only an id and styles the panel through PANEL_OWNER_SELECTOR.
             'panelStyle'           => '',
             'panelOwner'           => '',
+            // Which design that panel renders. Named apart from `style` above,
+            // which is the *button's* variant (filled / outline / link).
+            'styleVariant'         => PanelStyle::DEFAULT_STYLE,
             'inlineStyle'          => true,
         ];
 
@@ -334,6 +338,7 @@ class BookingButtonMarkup
                 . 'data-locations="%10$s" data-categories="%11$s" data-agent-id="%12$s" '
                 . 'data-show-background="%15$s" data-background-color="%16$s" '
                 . 'data-font-family="%17$s" data-panel-style="%18$s" data-panel-owner="%19$s" '
+                . 'data-style-variant="%28$s" '
                 . 'aria-haspopup="dialog" aria-expanded="false">%13$s<span class="rox-booking-button__label">%14$s</span></button></div>',
             $wrapper_attrs,
             $wrapper_style === '' ? '' : ' style="' . esc_attr($wrapper_style) . '"',
@@ -367,7 +372,8 @@ class BookingButtonMarkup
             esc_attr((string) self::serviceColumns($args['serviceColumns'])),
             esc_attr(self::boolAttr($args['showDashboardButton'])),
             esc_attr(self::text($args['dashboardButtonText'])),
-            esc_attr(esc_url_raw(self::text($args['dashboardButtonUrl'])))
+            esc_attr(esc_url_raw(self::text($args['dashboardButtonUrl']))),
+            esc_attr(PanelStyle::sanitize($args['styleVariant']))
         );
     }
 

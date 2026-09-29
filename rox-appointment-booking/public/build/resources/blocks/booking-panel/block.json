@@ -16,9 +16,17 @@
     "rox"
   ],
   "supports": {
-    "html": false
+    "html": false,
+    "align": [
+      "wide",
+      "full"
+    ]
   },
   "attributes": {
+    "styleVariant": {
+      "type": "string",
+      "default": "style-1"
+    },
     "displayMode": {
       "type": "string",
       "default": "general"
@@ -64,8 +72,11 @@
       "default": {}
     },
     "showBackground": {
-      "type": "boolean",
-      "default": true
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "default": null
     },
     "backgroundColor": {
       "type": "string",

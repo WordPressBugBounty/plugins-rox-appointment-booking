@@ -6,6 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Supports\Traits\RoxAppointmentBookingFilter;
 use RoxAppointmentBooking\Modules\Payment\Data\PaymentModel;
 use RoxAppointmentBooking\Modules\Customer\Data\CustomerModel;
@@ -223,7 +224,7 @@ class GetPayment extends AbstractREST
                     $agent = $booking->agent_id ? AgentModel::find($booking->agent_id) : null;
                     $service = $booking->service_id ? ServiceModel::find($booking->service_id) : null;
                     if ($booking->date && $booking->start_time) {
-                        $dateTimeFormatted = wp_date('F j, Y', strtotime($booking->date)) . ' - ' . wp_date('g:i A', strtotime($booking->start_time));
+                        $dateTimeFormatted = rox_appointment_booking_format_site_datetime('F j, Y', $booking->date) . ' - ' . rox_appointment_booking_format_site_datetime('g:i A', $booking->start_time);
                     }
                 }
             }
@@ -487,7 +488,7 @@ class GetPayment extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !current_user_can('manage_options')) {
+        if (!is_user_logged_in() || !Permissions::can('payment.view')) {
             return false;
         }
 

@@ -9,9 +9,11 @@
 	"textdomain": "rox-appointment-booking",
 	"keywords": ["booking", "appointment", "panel", "button", "popup", "rox"],
 	"supports": {
-		"html": false
+		"html": false,
+		"align": ["wide", "full"]
 	},
 	"attributes": {
+		"styleVariant": { "type": "string", "default": "style-1" },
 		"displayMode": { "type": "string", "default": "general" },
 		"hideNavigation": { "type": "boolean", "default": false },
 		"hideInfo": { "type": "boolean", "default": false },
@@ -23,7 +25,7 @@
 		"headingMargin": { "type": "object", "default": {} },
 		"contentMargin": { "type": "object", "default": {} },
 		"panelContent": { "type": "object", "default": {} },
-		"showBackground": { "type": "boolean", "default": true },
+		"showBackground": { "type": ["boolean", "null"], "default": null },
 		"backgroundColor": { "type": "string", "default": "" },
 		"accentColor": { "type": "string", "default": "" },
 		"fontFamily": { "type": "string", "default": "" },

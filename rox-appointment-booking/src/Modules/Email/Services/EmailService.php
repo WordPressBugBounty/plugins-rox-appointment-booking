@@ -213,7 +213,7 @@ class EmailService
             ? (string) $stored['body']
             : $default['body'];
 
-        $placeholders = EmailPlaceholderResolver::resolve($eventKey, $context);
+        $placeholders = EmailPlaceholderResolver::resolve($eventKey, $context, $recipientType);
 
         return [
             // Subjects are plain text — substitute unescaped, then let wp_mail()

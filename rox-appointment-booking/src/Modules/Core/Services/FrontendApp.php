@@ -14,6 +14,7 @@
 namespace RoxAppointmentBooking\Modules\Core\Services;
 
 use RoxAppointmentBooking\Supports\Assets;
+use RoxAppointmentBooking\Supports\PanelStyle;
 
 if (! defined('ABSPATH')) exit; // Exit if accessed directly
 
@@ -176,13 +177,26 @@ class FrontendApp
         static $instance_count = 0;
         $instance_count++;
 
+        // The panel config printed for this page carries a fresh
+        // `rox_appointment_booking_frontend_nonce`. A cached page would hand
+        // every later visitor the first visitor's nonce, which expires and then
+        // fails every REST call the panel makes.
+        if (!defined('DONOTCACHEPAGE')) {
+            define('DONOTCACHEPAGE', true);
+        }
+
         $atts = shortcode_atts([
             'type' => 'booking-form',
+            // Which panel design to render — `style-1` / `style-2`. Anything
+            // else falls back to the default, the same as every other surface.
+            'style' => PanelStyle::DEFAULT_STYLE,
         ], $atts, 'rox_appointment_booking');
+
+        $style_variant = PanelStyle::sanitize($atts['style']);
 
         ob_start();
         ?>
-        <div class="rox-appointment-booking-frontend-root" data-instance="<?php echo esc_attr('sc-' . $instance_count); ?>" data-type="<?php echo esc_attr($atts['type']); ?>"></div>
+        <div class="rox-appointment-booking-frontend-root" data-instance="<?php echo esc_attr('sc-' . $instance_count); ?>" data-type="<?php echo esc_attr($atts['type']); ?>" data-style-variant="<?php echo esc_attr($style_variant); ?>"></div>
         <?php
         return ob_get_clean();
     }

@@ -6,7 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
-use RoxAppointmentBooking\Supports\Security;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\UserManagement\Util\UserInfo;
 
 /**
@@ -54,7 +54,7 @@ class SaveUserSettings extends AbstractREST
 
         // Agents edit their own profile from the panel too. Only ever writes the
         // CURRENT user's own data — there is no id parameter.
-        if (!is_user_logged_in() || !Security::canAccessPanel()) {
+        if (!is_user_logged_in() || !Permissions::can('profile.edit')) {
             return false;
         }
 

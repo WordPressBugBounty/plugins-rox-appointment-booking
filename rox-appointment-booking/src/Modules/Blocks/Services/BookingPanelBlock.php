@@ -33,6 +33,7 @@ use RoxAppointmentBooking\Supports\BookingPanel\BookingButtonMarkup;
 use RoxAppointmentBooking\Supports\Color;
 use RoxAppointmentBooking\Supports\FontFamily;
 use RoxAppointmentBooking\Supports\IdList;
+use RoxAppointmentBooking\Supports\PanelStyle;
 use RoxAppointmentBooking\Supports\BookingPanel\NavButtons;
 use RoxAppointmentBooking\Supports\BookingPanel\PanelContent;
 
@@ -369,7 +370,7 @@ class BookingPanelBlock
         $panel_content = PanelContent::toAttr($attributes['panelContent'] ?? []);
 
         return sprintf(
-            '<div %1$s><div class="rox-appointment-booking-frontend-root"%10$s data-instance="%2$s" data-type="booking-form" data-hide-navigation="%3$s" data-hide-info="%4$s" data-service-columns="%15$s" data-show-dashboard-button="%16$s" data-dashboard-button-text="%17$s" data-dashboard-button-url="%18$s" data-content-margin="%11$s" data-heading-align="%12$s" data-heading-margin="%13$s" data-show-background="%5$s" data-background-color="%6$s" data-font-family="%7$s" data-locations="%8$s" data-categories="%9$s" data-panel-content="%14$s"></div></div>',
+            '<div %1$s><div class="rox-appointment-booking-frontend-root"%10$s data-instance="%2$s" data-type="booking-form" data-style-variant="%19$s" data-hide-navigation="%3$s" data-hide-info="%4$s" data-service-columns="%15$s" data-show-dashboard-button="%16$s" data-dashboard-button-text="%17$s" data-dashboard-button-url="%18$s" data-content-margin="%11$s" data-heading-align="%12$s" data-heading-margin="%13$s" data-show-background="%5$s" data-background-color="%6$s" data-font-family="%7$s" data-locations="%8$s" data-categories="%9$s" data-panel-content="%14$s"></div></div>',
             $wrapper_attributes,
             // Prefixed per surface: the instance id keys the panel's store, and
             // every surface counts from 1, so a bare number would let a panel
@@ -390,7 +391,8 @@ class BookingPanelBlock
             esc_attr($service_columns),
             esc_attr($show_dashboard_button),
             esc_attr($dashboard_button_text),
-            esc_attr($dashboard_button_url)
+            esc_attr($dashboard_button_url),
+            esc_attr(PanelStyle::sanitize($attributes['styleVariant'] ?? ''))
         );
     }
 
@@ -462,6 +464,8 @@ class BookingPanelBlock
 
         return BookingButtonMarkup::render(
             [
+                // The design the panel behind this button renders.
+                'styleVariant'         => PanelStyle::sanitize($attributes['styleVariant'] ?? ''),
                 'text'                 => $attributes['buttonText'] ?? '',
                 'align'                => $attributes['buttonAlign'] ?? 'left',
                 'alignTablet'          => $attributes['buttonAlignTablet'] ?? '',
@@ -568,8 +572,10 @@ class BookingPanelBlock
      */
     protected function showBackground(array $attributes): bool
     {
-        return !array_key_exists('showBackground', $attributes)
-            || !empty($attributes['showBackground']);
+        return PanelStyle::showsBackground(
+            $attributes['showBackground'] ?? null,
+            (string) ($attributes['styleVariant'] ?? '')
+        );
     }
 
     /**

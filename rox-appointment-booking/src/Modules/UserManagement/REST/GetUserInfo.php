@@ -6,7 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
-use RoxAppointmentBooking\Supports\Security;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\UserManagement\Util\UserInfo;
 
 /**
@@ -54,7 +54,7 @@ class GetUserInfo extends AbstractREST
         // Agents have their own /profile page in the panel, so this is gated on
         // panel access rather than manage_options. The data returned is always the
         // CURRENT user's own profile — there is no id parameter.
-        if (!is_user_logged_in() || !Security::canAccessPanel()) {
+        if (!is_user_logged_in() || !Permissions::can('profile.view')) {
             return false;
         }
         return true;

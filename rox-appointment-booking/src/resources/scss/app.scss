@@ -318,9 +318,11 @@
     border-color: #3560fb;
   }
 
-  // Location table's TOTAL AGENT avatar stack — antd's default overlap
-  // (~10%) and border are both too subtle against the design.
-  .location-agent-avatars .ant-avatar {
+  // Location table's TOTAL AGENT avatar stack, and the Services table's
+  // AGENTS column (same treatment) — antd's default overlap (~10%) and
+  // border are both too subtle against the design.
+  .location-agent-avatars .ant-avatar,
+  .service-agent-avatars .ant-avatar {
     border: 3px solid #fff;
 
     // -16px was calibrated for the old 32px avatars (~50% overlap); now
@@ -928,7 +930,9 @@
       flex-shrink: 0;
       width: 218px;
       height: 36px;
-      transition: border-color 0.2s ease !important;
+      // `box-shadow` alongside the border: the focus ring below is a shadow,
+      // and left out of this list it snapped on while the border faded in.
+      transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
       outline: none !important;
 
       .ant-input-prefix {
@@ -942,9 +946,9 @@
 
       &:focus-within {
         border-color: #3560fb;
-        outline: 1.5px solid #3560fb !important;
-        outline-offset: 0;
-        box-shadow: none;
+        box-shadow:
+          0 0 0 1px #3560fb,
+          0 0 0 4px rgba(37, 92, 231, 0.12);
       }
     }
 
@@ -1659,6 +1663,20 @@
       padding-top: 20px;
     }
 
+    // The Agent form's Work Schedule sub-tabs (Working Hours / Special Days /
+    // Holidays) use the Settings page's `.settings-tabs` strip, which sits
+    // flush on its content there. Here each pane gets the same 20px below its
+    // tab strip that the outer tabs give theirs.
+    .agent-schedule-tabs .ant-tabs-content-holder {
+      padding-top: 20px;
+    }
+
+    // Tighter than the Settings strip: no space above the names, 6px (not
+    // 10px) between them and the underline.
+    .agent-schedule-tabs .ant-tabs-tab {
+      padding: 0 0 6px;
+    }
+
     .form-tab-radio-group {
       display: flex;
       align-items: center;
@@ -2206,7 +2224,14 @@
         background: rgba(255, 255, 255, 0.7);
       }
 
-
+      // The switch keeps its colour under the pointer. antd darkens an OFF
+      // switch on hover (its `colorTextTertiary`, rgba(0, 0, 0, 0.45)); this
+      // holds it at its resting grey (`colorTextQuaternary`). An ON switch
+      // needs nothing — the admin theme already gives it a hover colour equal
+      // to its blue (App.jsx, `Switch.colorPrimaryHover`).
+      .ant-switch:not(.ant-switch-checked):hover:not(.ant-switch-disabled) {
+        background: rgba(0, 0, 0, 0.25);
+      }
     }
 
     .card-title-container {
@@ -2215,6 +2240,98 @@
       font-size: 14px;
       font-weight: 500;
       cursor: pointer;
+    }
+
+    .toggler-pro-badge svg path {
+      stroke: #D940D9;
+    }
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px 14px;
+    border-radius: 6px;
+    background: #f7f8fc;
+
+    &__control {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    &__label {
+      font-family: "Heebo", sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      color: #151720;
+      cursor: pointer;
+    }
+
+    &__info {
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    &--attached {
+      border-radius: 6px 6px 0 0;
+    }
+  }
+
+  .toggle-row-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    width: 100%;
+    margin-bottom: 10px;
+  }
+
+  .toggle-row__expanded {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 14px;
+    border-radius: 0 0 6px 6px;
+    background: #f7f8fc;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .toggle-row__fields {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+
+    > * {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+  }
+
+  .toggle-row__notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 10px 14px 14px;
+    background: #fff;
+    border-radius: 6px;
+
+    svg {
+      flex-shrink: 0;
+      // Nudges the icon down so its center lines up with the cap height of
+      // the text's first line instead of the line box's top edge.
+      margin-top: 1px;
+    }
+
+    span {
+      font-family: "Heebo", sans-serif;
+      font-size: 14px;
+      line-height: 18px;
+      color: #494a4c;
     }
   }
 
@@ -2254,7 +2371,10 @@
     align-items: center;
     justify-content: flex-end;
     width: fit-content;
-    padding: 5px 10px;
+    // 6/4 rather than an even 5/5: Heebo reserves more room under the baseline
+    // than over the caps, and a code is all capitals and digits with nothing
+    // below the line, so an even split left it riding high. Same total height.
+    padding: 6px 10px 4px;
     border: 1px dashed #bbbec9;
     border-radius: 6px;
     color: #151720;
@@ -2461,6 +2581,34 @@
           border-radius: 8px;
           background: #fff;
           padding: 24px 20px;
+        }
+
+        // No 24px gap under the LAST field of a drawer form — every other field
+        // keeps its spacing. Without this the card's own 24px bottom padding
+        // sat under another 24px of field margin. "Last" is worked out from the
+        // form's structure, so it holds for every drawer:
+        //  - a form laid out in a <Row> (directly under the form, or under a
+        //    tab pane): the last column of its last Row, and the column beside
+        //    it when the last two fields share a line. `> :last-child` rather
+        //    than `.ant-form-item` because some forms end in a card that wraps
+        //    a margin-less field (Coupon's "Apply Automatically").
+        //  - fields placed with no Row (the reschedule drawer, some Service
+        //    tabs, and each of the Agent form's Work Schedule sub-tabs): the
+        //    last one.
+        #mutable-form-container .main-section {
+          > .ant-row:not(:has(~ .ant-row)),
+          .tab-content > .ant-row:not(:has(~ .ant-row)) {
+            > .ant-col:last-child > :last-child,
+            > .ant-col-12:nth-last-child(2):has(+ .ant-col-12:last-child) > :last-child {
+              margin-bottom: 0;
+            }
+          }
+
+          > .ant-form-item:not(:has(~ .ant-form-item)),
+          .tab-content > .ant-form-item:not(:has(~ .ant-form-item)),
+          .ant-tabs-tabpane > .ant-form-item:not(:has(~ .ant-form-item)) {
+            margin-bottom: 0;
+          }
         }
       }
 
@@ -2866,13 +3014,13 @@
         // 22px of clearance above and below, which the zeroed group margin
         // leaves as the only spacing in play.
         //
-        // 2px a side, not 10: the Menu already insets every row by 8px (an
+        // 4px a side, not 12: the Menu already insets every row by 8px (an
         // inline `padding: 16px 8px` in DynamicSidebar), and this sits inside
-        // that. 8 + 2 is the 10px the rule stands off the sider's own edge —
+        // that. 8 + 4 is the 12px the rule stands off the sider's own edge —
         // so if that inline padding ever changes, this has to change with it.
         //
         // `!important` because antd sets its own margin on this element.
-        margin: 22px 2px !important;
+        margin: 22px 4px !important;
         border-top: 1px dashed #bbbec9;
         // Collapses the label without `overflow: hidden`, which would clip the
         // rule with it, and leaves the text in the accessibility tree.
@@ -3776,65 +3924,51 @@
 
   #tabbed-layout {
     .tab-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-bottom: 16px;
+      padding-bottom: 12px;
       background: transparent;
       position: relative;
-
-      &::after {
-        position: absolute;
-        content: "";
-        height: 2px; // Thickness of the white bar
-        width: calc(100% + 36px);
-        background: #fff; // White color for the bar
-        bottom: 0; // Position it at the bottom of the tab header
-        left: 50%; // Center it horizontally
-        transform: translateX(-50%); // Adjust for centering
-        z-index: 1; // Ensure it appears above the background
-      }
 
       .tab-navigation {
         flex: 1;
 
-        .tab-radio-group {
-          max-width: 600px; // Limit width so it doesn't stretch too much
+        .tab-radio-group.ant-tabs {
+          overflow: visible;
 
-          .ant-radio-button-wrapper {
-            background-color: #fff;
-            padding: 8px 16px;
-            border: 1px solid #d9d9d9;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            flex: none;
+          .ant-tabs-nav {
+            margin: 0;
 
-            &:hover {
-              background-color: #f5f5f5;
-              color: #1890ff;
+            &::before {
+              border-bottom: 1px solid #dcdde2;
+            }
+          }
+
+          .ant-tabs-nav-list {
+            gap: 26px;
+          }
+
+          .ant-tabs-tab {
+            margin: 0 !important;
+            padding: 10px 0;
+
+            .ant-tabs-tab-btn {
+              font-family: "Heebo", sans-serif;
+              font-size: 15px;
+              font-weight: 500;
+              color: #151720;
             }
 
-            &.ant-radio-button-wrapper-checked {
-              background-color: #3560fb;
-              border-color: #3560fb;
-              color: #fff;
-
-              &:hover {
-                background-color: #2347df;
-                border-color: #2347df;
-              }
+            &:hover .ant-tabs-tab-btn {
+              color: #3560fb;
             }
 
-            &:not(:first-child):before {
-              display: none; // Remove default separator
+            &.ant-tabs-tab-active .ant-tabs-tab-btn {
+              color: #3560fb;
             }
+          }
 
-            .ant-radio-button {
-              display: none; // Hide the actual radio input
-            }
+          .ant-tabs-ink-bar {
+            background: #3560fb;
+            height: 2px;
           }
         }
       }
@@ -3846,7 +3980,7 @@
 
     .tab-content {
       background: transparent;
-      padding-top: 14px;
+      padding-top: 12px;
       padding-right: 18px;
     }
   }
@@ -3863,12 +3997,11 @@
       flex: 0 0 auto;
     }
 
-    .tab-header .tab-radio-group {
-      display: flex;
+    .tab-header .tab-radio-group .ant-tabs-nav-list {
       flex-wrap: nowrap;
     }
 
-    .tab-header .ant-radio-button-wrapper {
+    .tab-header .ant-tabs-tab {
       flex: 0 0 auto;
       white-space: nowrap;
     }
@@ -4775,6 +4908,25 @@
   }
 }
 
+/* Dark tooltip for the toggle-row info icon. Default antd spacing reads as
+   congested once the text wraps onto a second line — this widens the
+   line-height and padding so the lines don't sit stuck to each other. */
+.toggle-row-tooltip {
+  .ant-tooltip-inner {
+    background: #151720;
+    box-shadow: 0 4px 8px 0 rgba(10, 11, 15, 0.3);
+    padding: 8px 10px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 20px;
+    min-height: auto;
+  }
+
+  .ant-tooltip-arrow::before {
+    background: #151720;
+  }
+}
+
 /* Dark tooltip for the locked CTA above — same treatment as
    `.onboarding-locked-tooltip` in onboarding.scss. */
 .pro-locked-tooltip {
@@ -4933,3 +5085,38 @@
   }
 }
 
+
+// Accordion-style reveal: opens on mount, collapses via `.is-closed` while the
+// owner keeps it mounted for the 300ms exit.
+.rox-collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition: grid-template-rows 0.3s ease, opacity 0.3s ease;
+  animation: roxCollapseOpen 0.3s ease;
+
+  &.is-closed {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+
+  &__inner {
+    min-height: 0;
+    overflow: hidden;
+    // Clip at the nested Row's outer edge (gutter 16) so input focus rings aren't cut.
+    margin: 0 -8px;
+    padding: 0 8px;
+  }
+}
+
+@keyframes roxCollapseOpen {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+}

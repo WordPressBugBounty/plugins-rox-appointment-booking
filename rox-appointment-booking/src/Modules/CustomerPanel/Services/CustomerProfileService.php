@@ -82,6 +82,10 @@ class CustomerProfileService
             'phone'              => sanitize_text_field($input['phone'] ?? ''),
             'dob'                => $this->sanitizeDob($input['dob'] ?? ''),
             'gender'             => $this->sanitizeGender($input['gender'] ?? ''),
+            // The clock this customer reads their appointments on. Stored as
+            // NULL unless it is a zone this site can construct, and never used
+            // to schedule anything — only to display.
+            'timezone'           => $this->sanitizeTimezone($input['timezone'] ?? ''),
             'send_notifications' => $emailPref,
         ]);
         $customer->save();
@@ -204,6 +208,7 @@ class CustomerProfileService
             'phone'     => $customer ? (string) $customer->phone : '',
             'dob'       => $customer && $customer->dob ? gmdate('Y-m-d', strtotime((string) $customer->dob)) : '',
             'gender'    => $customer ? strtolower((string) $customer->gender) : '',
+            'timezone'  => $customer ? (string) $customer->timezone : '',
             'avatar'    => $this->avatarUrl($customer, $user),
             'prefs'     => [
                 // No customer row yet → default the email opt-in on (matches the mock).
@@ -273,6 +278,13 @@ class CustomerProfileService
     {
         $gender = strtolower(sanitize_text_field($gender));
         return in_array($gender, ['male', 'female', 'prefer_not_to_say'], true) ? $gender : '';
+    }
+
+    /** Accept a timezone this site can construct; anything else becomes NULL. */
+    private function sanitizeTimezone(string $timezone): ?string
+    {
+        $timezone = sanitize_text_field($timezone);
+        return rox_appointment_booking_is_valid_timezone($timezone) ? $timezone : null;
     }
 
     /** Accept a Y-m-d date or empty string; anything else is dropped. */

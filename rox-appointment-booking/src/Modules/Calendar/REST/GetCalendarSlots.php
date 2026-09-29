@@ -6,7 +6,7 @@ use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
-use RoxAppointmentBooking\Supports\Security;
+use RoxAppointmentBooking\Supports\Access\Permissions;
 use RoxAppointmentBooking\Modules\Calendar\Services\CalendarService;
 use RoxAppointmentBooking\Modules\Agent\Services\AgentService;
 use RoxAppointmentBooking\Modules\Service\Services\ServiceService;
@@ -198,14 +198,20 @@ class GetCalendarSlots extends AbstractREST
         // Get booked slots to mark as unavailable
         $bookedSlots = $this->getBookedSlots($date, $agentId, $locationId);
 
+        // Buffer time (Pro) of the requested service: a slot needs its
+        // preparation / wrap-up clear too.
+        $bookingService = $serviceId ? $serviceService->getService((int) $serviceId) : null;
+        $bufferBefore = ServiceService::bufferBeforeMinutes($bookingService);
+        $bufferAfter = ServiceService::bufferAfterMinutes($bookingService);
+
         // Build slots array with availability status
         $slots = [];
         foreach ($timeslots as $time) {
             // Normalize time format to HH:MM
             $timeNormalized = substr($time, 0, 5);
-            
+
             // Check if slot is booked
-            $isBooked = $this->isSlotBooked($timeNormalized, $bookedSlots, 30);
+            $isBooked = $this->isSlotBooked($date, $timeNormalized, $bookedSlots, 30, $bufferBefore, $bufferAfter);
             
             $slots[] = [
                 'time' => $time,
@@ -427,9 +433,12 @@ class GetCalendarSlots extends AbstractREST
 
         foreach ($appointments as $appointment) {
             if (!empty($appointment->start_time) && !empty($appointment->end_time)) {
+                // Each booking holds its own buffer time (Pro) on either side.
+                $before = ServiceService::appointmentBufferBeforeMinutes($appointment);
+                $after = ServiceService::appointmentBufferAfterMinutes($appointment);
                 $slots[] = [
-                    'start' => $appointment->start_time,
-                    'end' => $appointment->end_time,
+                    'start' => $before ? gmdate('Y-m-d H:i:s', strtotime($appointment->start_time) - $before * 60) : $appointment->start_time,
+                    'end' => $after ? gmdate('Y-m-d H:i:s', strtotime($appointment->end_time) + $after * 60) : $appointment->end_time,
                 ];
             }
         }
@@ -440,15 +449,21 @@ class GetCalendarSlots extends AbstractREST
     /**
      * Check if a time slot is booked.
      *
+     * @param string $date Date the slot is on (Y-m-d)
      * @param string $slotTime
      * @param array $bookedSlots
      * @param int $duration
+     * @param int $bufferBefore Buffer minutes the slot needs before it
+     * @param int $bufferAfter Buffer minutes the slot needs after it
      * @return bool
      */
-    private function isSlotBooked(string $slotTime, array $bookedSlots, int $duration = 30): bool
+    private function isSlotBooked(string $date, string $slotTime, array $bookedSlots, int $duration = 30, int $bufferBefore = 0, int $bufferAfter = 0): bool
     {
-        $slotStart = strtotime($slotTime);
-        $slotEnd = $slotStart + ($duration * 60);
+        // The booked ranges are full datetimes on $date; a bare time would be
+        // read as today and never meet them on any other day.
+        $slotStart = strtotime("{$date} {$slotTime}");
+        $slotEnd = $slotStart + ($duration * 60) + $bufferAfter * 60;
+        $slotStart -= $bufferBefore * 60;
 
         foreach ($bookedSlots as $booked) {
             $bookedStart = strtotime($booked['start']);
@@ -485,7 +500,7 @@ class GetCalendarSlots extends AbstractREST
             return false;
         }
 
-        if (!is_user_logged_in() || !Security::canAccessPanel()) {
+        if (!is_user_logged_in() || !Permissions::can('calendar.view')) {
             return false;
         }
 

@@ -5,7 +5,7 @@
 // (holiday > special day off > weekly day_off).
 
 import dayjs from "dayjs";
-import { getSiteNow } from "../../lib/locale.js";
+import { getSiteNow, formatTimeOfDay } from "../../lib/locale.js";
 import { isTimezoneShiftOn, toCustomer } from "../../lib/timezone.js";
 
 // JS Date.getDay() order (0=Sun) → the day names the schedule endpoint uses.
@@ -21,15 +21,10 @@ export const DAY_NAMES = [
   "Saturday",
 ];
 
-// "09:00:00" (24h) → "9:00 AM" for slot labels (the schedule endpoint returns
-// raw 24h times). Formatted through Day.js so the meridiem comes from the
-// WordPress-derived locale rather than a hardcoded English "AM"/"PM".
-export function to12h(t) {
-  const [h, m] = String(t).split(":").map(Number);
-  return dayjs()
-    .hour(h || 0)
-    .minute(m || 0)
-    .format("h:mm A");
+// "09:00:00" (24h, as the schedule endpoint returns it) → "9:00 AM" or
+// "09:00", per Settings > General > Time Format.
+export function toClockLabel(t) {
+  return formatTimeOfDay(String(t));
 }
 
 /**
@@ -50,7 +45,7 @@ export function slotLabel(schedule, time) {
     : 0;
 
   if (minutes <= 0) {
-    return to12h(time);
+    return toClockLabel(time);
   }
 
   const [h, m] = String(time).split(":").map(Number);
@@ -59,7 +54,7 @@ export function slotLabel(schedule, time) {
     .minute(m || 0)
     .add(minutes, "minute");
 
-  return `${to12h(time)} - ${end.format("h:mm A")}`;
+  return `${toClockLabel(time)} - ${formatTimeOfDay(end)}`;
 }
 
 // The bookable timeslots for a date, or null when it's off (holiday > special

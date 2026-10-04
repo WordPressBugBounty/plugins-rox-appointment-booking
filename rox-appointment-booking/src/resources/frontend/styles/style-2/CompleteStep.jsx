@@ -19,25 +19,10 @@ import { useSelect } from "@wordpress/data";
 import { __, sprintf } from "@wordpress/i18n";
 import { sanitize } from "../../../components/common/Sanitize.js";
 import { formatPrice } from "../../../lib/price.js";
+import { formatTimeOfDay } from "../../../lib/locale.js";
 import { useBookingStore } from "../../../redux/booking-store-context.js";
 import Icon from "../../../components/libs/Icon.jsx";
 
-/**
- * `HH:mm[:ss]` as the site's own locale renders it. Same helper the Order
- * Details step carries, and for the same reason: the WordPress-derived Day.js
- * locale is registered before anything is drawn, so the AM/PM marker follows
- * the site language rather than the browser's default.
- *
- * @param {string} time Raw time.
- * @return {string} Formatted time, or '' when there is none.
- */
-const formatTime = (time) => {
-	if (!time) return "";
-
-	const [hours, minutes] = String(time).split(":");
-
-	return dayjs().hour(Number(hours)).minute(Number(minutes)).format("h:mm A");
-};
 
 /**
  * How the order was paid for, in the customer's words rather than the API's.
@@ -168,7 +153,7 @@ const CompleteStep = ({ bookings, customerInfo, bookingResponse }) => {
 					const date = booking.date ? dayjs(booking.date) : null;
 					const when = date
 						? `${date.format("ddd, MMM D")}${
-								booking.start_time ? `, ${formatTime(booking.start_time)}` : ""
+								booking.start_time ? `, ${formatTimeOfDay(booking.start_time)}` : ""
 							}`
 						: null;
 					const extras = sanitize(booking.extraServices, "array");

@@ -207,6 +207,9 @@ class ServiceListBlock
     protected function frontendConfig(): array
     {
         return [
+            'language'          => rox_appointment_booking_multilingual()->isActive()
+                ? rox_appointment_booking_current_language()
+                : '',
             'apiBaseUrl'        => esc_url_raw(rest_url('rox-appointment-booking/v1/')),
             'restBaseUrl'       => esc_url_raw(rest_url()),
             'siteUrl'           => esc_url_raw(site_url()),

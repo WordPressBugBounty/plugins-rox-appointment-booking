@@ -354,13 +354,13 @@ class NotificationService
         // Build human-readable "from" / "to" strings combining date + time when available
         $oldLabel = $oldDate;
         if ($oldStartTime) {
-            $timeOnly = gmdate('H:i', strtotime($oldStartTime));
+            $timeOnly = gmdate(rox_appointment_booking_time_format(), strtotime($oldStartTime));
             $oldLabel = $oldDate ? "{$oldDate} {$timeOnly}" : $timeOnly;
         }
 
         $newLabel = $newDate;
         if ($newStartTime) {
-            $timeOnly = gmdate('H:i', strtotime($newStartTime));
+            $timeOnly = gmdate(rox_appointment_booking_time_format(), strtotime($newStartTime));
             $newLabel = $newDate ? "{$newDate} {$timeOnly}" : $timeOnly;
         }
 

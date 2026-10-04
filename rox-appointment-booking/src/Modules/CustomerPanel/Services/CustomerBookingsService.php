@@ -157,8 +157,8 @@ class CustomerBookingsService
         // Both ends are the appointment itself, which is also what the
         // "⏱ 5m" beside them says — a time on offer may have read longer
         // (see ServiceService::bufferInTimeSlots()), the record does not.
-        $startLabel = $startOn ? $startOn->format('g:i A') : '';
-        $endLabel = $endOn ? $endOn->format('g:i A') : '';
+        $startLabel = $startOn ? $startOn->format(rox_appointment_booking_time_format()) : '';
+        $endLabel = $endOn ? $endOn->format(rox_appointment_booking_time_format()) : '';
         $timeMeta = $startLabel ? ('🕐 ' . $startLabel . ($endLabel ? ' – ' . $endLabel : '')) : '';
         $durationLabel = $this->formatDuration($durationMinutes);
 

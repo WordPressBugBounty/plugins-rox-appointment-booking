@@ -59,6 +59,7 @@ const FALLBACK = {
   meridiem: { am: "am", pm: "pm", AM: "AM", PM: "PM" },
   dateFormat: "F j, Y",
   timeFormat: "g:i a",
+  timeSystem: "12_hour",
   timezone: "UTC",
 };
 
@@ -282,6 +283,57 @@ export const parseTimeOfDay = (value) => {
   // fixed day keeps a DST transition from shifting the result.
   return dayjs("2000-01-01").hour(hours).minute(minutes).second(seconds);
 };
+
+/**
+ * Whether Settings > General > Time Format is the 24-hour clock.
+ *
+ * @return {boolean}
+ */
+export const is24HourClock = () => data.timeSystem === "24_hour";
+
+/**
+ * Day.js format for a time of day: "h:mm A" (1:00 PM) or "HH:mm" (13:00).
+ *
+ * @return {string} Format string.
+ */
+export const getTimeFormat = () => (is24HourClock() ? "HH:mm" : "h:mm A");
+
+/**
+ * Apply a just-saved Time Format to the open page without a reload.
+ *
+ * @param {string} value '12_hour' or '24_hour'.
+ */
+export const setTimeSystem = (value) => {
+  data.timeSystem = value === "24_hour" ? "24_hour" : "12_hour";
+};
+
+/**
+ * A time of day written in the site's Time Format. Display only — never post
+ * the result back; send the 24-hour wire value instead.
+ *
+ * @param {import('dayjs').Dayjs|string} value Day.js instance, clock string
+ *                                             ("14:30:00", "14:30", "2:30 PM")
+ *                                             or stored DATETIME.
+ * @return {string} Display time, or "" when the value is empty or unreadable.
+ */
+export const formatTimeOfDay = (value) => {
+  const at = dayjs.isDayjs(value)
+    ? value
+    : parseTimeOfDay(String(value ?? "").replace(/^\s*\d{4}-\d{2}-\d{2}[ T]/, ""));
+
+  return at && at.isValid() ? at.format(getTimeFormat()) : "";
+};
+
+/**
+ * FullCalendar formatter for its time axis and event times. `hourCycle: h23`
+ * keeps midnight at "00" where `hour12: false` can print "24".
+ *
+ * @return {object} FullCalendar date-format object.
+ */
+export const getFullCalendarTimeFormat = () =>
+  is24HourClock()
+    ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
+    : { hour: "numeric", minute: "2-digit", omitZeroMinute: true, meridiem: "short", hour12: true };
 
 /**
  * antd locale object for `<ConfigProvider locale={...}>`.

@@ -21,7 +21,7 @@ import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
-import { siteLocale } from "./locale.js";
+import { siteLocale, formatTimeOfDay } from "./locale.js";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -440,22 +440,12 @@ export const toSite = (date, time) => {
 };
 
 /**
- * A 24-hour clock string as the site language writes it.
- *
- * Same formatting the booking panel has always used for a slot — Day.js runs
- * on the WordPress-derived locale, so the meridiem follows the site language.
+ * A 24-hour clock string in the site's Time Format.
  *
  * @param {string} time Clock time.
  * @return {string} Display time.
  */
-export const formatClock = (time) => {
-  const [hours, minutes] = asTime(time).split(":");
-
-  return dayjs()
-    .hour(Number(hours))
-    .minute(Number(minutes))
-    .format("h:mm A");
-};
+export const formatClock = (time) => formatTimeOfDay(asTime(time));
 
 /**
  * A stored (site) slot, written the way the customer should read it.

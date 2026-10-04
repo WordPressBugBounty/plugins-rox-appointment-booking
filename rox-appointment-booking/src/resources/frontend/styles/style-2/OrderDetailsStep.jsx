@@ -16,23 +16,9 @@ import { __ } from "@wordpress/i18n";
 import { sanitize } from "../../../components/common/Sanitize.js";
 import { panelText } from "../../../lib/panelContent.js";
 import { formatPrice, priceValue } from "../../../lib/price.js";
+import { formatTimeOfDay } from "../../../lib/locale.js";
 import { useBookingStore } from "../../../redux/booking-store-context.js";
 
-/**
- * `HH:mm[:ss]` as the site's own locale renders it — the WordPress-derived
- * Day.js locale is registered by the bundle before anything is drawn, so the
- * AM/PM marker follows the site language rather than the browser's default.
- *
- * @param {string} time Raw time.
- * @return {string} Formatted time, or '' when there is none.
- */
-const formatTime = (time) => {
-	if (!time) return "";
-
-	const [hours, minutes] = String(time).split(":");
-
-	return dayjs().hour(Number(hours)).minute(Number(minutes)).format("h:mm A");
-};
 
 // The two "add" marks. Inline rather than from the icon set: at this size each
 // is a couple of line segments, and matching the design's weight matters more
@@ -137,7 +123,7 @@ const OrderDetailsStep = ({
 									<p className="rbs1-order__when">
 										{date.format("dddd, MMM D")}
 										{booking.start_time
-											? `, ${formatTime(booking.start_time)}`
+											? `, ${formatTimeOfDay(booking.start_time)}`
 											: ""}
 									</p>
 								)}

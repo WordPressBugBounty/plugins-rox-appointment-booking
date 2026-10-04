@@ -285,6 +285,7 @@ class EmailService
     {
         $senderEmail = sanitize_email((string) rox_appointment_booking_email_settings('sender_email', ''));
         $senderName  = sanitize_text_field((string) rox_appointment_booking_email_settings('sender_name', ''));
+        $senderName  = rox_appointment_booking_translate('email_settings', 1, 'sender_name', $senderName);
 
         $headers = ['Content-Type: text/html; charset=UTF-8'];
 

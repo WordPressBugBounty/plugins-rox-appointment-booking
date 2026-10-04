@@ -147,7 +147,7 @@ class BookingPanelStructure extends AbstractREST
             "googleLoginButtonText" => (string) $google_login['buttonText'],
 
             // "Already have an account?" login tab on the Customer Information
-            // step. On unless switched off under Settings > General > Booking
+            // step. On unless switched off under Settings > Bookings > Booking
             // Permissions, for sites whose visitors never have an account.
             "customerLoginEnabled" => filter_var(
                 rox_appointment_booking_general_settings('customer_login_tab_enable', true),

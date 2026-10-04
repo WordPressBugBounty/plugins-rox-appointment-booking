@@ -60,6 +60,34 @@ if (!function_exists('rox_appointment_booking_locale_to_bcp47')) {
 }
 
 /**
+ * The clock the plugin writes times in: '12_hour' (default) or '24_hour'.
+ *
+ * Display only — stored and compared times are always 24-hour wall clock.
+ *
+ * @return string
+ * @since 1.3.0
+ */
+if (!function_exists('rox_appointment_booking_time_system')) {
+    function rox_appointment_booking_time_system(): string
+    {
+        return rox_appointment_booking_general_settings('time_system') === '24_hour' ? '24_hour' : '12_hour';
+    }
+}
+
+/**
+ * PHP date format for a time of day under Settings > General > Time Format.
+ *
+ * @return string 'g:i A' (1:00 PM) or 'H:i' (13:00).
+ * @since 1.3.0
+ */
+if (!function_exists('rox_appointment_booking_time_format')) {
+    function rox_appointment_booking_time_format(): string
+    {
+        return rox_appointment_booking_time_system() === '24_hour' ? 'H:i' : 'g:i A';
+    }
+}
+
+/**
  * Build the locale payload handed to the React bundles.
  *
  * Everything here comes from WordPress itself, so a site running a language
@@ -70,7 +98,7 @@ if (!function_exists('rox_appointment_booking_locale_to_bcp47')) {
  *     locale:string, language:string, bcp47:string, direction:string,
  *     startOfWeek:int, months:string[], monthsShort:string[], weekdays:string[],
  *     weekdaysShort:string[], weekdaysMin:string[], meridiem:array,
- *     dateFormat:string, timeFormat:string, timezone:string
+ *     dateFormat:string, timeFormat:string, timeSystem:string, timezone:string
  * }
  * @since 1.0.0
  */
@@ -130,6 +158,7 @@ if (!function_exists('rox_appointment_booking_js_locale')) {
             'meridiem'      => $meridiem,
             'dateFormat'    => get_option('date_format') ?: 'F j, Y',
             'timeFormat'    => get_option('time_format') ?: 'g:i a',
+            'timeSystem'    => rox_appointment_booking_time_system(),
             'timezone'      => wp_timezone_string(),
         ]);
     }

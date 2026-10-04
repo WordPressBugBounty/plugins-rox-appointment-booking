@@ -108,7 +108,7 @@ class GetOrder extends AbstractREST
                 if ($appointment->date) {
                     $appointmentDate = rox_appointment_booking_format_site_datetime('F j, Y', $appointment->date);
                     if ($appointment->start_time) {
-                        $appointmentDate .= ' - ' . rox_appointment_booking_format_site_datetime('g:i A', $appointment->start_time);
+                        $appointmentDate .= ' - ' . rox_appointment_booking_format_site_datetime(rox_appointment_booking_time_format(), $appointment->start_time);
                     }
                 }
                 
@@ -472,7 +472,7 @@ class GetOrder extends AbstractREST
         }
 
         $dateLabel = rox_appointment_booking_format_site_datetime('F j, Y', $date);
-        $timeLabel = rox_appointment_booking_format_site_datetime('g:i A', $startTime);
+        $timeLabel = rox_appointment_booking_format_site_datetime(rox_appointment_booking_time_format(), $startTime);
 
         return $timeLabel ? $dateLabel . ' at ' . $timeLabel : $dateLabel;
     }
@@ -679,7 +679,7 @@ class GetOrder extends AbstractREST
             return '';
         }
 
-        return wp_date('F j, Y - g:i A', $timestamp);
+        return wp_date('F j, Y - ' . rox_appointment_booking_time_format(), $timestamp);
     }
 
     /**

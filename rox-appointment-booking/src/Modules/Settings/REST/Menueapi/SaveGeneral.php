@@ -130,6 +130,11 @@ class SaveGeneral extends AbstractREST
                 $params['timezone_selector_enable'] = filter_var($params['timezone_selector_enable'], FILTER_VALIDATE_BOOLEAN);
             }
 
+            // Time Format: anything but '24_hour' falls back to the 12-hour default.
+            if (array_key_exists('time_system', $params)) {
+                $params['time_system'] = $params['time_system'] === '24_hour' ? '24_hour' : '12_hour';
+            }
+
             // Time Slots: stored as a real boolean, like the other switches.
             if (array_key_exists('show_slot_time_range', $params)) {
                 $params['show_slot_time_range'] = filter_var($params['show_slot_time_range'], FILTER_VALIDATE_BOOLEAN);

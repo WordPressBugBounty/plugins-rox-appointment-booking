@@ -87,7 +87,7 @@ class GetPayment extends AbstractREST
 
         $paymentDate = '';
         if ($payment->payment_time) {
-            $paymentDate = wp_date('F j, Y - g:i A', strtotime($payment->payment_time));
+            $paymentDate = wp_date('F j, Y - ' . rox_appointment_booking_time_format(), strtotime($payment->payment_time));
         }
 
         $currencySymbol = rox_appointment_booking__get_currency_symbol(rox_appointment_booking_payment_settings('payment_currency'));
@@ -224,7 +224,7 @@ class GetPayment extends AbstractREST
                     $agent = $booking->agent_id ? AgentModel::find($booking->agent_id) : null;
                     $service = $booking->service_id ? ServiceModel::find($booking->service_id) : null;
                     if ($booking->date && $booking->start_time) {
-                        $dateTimeFormatted = rox_appointment_booking_format_site_datetime('F j, Y', $booking->date) . ' - ' . rox_appointment_booking_format_site_datetime('g:i A', $booking->start_time);
+                        $dateTimeFormatted = rox_appointment_booking_format_site_datetime('F j, Y', $booking->date) . ' - ' . rox_appointment_booking_format_site_datetime(rox_appointment_booking_time_format(), $booking->start_time);
                     }
                 }
             }
@@ -347,7 +347,7 @@ class GetPayment extends AbstractREST
         
         $paymentDate = '';
         if ($payment->payment_time) {
-            $paymentDate = wp_date('F j, Y - g:i A', strtotime($payment->payment_time));
+            $paymentDate = wp_date('F j, Y - ' . rox_appointment_booking_time_format(), strtotime($payment->payment_time));
         }
 
         $formattedAmount = $currencySymbol . number_format($payment->amount, 2);

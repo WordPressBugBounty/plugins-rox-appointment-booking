@@ -150,11 +150,11 @@ class GetAppointmentsGrouped extends AbstractREST
                 // Format time as "10:00 AM – 10:45 AM" — the appointment
                 // itself, not the stretch the slot list ran together.
                 $startTime     = $apptData['start_time'] ?? '';
-                $timeFormatted = $startTime ? gmdate('g:i A', strtotime($startTime)) : '';
+                $timeFormatted = $startTime ? gmdate(rox_appointment_booking_time_format(), strtotime($startTime)) : '';
                 $endTime       = (string) ($apptData['end_time'] ?? '');
 
                 if ($timeFormatted && $endTime !== '') {
-                    $timeFormatted .= ' – ' . gmdate('g:i A', strtotime($endTime));
+                    $timeFormatted .= ' – ' . gmdate(rox_appointment_booking_time_format(), strtotime($endTime));
                 }
 
                 $event = [

@@ -24,7 +24,7 @@ import BookingNotice from "../../../components/BookingService/BookingNotice.jsx"
 import TimezoneSelect from "../../../components/BookingService/TimezoneSelect.jsx";
 import { sanitize } from "../../../components/common/Sanitize.js";
 import { useBookingStore } from "../../../redux/booking-store-context.js";
-import { getMonthNames, siteLocale, getSiteNow } from "../../../lib/locale.js";
+import { getMonthNames, siteLocale, getSiteNow, formatTimeOfDay } from "../../../lib/locale.js";
 import {
 	asWireDate,
 	formatSlotLabel,
@@ -791,17 +791,6 @@ const DateTimeStep = ({
 		}
 	};
 
-	// Format time from 24h to 12h format. Day.js runs on the WordPress-derived
-	// locale, so the AM/PM marker comes from the site language rather than being
-	// hardcoded English.
-	const formatTime = (time) => {
-		const [hours, minutes] = time.split(":");
-		return dayjs()
-			.hour(parseInt(hours, 10))
-			.minute(parseInt(minutes, 10))
-			.format("h:mm A");
-	};
-
 	// What a chip reads. The start is the time the customer is shown anyway —
 	// their own clock while shifting, the site's otherwise — and with Settings →
 	// General → Time Slot → "Show a time range" on it carries the end as well:
@@ -813,7 +802,7 @@ const DateTimeStep = ({
 	const slotLabel = (slot) => {
 		const siteDate = slot.siteDate;
 		const siteTime = slot.siteTime || slot.time;
-		const start = shifting ? formatSlotLabel(siteDate, siteTime) : formatTime(slot.time);
+		const start = shifting ? formatSlotLabel(siteDate, siteTime) : formatTimeOfDay(slot.time);
 		const minutes =
 			Number(scheduleData?.slot_range_minutes ?? scheduleData?.slot_duration) || 0;
 
@@ -823,7 +812,7 @@ const DateTimeStep = ({
 
 		const end = calculateEndTime(siteTime, minutes);
 
-		return `${start} - ${shifting ? formatSlotLabel(siteDate, end) : formatTime(end)}`;
+		return `${start} - ${shifting ? formatSlotLabel(siteDate, end) : formatTimeOfDay(end)}`;
 	};
 
 	const selectedDateObj =

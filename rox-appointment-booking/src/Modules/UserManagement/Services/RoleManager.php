@@ -76,8 +76,8 @@ class RoleManager
 	public static function translateRoleName(string $role_name): string
 	{
 		$names = [
-			'Booking Engine Customer' => __('Booking Engine Customer', 'rox-appointment-booking'),
-			'Booking Engine Agent'    => __('Booking Engine Agent', 'rox-appointment-booking'),
+			'Rox Appointment Customer' => __('Rox Appointment Customer', 'rox-appointment-booking'),
+			'Rox Appointment Agent'    => __('Rox Appointment Agent', 'rox-appointment-booking'),
 		];
 
 		return $names[$role_name] ?? $role_name;

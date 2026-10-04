@@ -158,6 +158,10 @@ class SaveEmailSettings extends AbstractREST
 
         update_option('rox_appointment_booking_email_settings', $stored);
 
+        if (!empty($stored['sender_name'])) {
+            rox_appointment_booking_register_string('email_settings', 1, 'sender_name', $stored['sender_name']);
+        }
+
         return $stored;
     }
 

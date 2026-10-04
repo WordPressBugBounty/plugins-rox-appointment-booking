@@ -83,6 +83,8 @@ class MultilingualService
         // dropdowns and tooltips to <body>, outside our root.
         add_filter('admin_body_class', [$this, 'addAdminBodyClass']);
 
+        add_action('rox_appointment_booking_after_string_backfill', [$this, 'backfillOptionStrings']);
+
         if ($this->wpmlNeedsStringTranslation()) {
             add_action('admin_notices', [$this, 'renderStringTranslationNotice']);
         }
@@ -159,6 +161,21 @@ class MultilingualService
         }
 
         $this->unregisterStrings($entity, (int) $id);
+    }
+
+    /**
+     * Register option-based translatable strings during a backfill scan.
+     *
+     * @param array $result Scan tallies (unused).
+     * @return void
+     */
+    public function backfillOptionStrings($result): void
+    {
+        $senderName = sanitize_text_field((string) rox_appointment_booking_email_settings('sender_name', ''));
+
+        if ($senderName !== '') {
+            $this->registerString('email_settings', 1, 'sender_name', $senderName);
+        }
     }
 
     /**

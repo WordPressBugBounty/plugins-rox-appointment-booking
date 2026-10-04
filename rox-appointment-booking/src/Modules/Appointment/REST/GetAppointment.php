@@ -481,7 +481,7 @@ class GetAppointment extends AbstractREST
 
         try {
             $dt = new \DateTime($datetime);
-            return $dt->format('h:i A');
+            return $dt->format(rox_appointment_booking_time_format());
         } catch (\Exception $e) {
             return $datetime;
         }
@@ -541,7 +541,7 @@ class GetAppointment extends AbstractREST
 
         $response = [
             'id' => $appointmentData['id'] ?? null,
-            'time' => isset($appointmentData['start_time']) ? gmdate('g:i A', strtotime($appointmentData['start_time'])) : null,
+            'time' => isset($appointmentData['start_time']) ? gmdate(rox_appointment_booking_time_format(), strtotime($appointmentData['start_time'])) : null,
             'service' => $serviceTitle,
             'customer' => $this->getCustomerDetails($customer),
             'agent' => $this->getAgentDetails($agent),
@@ -709,7 +709,7 @@ class GetAppointment extends AbstractREST
             // translators: 1: timezone name, 2: date and time on that timezone
             esc_html__('%1$s — %2$s', 'rox-appointment-booking'),
             $zone,
-            $start->format('M j, Y g:i A')
+            $start->format('M j, Y ' . rox_appointment_booking_time_format())
         );
     }
 
@@ -727,14 +727,14 @@ class GetAppointment extends AbstractREST
         }
 
         $dateLabel = rox_appointment_booking_format_site_datetime('F j, Y', $date);
-        $timeLabel = rox_appointment_booking_format_site_datetime('g:i A', $startTime);
+        $timeLabel = rox_appointment_booking_format_site_datetime(rox_appointment_booking_time_format(), $startTime);
 
         // The appointment itself — staff need the time the customer is actually
         // with the agent, not the stretch the slot list ran together.
         $endTime = (string) ($appointmentData['end_time'] ?? '');
 
         if ($timeLabel !== '' && $endTime !== '') {
-            $timeLabel .= ' – ' . rox_appointment_booking_format_site_datetime('g:i A', $endTime);
+            $timeLabel .= ' – ' . rox_appointment_booking_format_site_datetime(rox_appointment_booking_time_format(), $endTime);
         }
 
         return $timeLabel ? $dateLabel . ' at ' . $timeLabel : $dateLabel;

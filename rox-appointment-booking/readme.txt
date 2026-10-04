@@ -4,7 +4,7 @@ Tags: booking, reservation, appointments, calendar
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.3.0
+Stable tag: 1.3.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.txt
 
@@ -273,6 +273,12 @@ After activation, you can configure the plugin settings from the WordPress admin
 
 
 == Changelog ==
+Version: 1.3.1 // 2026-10-04
+* Added: "Time Format" setting under Settings > General to show every time as 12-hour (1:00 PM) or 24-hour (13:00).
+* Improved: Appointment, Booking Restrictions and Booking Permissions moved from Settings > General to a new Settings > Bookings tab.
+* Improved: Agents can now be assigned to a service from the Services step of the setup wizard.
+* Fixed: WPML translation of the booking panel shortcode and the e-mail sender name.
+
 Version: 1.3.0 // 2026-09-29
 * Added: "Enable Timezone Selector" switch under Settings > General > Timezone, off by default.
 * Added: Customers can pick their own timezone on the booking form, detected from their browser, and see every available time on their own clock.

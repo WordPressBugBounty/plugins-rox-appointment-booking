@@ -180,7 +180,7 @@ class CalendarService
                 }
 
                 // Format time for display (e.g., "10:00 AM")
-                $displayTime = gmdate('g:i A', strtotime($startTime));
+                $displayTime = gmdate(rox_appointment_booking_time_format(), strtotime($startTime));
 
                 // Get service-based colors
                 $colors = $this->getServiceTypeColors($serviceType);

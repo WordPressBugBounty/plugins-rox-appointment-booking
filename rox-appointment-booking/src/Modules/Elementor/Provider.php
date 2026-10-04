@@ -330,6 +330,9 @@ class Provider
             'version'           => ROX_APPOINTMENT_BOOKING_VERSION,
             'appTitle'          => ROX_APPOINTMENT_BOOKING_NAME,
             'defaultLocale'     => determine_locale(),
+            'language'          => rox_appointment_booking_multilingual()->isActive()
+                ? rox_appointment_booking_current_language()
+                : '',
             'timezone'          => get_option('timezone_string') ?: 'UTC',
             'dateFormat'        => get_option('date_format') ?: 'Y-m-d',
             'timeFormat'        => get_option('time_format') ?: 'H:i:s',

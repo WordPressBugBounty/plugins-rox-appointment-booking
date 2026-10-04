@@ -1,19 +1,13 @@
 import React from "react";
 import dayjs from "dayjs";
+import { formatTimeOfDay } from "../../../lib/locale.js";
 
 // Day.js runs on the WordPress-derived locale (lib/locale.js, imported by the
-// block's view entry), so month names and the AM/PM marker follow the site
-// language instead of being hardcoded English.
+// block's view entry), so month names follow the site language.
 const formatDate = (date) => {
   if (!date) return "";
   const d = dayjs(date);
   return d.isValid() ? d.format("MMM D, YYYY") : "";
-};
-
-const formatTime = (time) => {
-  if (!time) return "";
-  const [h, m] = String(time).split(":");
-  return dayjs().hour(parseInt(h, 10)).minute(parseInt(m, 10)).format("h:mm A");
 };
 
 /**
@@ -57,7 +51,7 @@ const SummaryPanel = ({
           {startTime ? (
             <li>
               <span>Time</span>
-              <strong>{formatTime(startTime)}</strong>
+              <strong>{formatTimeOfDay(startTime)}</strong>
             </li>
           ) : null}
         </ul>

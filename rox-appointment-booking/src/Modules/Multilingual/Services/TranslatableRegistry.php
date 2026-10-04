@@ -99,6 +99,12 @@ class TranslatableRegistry
                     // experience_years / happy_customers), not free text.
                 ],
             ],
+            'email_settings' => [
+                'context' => self::CONTEXT_FREE,
+                'fields' => [
+                    'sender_name' => self::KIND_TEXT,
+                ],
+            ],
         ];
     }
 

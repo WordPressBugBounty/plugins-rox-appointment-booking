@@ -215,7 +215,7 @@ class GetCalendarSlots extends AbstractREST
             
             $slots[] = [
                 'time' => $time,
-                'time_formatted' => $this->formatTime12Hour($time),
+                'time_formatted' => $this->formatTimeLabel($time),
                 'available' => !$isBooked,
             ];
         }
@@ -478,14 +478,14 @@ class GetCalendarSlots extends AbstractREST
     }
 
     /**
-     * Format time to 12-hour format.
+     * Format a time of day in the site's Time Format.
      *
      * @param string $time
      * @return string
      */
-    private function formatTime12Hour(string $time): string
+    private function formatTimeLabel(string $time): string
     {
-        return gmdate('h:i A', strtotime($time));
+        return gmdate(rox_appointment_booking_time_format(), strtotime($time));
     }
 
     /**

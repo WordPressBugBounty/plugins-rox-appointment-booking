@@ -289,10 +289,10 @@ class EmailPlaceholderResolver
                 ? self::formatDateOn($onReaderClock['start'])
                 : self::formatDate($first->date ?? ''),
             '{appointment_start_time}' => $onReaderClock
-                ? $onReaderClock['start']->format('h:i A')
+                ? $onReaderClock['start']->format(rox_appointment_booking_time_format())
                 : self::formatTime($first->start_time ?? ''),
             '{appointment_end_time}'   => $onReaderClock
-                ? $onReaderClock['end']->format('h:i A')
+                ? $onReaderClock['end']->format(rox_appointment_booking_time_format())
                 : self::formatTime($first->end_time ?? ''),
             '{appointment_status}'     => $status === '' ? '' : ucfirst(str_replace('_', ' ', $status)),
             '{appointment_date_customer_timezone}'       => $inCustomerZone['date'],
@@ -545,8 +545,8 @@ class EmailPlaceholderResolver
                 $location ? $location->title : 'N/A',
                 $onReaderClock ? $onReaderClock['start']->format('Y-m-d') : ($appointment->date ?? 'N/A'),
                 $onReaderClock
-                    ? $onReaderClock['start']->format('h:i A') . ' - ' . $onReaderClock['end']->format('h:i A')
-                    : gmdate('h:i A', strtotime($appointment->start_time)) . ' - ' . gmdate('h:i A', strtotime($appointment->end_time)),
+                    ? $onReaderClock['start']->format(rox_appointment_booking_time_format()) . ' - ' . $onReaderClock['end']->format(rox_appointment_booking_time_format())
+                    : gmdate(rox_appointment_booking_time_format(), strtotime($appointment->start_time)) . ' - ' . gmdate(rox_appointment_booking_time_format(), strtotime($appointment->end_time)),
                 ucfirst($appointment->status ?? 'Pending'),
                 // A whole cell, or nothing at all when no appointment in this
                 // e-mail has a meeting — the header below is dropped to match.
@@ -818,7 +818,7 @@ class EmailPlaceholderResolver
         }
 
         $values['date']       = self::formatDateOn($onCustomerClock['start']);
-        $values['start_time'] = $onCustomerClock['start']->format('h:i A');
+        $values['start_time'] = $onCustomerClock['start']->format(rox_appointment_booking_time_format());
 
         $values['block'] = '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>'
             . esc_html__('Your timezone:', 'rox-appointment-booking')
@@ -925,7 +925,7 @@ class EmailPlaceholderResolver
 
         $timestamp = strtotime($time);
 
-        return $timestamp ? gmdate('h:i A', $timestamp) : $time;
+        return $timestamp ? gmdate(rox_appointment_booking_time_format(), $timestamp) : $time;
     }
 
     /**

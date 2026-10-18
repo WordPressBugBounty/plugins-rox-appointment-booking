@@ -2256,6 +2256,7 @@
     padding: 12px 14px;
     border-radius: 6px;
     background: #f7f8fc;
+    height: 40px;
 
     &__control {
       display: inline-flex;
@@ -3982,6 +3983,20 @@
       background: transparent;
       padding-top: 12px;
       padding-right: 18px;
+
+      .services-tab-pane {
+        animation: servicesTabPaneFadeIn 0.25s ease-out;
+      }
+    }
+  }
+
+  @keyframes servicesTabPaneFadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
     }
   }
 
@@ -4159,6 +4174,12 @@
     height: 160px;
     border-radius: 10px;
     padding: 20px 10px 10px 20px;
+  }
+
+  // Longer warnings grow the modal instead of clipping it.
+  .custom-delete-modal.custom-delete-modal--auto-height .ant-modal-content {
+    height: auto;
+    padding-right: 20px;
   }
 
   .custom-delete-modal.ant-modal-confirm .ant-modal-confirm-title {

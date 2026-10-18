@@ -72,6 +72,38 @@ if (!function_exists('rox_appointment_booking_format_site_datetime')) {
 }
 
 /**
+ * UTC bounds of a span of site-local days.
+ *
+ * For filtering columns written with `gmdate()` (`created_at`, `order_date`)
+ * by the days the site's own clock shows.
+ *
+ * @param string $startDate First day, `Y-m-d`.
+ * @param string $endDate Last day, `Y-m-d`.
+ * @return array{0:string, 1:string} UTC `Y-m-d H:i:s` start and end, inclusive.
+ * @since 1.3.1
+ */
+if (!function_exists('rox_appointment_booking_utc_day_bounds')) {
+    function rox_appointment_booking_utc_day_bounds(string $startDate, string $endDate): array
+    {
+        $startDate = substr($startDate, 0, 10);
+        $endDate   = substr($endDate, 0, 10);
+
+        try {
+            $utc   = new DateTimeZone('UTC');
+            $start = new DateTime($startDate . ' 00:00:00', wp_timezone());
+            $end   = new DateTime($endDate . ' 23:59:59', wp_timezone());
+        } catch (Exception $e) {
+            return [$startDate . ' 00:00:00', $endDate . ' 23:59:59'];
+        }
+
+        return [
+            $start->setTimezone($utc)->format('Y-m-d H:i:s'),
+            $end->setTimezone($utc)->format('Y-m-d H:i:s'),
+        ];
+    }
+}
+
+/**
  * The timezone list the booking panel's selector renders.
  *
  * One flat list, ordered by region and then by name — so the zones of a region

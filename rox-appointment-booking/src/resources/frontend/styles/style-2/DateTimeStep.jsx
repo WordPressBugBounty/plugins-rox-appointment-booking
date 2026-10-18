@@ -24,7 +24,7 @@ import BookingNotice from "../../../components/BookingService/BookingNotice.jsx"
 import TimezoneSelect from "../../../components/BookingService/TimezoneSelect.jsx";
 import { sanitize } from "../../../components/common/Sanitize.js";
 import { useBookingStore } from "../../../redux/booking-store-context.js";
-import { getMonthNames, siteLocale, getSiteNow, formatTimeOfDay } from "../../../lib/locale.js";
+import { getMonthNames, getSiteNow, formatTimeOfDay, getWeekdayHeaders, getMonthLeadingBlanks } from "../../../lib/locale.js";
 import {
 	asWireDate,
 	formatSlotLabel,
@@ -202,7 +202,7 @@ const DateTimeStep = ({
 	// Generate days for the current month using useMemo to avoid recalculation on every render
 	const days = useMemo(() => {
 		const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-		const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+		const firstDayOfMonth = getMonthLeadingBlanks(currentYear, currentMonth);
 
 		const daysArray = [];
 		for (let i = 0; i < firstDayOfMonth; i++) {
@@ -883,11 +883,10 @@ const DateTimeStep = ({
 					</span>
 				</div>
 
-				{/* Sunday-first to match the grid below, which is laid out from
-				    Date#getDay(). Names come from WordPress, so they follow the site
-				    language. */}
+				{/* Begins on the Week Start Day, like the grid below. Names come from
+				    WordPress, so they follow the site language. */}
 				<div className="rbs1-cal__weekdays">
-					{siteLocale.weekdaysShort.map((day, index) => (
+					{getWeekdayHeaders().map((day, index) => (
 						<span key={index} className="rbs1-cal__weekday">
 							{day}
 						</span>

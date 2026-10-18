@@ -105,12 +105,12 @@ class GetDashboardStats extends AbstractREST
             }
 
             if (!$startDate || !$this->isValidDate($startDate)) {
-                // Default: start of current week (Monday)
-                $startDate = gmdate('Y-m-d', strtotime('monday this week'));
+                // Default: start of current week (Week Start Day)
+                $startDate = rox_appointment_booking_week_start_date(new \DateTime('now', wp_timezone()))->format('Y-m-d');
             }
 
             if (!$endDate || !$this->isValidDate($endDate)) {
-                $endDate = gmdate('Y-m-d');
+                $endDate = current_time('Y-m-d');
             }
 
             // Swap if inverted
@@ -235,8 +235,8 @@ class GetDashboardStats extends AbstractREST
     {
         // Get valid appointment IDs with their dates, excluding cancelled and rejected
         $validAppointmentsQuery = AppointmentModel::query()
-            ->select(['id', 'date'])
-            ->whereRaw('DATE(`created_at`) BETWEEN %s AND %s', [$start, $end])
+            ->select(['id', 'date', 'created_at'])
+            ->whereBetween('created_at', rox_appointment_booking_utc_day_bounds($start, $end))
             ->whereNotIn('status', ['cancelled', 'rejected']);
         $this->applyAppointmentFilters($validAppointmentsQuery, $filters);
         $validAppointmentRows = $validAppointmentsQuery->get()->all();
@@ -257,7 +257,7 @@ class GetDashboardStats extends AbstractREST
         // Build a map of appointment_id => date for grouping
         $appointmentDates = [];
         foreach ($validAppointmentRows as $row) {
-            $appointmentDates[(int) $row->id] = (new \DateTime($row->created_at))->format('Y-m-d');
+            $appointmentDates[(int) $row->id] = wp_date('Y-m-d', strtotime($row->created_at));
         }
 
         // Fetch orders linked to valid appointments
@@ -318,19 +318,19 @@ class GetDashboardStats extends AbstractREST
     private function getDailyBookings(string $start, string $end, array $filters = []): array
     {
         $qb = AppointmentModel::query()
-            ->selectRaw('DATE(`created_at`) as booking_date, COUNT(*) as count')
-            ->whereRaw('DATE(`created_at`) BETWEEN %s AND %s', [$start, $end])
+            ->select(['created_at'])
+            ->whereBetween('created_at', rox_appointment_booking_utc_day_bounds($start, $end))
             ->whereNotIn('status', ['cancelled', 'rejected']);
 
         $this->applyAppointmentFilters($qb, $filters);
 
-        $rows = $qb->groupByRaw('DATE(`created_at`)')
-            ->get()
-            ->all();
+        $rows = $qb->get()->all();
 
+        // Grouped here, not in SQL, so each booking lands on its site-local day.
         $indexed = [];
         foreach ($rows as $row) {
-            $indexed[$row->booking_date] = (int) $row->count;
+            $bookingDate = wp_date('Y-m-d', strtotime($row->created_at));
+            $indexed[$bookingDate] = ($indexed[$bookingDate] ?? 0) + 1;
         }
 
         $result  = [];
@@ -361,7 +361,7 @@ class GetDashboardStats extends AbstractREST
     private function countBookings(string $start, string $end, array $filters = []): int
     {
         $query = AppointmentModel::query()
-            ->whereRaw('DATE(`created_at`) BETWEEN %s AND %s', [$start, $end])
+            ->whereBetween('created_at', rox_appointment_booking_utc_day_bounds($start, $end))
             ->whereNotIn('status', ['cancelled', 'rejected']);
         $this->applyAppointmentFilters($query, $filters);
         return $query->count();
@@ -383,7 +383,7 @@ class GetDashboardStats extends AbstractREST
         // Get valid appointment IDs with their dates, excluding cancelled and rejected
         $validAppointmentsQuery = AppointmentModel::query()
             ->select(['id'])
-            ->whereRaw('DATE(`created_at`) BETWEEN %s AND %s', [$start, $end])
+            ->whereBetween('created_at', rox_appointment_booking_utc_day_bounds($start, $end))
             ->whereNotIn('status', ['cancelled', 'rejected']);
         $this->applyAppointmentFilters($validAppointmentsQuery, $filters);
         $validAppointmentRows = $validAppointmentsQuery->get()->all();
@@ -420,7 +420,7 @@ class GetDashboardStats extends AbstractREST
         // Distinct customers who had at least one booking in the period
         $qb = AppointmentModel::query()
             ->select(['customer_id'])
-            ->whereRaw('DATE(`created_at`) BETWEEN %s AND %s', [$start, $end])
+            ->whereBetween('created_at', rox_appointment_booking_utc_day_bounds($start, $end))
             ->whereNotNull('customer_id');
 
         $this->applyAppointmentFilters($qb, $filters);
@@ -440,7 +440,7 @@ class GetDashboardStats extends AbstractREST
         // "New" customers: account was created within the period
         $newCount = CustomerModel::query()
             ->whereIn('id', array_values($customerIds))
-            ->whereRaw('DATE(created_at) BETWEEN %s AND %s', [$start, $end])
+            ->whereBetween('created_at', rox_appointment_booking_utc_day_bounds($start, $end))
             ->count();
 
         return [
@@ -467,7 +467,7 @@ class GetDashboardStats extends AbstractREST
             // When filters are active, count customers via bookings (same scope).
             $qb = AppointmentModel::query()
                 ->select(['customer_id'])
-                ->whereRaw('DATE(`created_at`) BETWEEN %s AND %s', [$start, $end])
+                ->whereBetween('created_at', rox_appointment_booking_utc_day_bounds($start, $end))
                 ->whereNotNull('customer_id');
             $this->applyAppointmentFilters($qb, $filters);
             $rows = $qb->groupBy('customer_id')->get()->all();
@@ -475,7 +475,7 @@ class GetDashboardStats extends AbstractREST
         }
 
         return CustomerModel::query()
-            ->whereRaw('DATE(created_at) BETWEEN %s AND %s', [$start, $end])
+            ->whereBetween('created_at', rox_appointment_booking_utc_day_bounds($start, $end))
             ->count();
     }
 
@@ -494,7 +494,7 @@ class GetDashboardStats extends AbstractREST
 
         // Filter by date range if provided
         if ($startDate && $endDate) {
-            $query->whereBetween('created_at', [$startDate, $endDate]);
+            $query->whereBetween('created_at', rox_appointment_booking_utc_day_bounds($startDate, $endDate));
         }
 
         $this->applyAppointmentFilters($query, $filters);

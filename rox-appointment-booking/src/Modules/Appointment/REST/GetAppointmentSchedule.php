@@ -391,6 +391,11 @@ class GetAppointmentSchedule extends AbstractREST
                         break;
                     }
                 }
+
+                // A special-days-only agent works on no other date.
+                if (!is_array($special_day) && AgentService::isSpecialDaysOnly($agent_service->getAgent($agent_id))) {
+                    return [];
+                }
             } else {
                 // Agent-less booking: service ∩ global, the same reduction the
                 // slot grid makes by feeding the global schedule in as the agent.
@@ -517,14 +522,14 @@ class GetAppointmentSchedule extends AbstractREST
     public function getBookedTimeslots(int $agent_id, int $service_duration, array $weekly_schedule = [], array $special_days = [], int $buffer_before = 0, int $buffer_after = 0): array
     {
         $booked_timeslots = [];
-        $today = gmdate('Y-m-d');
+        $today = current_time('Y-m-d');
 
         // Query all appointments for this agent. Yesterday is included only so a
         // buffer running past midnight still blocks today; blockedDates() drops
         // anything that lands before today.
         $appointments = AppointmentModel::query()
             ->where('agent_id', $agent_id)
-            ->where('date', '>=', gmdate('Y-m-d', strtotime('-1 day')))
+            ->where('date', '>=', wp_date('Y-m-d', strtotime('-1 day')))
             ->get();
 
         if (!$appointments || $appointments->isEmpty()) {
@@ -668,13 +673,13 @@ class GetAppointmentSchedule extends AbstractREST
         }
 
         $booked_timeslots = [];
-        $today = gmdate('Y-m-d');
+        $today = current_time('Y-m-d');
 
         // Query all future appointments for this service (any agent). Yesterday
         // is included only so a buffer running past midnight still counts today.
         $appointments = AppointmentModel::query()
             ->where('service_id', $service_id)
-            ->where('date', '>=', gmdate('Y-m-d', strtotime('-1 day')))
+            ->where('date', '>=', wp_date('Y-m-d', strtotime('-1 day')))
             ->get();
 
         if (!$appointments || $appointments->isEmpty()) {
@@ -824,10 +829,10 @@ class GetAppointmentSchedule extends AbstractREST
         }
 
         $booked_timeslots = [];
-        $today = gmdate('Y-m-d');
+        $today = current_time('Y-m-d');
         // Yesterday is included only so a buffer running past midnight still
         // blocks today; blockedDates() drops anything that lands before today.
-        $since = gmdate('Y-m-d', strtotime('-1 day'));
+        $since = wp_date('Y-m-d', strtotime('-1 day'));
 
         $query = AppointmentModel::query()
             ->where('service_id', $service_id)
@@ -1514,6 +1519,14 @@ class GetAppointmentSchedule extends AbstractREST
                 $buffer_before,
                 $buffer_after
             );
+
+            // A special-days-only agent has no weekly hours; the special days below are their only openings.
+            if (!$is_agent_less && AgentService::isSpecialDaysOnly($agent_exists)) {
+                foreach ($final_weekly_schedule as $day_index => $day) {
+                    $final_weekly_schedule[$day_index]['day_off'] = true;
+                    $final_weekly_schedule[$day_index]['timeslots'] = [];
+                }
+            }
 
             // Merge holidays ($agent_holidays is [] for agent-less → global only)
             $final_holidays = $this->mergeHolidays($agent_holidays, $global_holidays);

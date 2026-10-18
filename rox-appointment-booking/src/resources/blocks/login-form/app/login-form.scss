@@ -327,6 +327,25 @@
     }
   }
 
+  // The login form's wrapper and submit control are a real <form> / <button>;
+  // the theme styles bare forms and buttons on the page, so reset what would
+  // leak in and keep the look of the <div> they replaced.
+  .rlf-login-form {
+    margin: 0;
+    padding: 0;
+  }
+
+  button.primary-submit-btn {
+    height: auto;
+    min-height: 0;
+    border: 0;
+    box-shadow: none;
+    appearance: none;
+    text-transform: none;
+    text-decoration: none;
+    letter-spacing: normal;
+  }
+
   .forgot-password-link {
     cursor: pointer;
     color: var(--rlf-link, #3560fb);

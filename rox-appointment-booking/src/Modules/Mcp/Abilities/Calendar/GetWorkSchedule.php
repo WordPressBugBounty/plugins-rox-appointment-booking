@@ -25,7 +25,7 @@ class GetWorkSchedule extends AbstractAbility
 
     public function description(): string
     {
-        return "Returns weekly working hours. With agent_id: that agent's own schedule, special days and holidays. With service_id: the service's own schedule (empty means it follows the business hours). With neither: the business-wide hours. Times are in the site timezone.";
+        return "Returns weekly working hours. With agent_id: that agent's own schedule, special days and holidays; when special_days_only is true the weekly schedule is ignored and the agent works on the special days only. With service_id: the service's own schedule (empty means it follows the business hours). With neither: the business-wide hours. Times are in the site timezone.";
     }
 
     protected function properties(): array
@@ -53,6 +53,8 @@ class GetWorkSchedule extends AbstractAbility
                 'agent_id'        => $agentId,
                 'weekly_schedule' => $agent['weekly_schedule'] ?? [],
                 'special_days'    => $agent['special_days'] ?? [],
+                // True: the weekly schedule is ignored and only special_days are bookable.
+                'special_days_only' => !empty($agent['special_days_only']),
                 'holiday'         => $agent['holiday'] ?? [],
             ];
         }

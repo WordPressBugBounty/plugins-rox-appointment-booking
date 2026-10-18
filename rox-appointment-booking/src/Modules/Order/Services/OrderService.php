@@ -57,11 +57,11 @@ class OrderService
         }
 
         if (!empty($filters['date_from'])) {
-            $query->where('order_date', '>=', $filters['date_from']);
+            $query->where('order_date', '>=', rox_appointment_booking_utc_day_bounds($filters['date_from'], $filters['date_from'])[0]);
         }
 
         if (!empty($filters['date_to'])) {
-            $query->where('order_date', '<=', $filters['date_to'] . ' 23:59:59');
+            $query->where('order_date', '<=', rox_appointment_booking_utc_day_bounds($filters['date_to'], $filters['date_to'])[1]);
         }
 
         $total = $query->count();
@@ -421,11 +421,11 @@ class OrderService
         $query = OrderModel::query();
 
         if (!empty($filters['date_from'])) {
-            $query->where('order_date', '>=', $filters['date_from']);
+            $query->where('order_date', '>=', rox_appointment_booking_utc_day_bounds($filters['date_from'], $filters['date_from'])[0]);
         }
 
         if (!empty($filters['date_to'])) {
-            $query->where('order_date', '<=', $filters['date_to'] . ' 23:59:59');
+            $query->where('order_date', '<=', rox_appointment_booking_utc_day_bounds($filters['date_to'], $filters['date_to'])[1]);
         }
 
         $totalOrders = (clone $query)->count();

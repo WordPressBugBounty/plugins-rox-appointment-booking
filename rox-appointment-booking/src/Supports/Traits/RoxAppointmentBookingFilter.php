@@ -184,9 +184,7 @@ trait RoxAppointmentBookingFilter
                         // Handle date range filter with predefined labels
                         $dateRange = $this->getDateRangeFromLabel($filterValue);
                         if ($dateRange) {
-                            $startDate = $dateRange['start'] . ' 00:00:00';
-                            $endDate = $dateRange['end'] . ' 23:59:59';
-                            $query->whereBetween($dataIndex, [$startDate, $endDate]);
+                            $query->whereBetween($dataIndex, $this->dayBounds($dataIndex, $dateRange['start'], $dateRange['end']));
                         }
                     } else {
                         // If filterValue is numeric, use it directly as ID
@@ -237,9 +235,7 @@ trait RoxAppointmentBookingFilter
                         }
 
                         if (is_array($dates) && count($dates) >= 2) {
-                            $start = substr($dates[0], 0, 10) . ' 00:00:00';
-                            $end   = substr($dates[1], 0, 10) . ' 23:59:59';
-                            $query->whereBetween($dataIndex, [$start, $end]);
+                            $query->whereBetween($dataIndex, $this->dayBounds($dataIndex, (string) $dates[0], (string) $dates[1]));
                         }
                     }
                     break;
@@ -287,11 +283,29 @@ trait RoxAppointmentBookingFilter
             $startDate = $this->validateDate($dateRange['start']);
             $endDate = $this->validateDate($dateRange['end']);
             if ($startDate && $endDate) {
-                $query->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+                $query->whereBetween('created_at', $this->dayBounds('created_at', $startDate, $endDate));
             }
         }
 
         return $query;
+    }
+
+    /**
+     * Bounds of a span of site-local days for a datetime column.
+     *
+     * @param string $column Column being filtered.
+     * @param string $startDate First day (Y-m-d).
+     * @param string $endDate Last day (Y-m-d).
+     * @return array
+     */
+    protected function dayBounds(string $column, string $startDate, string $endDate): array
+    {
+        // These columns are stored in UTC; every other one is site-local.
+        if (in_array($column, ['created_at', 'updated_at', 'order_date'], true)) {
+            return rox_appointment_booking_utc_day_bounds($startDate, $endDate);
+        }
+
+        return [substr($startDate, 0, 10) . ' 00:00:00', substr($endDate, 0, 10) . ' 23:59:59'];
     }
 
     /**
@@ -363,42 +377,46 @@ trait RoxAppointmentBookingFilter
      */
     protected function getDateRangeFromLabel(string $label): ?array
     {
-        $today = gmdate('Y-m-d');
+        // Labels are read on the site's own clock.
+        $now = new \DateTimeImmutable('now', wp_timezone());
+        $today = $now->format('Y-m-d');
 
         switch ($label) {
             case 'today':
                 return ['start' => $today, 'end' => $today];
 
             case 'yesterday':
-                $yesterday = gmdate('Y-m-d', strtotime('-1 day'));
+                $yesterday = $now->modify('-1 day')->format('Y-m-d');
                 return ['start' => $yesterday, 'end' => $yesterday];
 
             case 'this_week':
+                $weekStart = rox_appointment_booking_week_start_date($now);
                 return [
-                    'start' => gmdate('Y-m-d', strtotime('monday this week')),
-                    'end' => gmdate('Y-m-d', strtotime('sunday this week'))
+                    'start' => $weekStart->format('Y-m-d'),
+                    'end' => $weekStart->modify('+6 days')->format('Y-m-d')
                 ];
 
             case 'this_month':
                 return [
-                    'start' => gmdate('Y-m-01'),
-                    'end' => gmdate('Y-m-t')
+                    'start' => $now->format('Y-m-01'),
+                    'end' => $now->format('Y-m-t')
                 ];
 
             case 'last_month':
+                $lastMonth = $now->modify('first day of last month');
                 return [
-                    'start' => gmdate('Y-m-01', strtotime('first day of last month')),
-                    'end' => gmdate('Y-m-t', strtotime('last day of last month'))
+                    'start' => $lastMonth->format('Y-m-01'),
+                    'end' => $lastMonth->format('Y-m-t')
                 ];
 
             case 'this_year':
                 return [
-                    'start' => gmdate('Y-01-01'),
-                    'end' => gmdate('Y-12-31')
+                    'start' => $now->format('Y-01-01'),
+                    'end' => $now->format('Y-12-31')
                 ];
 
             case 'last_year':
-                $lastYear = gmdate('Y', strtotime('-1 year'));
+                $lastYear = $now->modify('-1 year')->format('Y');
                 return [
                     'start' => $lastYear . '-01-01',
                     'end' => $lastYear . '-12-31'

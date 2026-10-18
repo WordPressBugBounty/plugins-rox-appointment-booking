@@ -250,6 +250,10 @@ class SaveAgent extends AbstractREST
                 $params['special_days'] = json_encode($params['special_days']);
             }
 
+            if (isset($params['special_days_only'])) {
+                $params['special_days_only'] = filter_var($params['special_days_only'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+            }
+
             if(isset($params['holiday']) && is_array($params['holiday'])) {
                 $params['holiday'] = json_encode($params['holiday']);
             }
@@ -289,7 +293,9 @@ class SaveAgent extends AbstractREST
             foreach ($relationship_fields as $field) {
                 unset($filtered_params[$field]);
             }
+            unset($filtered_params['wp_user_id']);
 
+            $previous_email = $agent->email;
             $fillable_data = array_intersect_key($filtered_params, array_flip($agent->getFillable()));
             $agent->fill($fillable_data);
 
@@ -306,30 +312,32 @@ class SaveAgent extends AbstractREST
 
             $agent->save();
 
-            // Update WordPress user if linked and agent details changed
+            // Update WordPress user if linked and agent details changed.
+            // Only propagate when the linked WP account's email still matches
+            // the agent row — a mismatch means the link is stale or injected.
             if ($id && $agent->wp_user_id && LinkedAccount::canChange((int) $agent->wp_user_id, LinkedAccount::AGENT_ROLES)) {
-                $wp_user_data = [
-                    'ID' => $agent->wp_user_id,
-                ];
-                
-                // Update first name if changed
-                if (isset($params['first_name'])) {
-                    $wp_user_data['first_name'] = $params['first_name'];
-                }
-                
-                // Update last name if changed
-                if (isset($params['last_name'])) {
-                    $wp_user_data['last_name'] = $params['last_name'];
-                }
-                
-                // Update email if changed
-                if (isset($params['email'])) {
-                    $wp_user_data['user_email'] = $params['email'];
-                }
-                
-                // Only update if there are changes beyond the ID
-                if (count($wp_user_data) > 1) {
-                    wp_update_user($wp_user_data);
+                $linked_user = get_userdata((int) $agent->wp_user_id);
+
+                if ($linked_user && $linked_user->user_email === $previous_email) {
+                    $wp_user_data = [
+                        'ID' => $agent->wp_user_id,
+                    ];
+
+                    if (isset($params['first_name'])) {
+                        $wp_user_data['first_name'] = $params['first_name'];
+                    }
+
+                    if (isset($params['last_name'])) {
+                        $wp_user_data['last_name'] = $params['last_name'];
+                    }
+
+                    if (isset($params['email'])) {
+                        $wp_user_data['user_email'] = $params['email'];
+                    }
+
+                    if (count($wp_user_data) > 1) {
+                        wp_update_user($wp_user_data);
+                    }
                 }
             }
 

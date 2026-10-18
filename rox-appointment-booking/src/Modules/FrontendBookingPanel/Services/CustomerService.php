@@ -71,6 +71,7 @@ class CustomerService
         }
 
         $customer = new CustomerModel();
+        unset($params['wp_user_id']);
         $customer->fill(array_intersect_key($params, array_flip($customer->getFillable())));
         // The language the booking was made in is the best signal we have for
         // how to write this customer's e-mails later — a frontend customer
@@ -104,6 +105,7 @@ class CustomerService
         }
 
         $customer = new CustomerModel();
+        unset($profile['wp_user_id']);
         $customer->fill(array_intersect_key($profile, array_flip($customer->getFillable())));
         // Same reasoning as saveCustomer(): record the language they signed up
         // in, since a social sign-in carries no locale of its own.

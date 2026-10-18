@@ -47,10 +47,12 @@ class AppointmentService
         // the e-mail can repeat their own times back to them. Anything the site
         // cannot construct a DateTimeZone from is stored as NULL, which reads
         // as the site's own zone everywhere. Never used to schedule.
+        // With the selector off the slots were read on the site's clock.
         $customer_timezone = isset($params['customer_timezone'])
             ? sanitize_text_field((string) $params['customer_timezone'])
             : '';
-        $customer_timezone = rox_appointment_booking_is_valid_timezone($customer_timezone)
+        $customer_timezone = (rox_appointment_booking_general_settings('timezone_selector_enable', false)
+            && rox_appointment_booking_is_valid_timezone($customer_timezone))
             ? $customer_timezone
             : null;
 
@@ -598,7 +600,7 @@ class AppointmentService
             $service = ServiceModel::find($appointment->service_id);
 
             NotificationService::createAppointmentNotification([
-                'admin_user_id' => get_current_user_id(),
+                'admin_user_id' => null,
                 'appointment_id' => $appointment->id,
                 'customer_name' => $customer ? $customer->full_name : __('Customer', 'rox-appointment-booking'),
                 'service_name' => $service ? $service->title : __('Service', 'rox-appointment-booking')
@@ -832,7 +834,7 @@ class AppointmentService
             };
         $order->payment_status = rox_appointment_booking_payment_settings('default_payment_status', 'unpaid');
         $order->order_status   = rox_appointment_booking_general_settings('default_order_status') ?? 'pending_payment';
-        $order->order_date     = current_time('mysql');
+        $order->order_date     = gmdate('Y-m-d H:i:s');
         $order->save();
 
         // Fire action so Pro plugin can link coupon_id to appointments for usage tracking.
@@ -881,6 +883,10 @@ class AppointmentService
 
         if ($order) {
             $order->payment_status = $paymentStatus;
+            // A Stripe charge that pays the order in full moves it to processing.
+            if ($paymentStatus === 'paid' && ($paymentResult['payment_method'] ?? '') === 'credit') {
+                $order->order_status = 'processing';
+            }
             $order->save();
 
             // Update related payment records

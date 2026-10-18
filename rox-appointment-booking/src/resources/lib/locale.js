@@ -92,7 +92,10 @@ const readLocaleData = () => {
     weekdaysShort: list(raw.weekdaysShort, 7, FALLBACK.weekdaysShort),
     weekdaysMin: list(raw.weekdaysMin, 7, FALLBACK.weekdaysMin),
     meridiem: { ...FALLBACK.meridiem, ...(raw.meridiem || {}) },
-    startOfWeek: Number.isInteger(raw.startOfWeek) ? raw.startOfWeek : 0,
+    startOfWeek:
+      Number.isInteger(raw.startOfWeek) && raw.startOfWeek >= 0 && raw.startOfWeek <= 6
+        ? raw.startOfWeek
+        : 0,
   };
 };
 
@@ -224,6 +227,56 @@ dayjs.locale(
   true,
 );
 dayjs.locale(DAYJS_LOCALE);
+
+/**
+ * Apply a just-saved Week Start Day to the open page without a reload.
+ *
+ * @param {number} value 0 (Sunday) to 6 (Saturday).
+ */
+export const setWeekStart = (value) => {
+  const day = Number(value);
+  data.startOfWeek = Number.isInteger(day) && day >= 0 && day <= 6 ? day : 0;
+  dayjs.Ls[DAYJS_LOCALE].weekStart = data.startOfWeek;
+};
+
+/**
+ * Weekday names for a month grid's header, beginning on the Week Start Day.
+ *
+ * @return {string[]} Seven abbreviated names.
+ */
+export const getWeekdayHeaders = () => [
+  ...data.weekdaysShort.slice(data.startOfWeek),
+  ...data.weekdaysShort.slice(0, data.startOfWeek),
+];
+
+// English wire names, in Date#getDay() order.
+const WIRE_DAY_NAMES = [
+  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+];
+
+/**
+ * Weekly-schedule rows reordered to begin on the Week Start Day. Display only —
+ * the stored order is left alone.
+ *
+ * @param {Array<{day_name: string}>} days Schedule rows.
+ * @return {Array<{day_name: string}>} A sorted copy.
+ */
+export const sortByWeekStart = (days) => {
+  const rank = (day) =>
+    (WIRE_DAY_NAMES.indexOf(day?.day_name) - data.startOfWeek + 7) % 7;
+
+  return [...days].sort((a, b) => rank(a) - rank(b));
+};
+
+/**
+ * Empty cells a month grid needs before the 1st, given the Week Start Day.
+ *
+ * @param {number} year  Full year.
+ * @param {number} month Month, 0-indexed.
+ * @return {number} 0 to 6.
+ */
+export const getMonthLeadingBlanks = (year, month) =>
+  (new Date(year, month, 1).getDay() - data.startOfWeek + 7) % 7;
 
 /**
  * Parse a clock string back into a Day.js instance.
@@ -510,7 +563,7 @@ export const getAntdLocale = () => ({
  *
  * `code` is the BCP 47 tag FullCalendar hands to `Intl` when it formats the
  * toolbar title and day headers, and `week.dow` makes the grid start on the
- * day configured in Settings > General. The button and helper texts go through
+ * plugin's Week Start Day. The button and helper texts go through
  * the plugin text domain for the same reason as the antd strings above.
  *
  * @return {object} FullCalendar locale.

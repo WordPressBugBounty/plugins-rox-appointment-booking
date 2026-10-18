@@ -7,6 +7,7 @@ use WP_REST_Response;
 use WP_Error;
 use RoxAppointmentBooking\Supports\Abstracts\AbstractREST;
 use RoxAppointmentBooking\Modules\Agent\Data\AgentModel;
+use RoxAppointmentBooking\Modules\Agent\Services\AgentService;
 use RoxAppointmentBooking\Modules\Appointment\Services\AppointmentService;
 use RoxAppointmentBooking\Modules\RelationshipModel\Data\ServiceAgentRelationModel;
 
@@ -106,6 +107,27 @@ class GetAgent extends AbstractREST
     }
 
     /**
+     * Work days shown on the agent card: upcoming special dates for a special-days-only agent.
+     *
+     * @param AgentModel $agent Agent to describe
+     * @return array
+     */
+    private function workDaysFor(AgentModel $agent): array
+    {
+        if (!AgentService::isSpecialDaysOnly($agent)) {
+            return $this->getWorkDays($agent->weekly_schedule);
+        }
+
+        $dates = array_slice(AgentService::specialWorkingDates($agent, current_time('Y-m-d')), 0, 7);
+
+        // Formatted in UTC so the bare date never shifts across the site's offset.
+        return array_map(
+            static fn($date) => wp_date('M j', strtotime($date), new \DateTimeZone('UTC')),
+            $dates
+        );
+    }
+
+    /**
      * Build a flat {platform: url} socials map from the agent's social_profiles JSON.
      *
      * @param AgentModel $agent Agent model instance.
@@ -165,7 +187,7 @@ class GetAgent extends AbstractREST
             'experience_years' => $agent->experience_years ?? 0,
             'happy_customers' => $agent->happy_customers ?? 0,
             'certifications' => $agent->certifications ?? 0,
-            'work_days' => $this->getWorkDays($agent->weekly_schedule),
+            'work_days' => $this->workDaysFor($agent),
             'bio' => rox_appointment_booking_translate('agent', $agent->getID(), 'bio', (string) ($agent->bio ?? '')),
             'socials' => $this->getSocialsMap($agent),
         ];
@@ -188,7 +210,7 @@ class GetAgent extends AbstractREST
                 'experience_years' => $agent->experience_years ?? 0,
                 'happy_customers' => $agent->happy_customers ?? 0,
                 'certifications' => $agent->certifications ?? 0,
-                'work_days' => $this->getWorkDays($agent->weekly_schedule),
+                'work_days' => $this->workDaysFor($agent),
                 'bio' => rox_appointment_booking_translate('agent', $agent->getID(), 'bio', (string) ($agent->bio ?? '')),
                 'socials' => $this->getSocialsMap($agent),
             ]);

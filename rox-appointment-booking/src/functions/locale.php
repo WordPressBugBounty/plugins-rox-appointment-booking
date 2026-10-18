@@ -88,6 +88,44 @@ if (!function_exists('rox_appointment_booking_time_format')) {
 }
 
 /**
+ * The day every calendar starts its week on: 0 (Sunday) to 6 (Saturday).
+ *
+ * Settings > General > Week Start Day; WordPress's own "Week Starts On" until
+ * that has been saved.
+ *
+ * @return int
+ * @since 1.3.1
+ */
+if (!function_exists('rox_appointment_booking_week_start')) {
+    function rox_appointment_booking_week_start(): int
+    {
+        $day = rox_appointment_booking_general_settings('week_start_day');
+
+        if (!is_numeric($day)) {
+            $day = get_option('start_of_week', 0);
+        }
+
+        return min(6, max(0, (int) $day));
+    }
+}
+
+/**
+ * First day of the week a date falls in, under the Week Start Day.
+ *
+ * @param \DateTimeInterface $date Any day of the week wanted.
+ * @return \DateTimeImmutable
+ * @since 1.3.1
+ */
+if (!function_exists('rox_appointment_booking_week_start_date')) {
+    function rox_appointment_booking_week_start_date(\DateTimeInterface $date): \DateTimeImmutable
+    {
+        $offset = ((int) $date->format('w') - rox_appointment_booking_week_start() + 7) % 7;
+
+        return \DateTimeImmutable::createFromInterface($date)->modify('-' . $offset . ' days');
+    }
+}
+
+/**
  * Build the locale payload handed to the React bundles.
  *
  * Everything here comes from WordPress itself, so a site running a language
@@ -148,8 +186,8 @@ if (!function_exists('rox_appointment_booking_js_locale')) {
             'language'      => strtolower(strtok($locale, '_-') ?: 'en'),
             'bcp47'         => $bcp47,
             'direction'     => is_rtl() ? 'rtl' : 'ltr',
-            // get_option('start_of_week') is 0 (Sunday) to 6 (Saturday).
-            'startOfWeek'   => (int) get_option('start_of_week', 0),
+            // 0 (Sunday) to 6 (Saturday).
+            'startOfWeek'   => rox_appointment_booking_week_start(),
             'months'        => $months,
             'monthsShort'   => $months_short,
             'weekdays'      => $weekdays,

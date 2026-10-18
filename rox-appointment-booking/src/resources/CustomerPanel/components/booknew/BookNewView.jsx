@@ -8,6 +8,7 @@ import { useToast } from "../../context/ToastContext.jsx";
 import { apiGet, apiPost } from "../../data/api.js";
 import { displaySlotsFor, isDisplayDateOff } from "../../data/schedule.js";
 import { getCustomerTimezone } from "../../../lib/timezone.js";
+import { getSiteNow } from "../../../lib/locale.js";
 import BookNewBootSkeleton, {
   ChoiceListSkeleton,
 } from "../skeletons/BookNewSkeleton.jsx";
@@ -29,7 +30,7 @@ const EMPTY = {
 };
 
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return getSiteNow().date;
 }
 
 // Service price with its currency symbol (both come from public/service).

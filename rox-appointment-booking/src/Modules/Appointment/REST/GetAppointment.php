@@ -202,7 +202,7 @@ class GetAppointment extends AbstractREST
                 // Agents get a Customer Details card instead of Order Details, so
                 // they need a way to contact the customer for this appointment.
                 'customer_phone' => $customer ? ($customer->phone ?? '') : '',
-                'order_date' => $order ? gmdate('F j, Y', strtotime($order->created_at)) : '',
+                'order_date' => $order ? wp_date('F j, Y', strtotime($order->created_at)) : '',
                 'payment_method' => $order ? $this->formatPaymentMethodLabel($order->payment_method ?? '') : '',
                 'order_status' => $orderStatus,
                 'subtotal' => $appointmentOwnTotal,
@@ -232,6 +232,8 @@ class GetAppointment extends AbstractREST
                 // never name a different provider than the URL. Empty when no
                 // integration answered — the UI then uses a generic label.
                 'meet_link_label' => apply_filters('rox_appointment_booking_meet_link_label', '', $appointmentData['id'] ?? 0),
+                'ical_download_url' => apply_filters('rox_appointment_booking_ical_download_url', '', $appointmentData['id'] ?? 0),
+                'ical_calendar_links' => apply_filters('rox_appointment_booking_ical_calendar_links', [], $appointmentData['id'] ?? 0),
             ];
 
             // A panel user never sees the ORDER: the Order Details card and the
@@ -547,7 +549,7 @@ class GetAppointment extends AbstractREST
             'agent' => $this->getAgentDetails($agent),
             'duration' => ( isset( $appointmentData['start_time'] ) && isset( $appointmentData['end_time'] ) ) ? ( round( ( strtotime( $appointmentData['end_time'] ) - strtotime( $appointmentData['start_time'] ) ) / 60 ) ) . ' mins' : '',
             'status' => strtolower($appointmentData['status'] ?? ''),
-            'created_at' => isset($appointmentData['created_at']) ? gmdate('Y-m-d H:i:s', strtotime($appointmentData['created_at'])) : null
+            'created_at' => isset($appointmentData['created_at']) ? wp_date('F j, Y - ' . rox_appointment_booking_time_format(), strtotime($appointmentData['created_at'])) : null
         ];
 
         // Only carried when the module is usable — see getLocationTitleMap().
@@ -692,6 +694,10 @@ class GetAppointment extends AbstractREST
      */
     private function customerTimezoneNote(array $appointmentData): string
     {
+        if (!rox_appointment_booking_general_settings('timezone_selector_enable', false)) {
+            return '';
+        }
+
         $zone = (string) ($appointmentData['customer_timezone'] ?? '');
 
         if ($zone === '' || $zone === wp_timezone_string() || !rox_appointment_booking_is_valid_timezone($zone)) {

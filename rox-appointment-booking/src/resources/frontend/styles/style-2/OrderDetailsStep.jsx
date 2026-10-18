@@ -12,7 +12,7 @@
 import dayjs from "dayjs";
 import { Fragment } from "@wordpress/element";
 import { useSelect } from "@wordpress/data";
-import { __ } from "@wordpress/i18n";
+import { __, sprintf } from "@wordpress/i18n";
 import { sanitize } from "../../../components/common/Sanitize.js";
 import { panelText } from "../../../lib/panelContent.js";
 import { formatPrice, priceValue } from "../../../lib/price.js";
@@ -164,6 +164,15 @@ const OrderDetailsStep = ({
 									__("Attendees", "rox-appointment-booking"),
 									String(booking.attendees || 1),
 								)}
+							{booking.service?.duration > 0 &&
+								row(
+									__("Duration", "rox-appointment-booking"),
+									sprintf(
+										/* translators: %s: service duration in minutes */
+										__("%s min", "rox-appointment-booking"),
+										booking.service.duration,
+									),
+								)}
 							{!booking.service?.hide_price_booking_panel &&
 								row(
 									__("Price", "rox-appointment-booking"),
@@ -198,7 +207,10 @@ const OrderDetailsStep = ({
 
 							{extras.map((extra) => (
 								<div className="rbs1-order__row" key={extra.id}>
-									<span className="rbs1-order__label">{extra.name}</span>
+									<span className="rbs1-order__label">
+										{extra.name}
+										{extra.duration && ` (${extra.duration})`}
+									</span>
 									<span className="rbs1-order__extra-value">
 										<span className="rbs1-order__value">
 											{formatPrice(extra.price, currencySymbol)}

@@ -174,7 +174,7 @@ class PayBooking extends AbstractREST
                         'payment_status' => 'paid',
                         'payment_method' => 'stripe',
                         'payment_transaction_id' => $transactionId,
-                    ]);
+                    ] + $this->processingUpdate($order));
                 }
             }
         }
@@ -317,7 +317,7 @@ class PayBooking extends AbstractREST
             'payment_status' => 'paid',
             'payment_method' => 'stripe',
             'payment_transaction_id' => $transactionId,
-        ]);
+        ] + $this->processingUpdate($order));
 
         foreach ($order->getBookingIds() as $bookingId) {
             $booking = AppointmentModel::find((int) $bookingId);
@@ -341,6 +341,12 @@ class PayBooking extends AbstractREST
                 ],
             ]
         );
+    }
+
+    /** A paid order still awaiting payment moves to processing; any other status is left alone. */
+    private function processingUpdate(OrderModel $order): array
+    {
+        return in_array($order->order_status, ['pending', 'pending_payment'], true) ? ['order_status' => 'processing'] : [];
     }
 
     /** Find the order (if any) whose booking_ids contains this appointment id. */

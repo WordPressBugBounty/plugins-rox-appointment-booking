@@ -5,6 +5,7 @@ import MiniCalendar from "../ui/MiniCalendar.jsx";
 import SlotPicker from "../ui/SlotPicker.jsx";
 import { apiGet } from "../../data/api.js";
 import { displaySlotsFor, isDisplayDateOff } from "../../data/schedule.js";
+import { getSiteNow } from "../../../lib/locale.js";
 
 // Reschedule drawer (real, D5): current-booking banner + a date picker + the
 // real available slots for the booking's service/agent. Availability comes from
@@ -13,7 +14,7 @@ import { displaySlotsFor, isDisplayDateOff } from "../../data/schedule.js";
 // depends on no admin (canAccessPanel) endpoint. Reports the chosen date + raw
 // start time on confirm.
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return getSiteNow().date;
 }
 
 export default function RescheduleDrawer({ open, booking, onClose, onConfirm, submitting }) {

@@ -33,12 +33,12 @@ class AgentModel extends AbstractModel
         'email',
         'phone',
         'allow_to_login',
-        'wp_user_id',
         'thumbnail_id',
         'location_id',
         'weekly_schedule',
         'holiday',
         'special_days',
+        'special_days_only',
         'internal_notes',
         'experience_years',
         'certifications',
@@ -55,6 +55,7 @@ class AgentModel extends AbstractModel
 	 */
     protected $casts = [
         'allow_to_login' => 'boolean',
+        'special_days_only' => 'boolean',
         'thumbnail_id' => 'integer',
         'location_id' => 'integer',
         'rating' => 'float',

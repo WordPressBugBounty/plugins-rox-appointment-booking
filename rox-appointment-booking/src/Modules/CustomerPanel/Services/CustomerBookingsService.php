@@ -201,6 +201,8 @@ class CustomerBookingsService
             // remaining balance as its headline number instead of the full price.
             'balance_due_formatted' => $isPartiallyPaid ? $this->money($dueAmount) : null,
             'completed' => $status === 'completed',
+            'ical_download_url' => apply_filters('rox_appointment_booking_ical_download_url', '', $id),
+            'ical_calendar_links' => apply_filters('rox_appointment_booking_ical_calendar_links', [], $id),
             'actions' => $this->actionsFor($bucket, $status, $paymentStatus),
             'detail' => $this->buildDetail($appt, [
                 'service' => $serviceTitle,

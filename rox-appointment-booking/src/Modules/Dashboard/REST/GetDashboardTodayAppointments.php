@@ -85,7 +85,7 @@ class GetDashboardTodayAppointments extends AbstractREST
             $date = sanitize_text_field($request->get_param('date') ?? '');
 
             if (!$date || !$this->isValidDate($date)) {
-                $date = gmdate('Y-m-d');
+                $date = current_time('Y-m-d');
             }
 
             // Fetch all appointments for the given date, ordered by start_time

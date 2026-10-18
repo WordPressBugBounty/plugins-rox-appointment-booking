@@ -135,6 +135,11 @@ class SaveGeneral extends AbstractREST
                 $params['time_system'] = $params['time_system'] === '24_hour' ? '24_hour' : '12_hour';
             }
 
+            // Week Start Day: 0 (Sunday) to 6 (Saturday).
+            if (array_key_exists('week_start_day', $params)) {
+                $params['week_start_day'] = min(6, max(0, (int) $params['week_start_day']));
+            }
+
             // Time Slots: stored as a real boolean, like the other switches.
             if (array_key_exists('show_slot_time_range', $params)) {
                 $params['show_slot_time_range'] = filter_var($params['show_slot_time_range'], FILTER_VALIDATE_BOOLEAN);

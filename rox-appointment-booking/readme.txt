@@ -1,14 +1,14 @@
-=== Rox Appointment Booking - Appointment Booking Scheduling Solution ===
+=== Rox Appointment Booking - Event, Calendar & Appointment Scheduling ===
 Contributors: roxnor
-Tags: booking, reservation, appointments, calendar
+Tags: booking, reservation, appointments, calendar, WooCommerce appointments
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.txt
 
-Advanced booking plugin for appointments & events. Control scheduling, calendars, orders, time slots, & payments with an interactive dashboard.
+Advanced booking plugin for appointments & events. Control scheduling, calendars, orders, time slots, WooCommerce appointments & payments with ease.
 
 == Description ==
 
@@ -18,7 +18,7 @@ Whether you run a salon, dental clinic, or professional practice, Rox Appointmen
 
 From room booking to tour reservations to ticket sales, Rox Appointment Booking is designed to replace multiple single-purpose tools with one unified, free booking plugin for WordPress that scales as your business grows. Built by the Wpmet team — the same developers behind ElementsKit, ShopEngine, and MetForm, trusted by over 1,000,000 WordPress users worldwide — Rox Appointment Booking brings that same reliability to your scheduling workflow.
 
-🏆 A complete appointment booking solution! Check [**Appointments**](https://wpmet.com/plugin/elementskit/elements/?utm_source=org&utm_medium=readme) for a dedicated service building.
+🏆 A complete appointment booking solution! Check [**Appointments**](https://wpmet.com/plugin/rox-appointment-booking/appointment/?utm_source=org&utm_medium=readme) for a dedicated service building.
 
 
 https://youtu.be/WYmVzxfpq6Y?si=S11UGz77T2E6JMKt
@@ -73,13 +73,13 @@ https://youtu.be/e4zK0ziDQEw?si=gmqQ0jGaqareBZEO
 ✅ Guided Setup Wizard – First-time setup wizard walks you through category, services, agents, and working hours so you can accept bookings in minutes
     
 
-### 💳 [Payment & Pricing of Booking Services](https://roxbooking.com/appointment/payments/?utm_source=org&utm_medium=readme)
+### 💳 [Payment & Pricing of Booking Services](https://wpmet.com/plugin/rox-appointment-booking/payments/?utm_source=org&utm_medium=readme)
 
 **✅ Flexible Payment Options** - Accept payments via Stripe, or manual/local payment
     
 **✅ Pay Later:** Turn on this option for customers so they can pay later.
     
-**✅ Online Payments** - Integrated Stripe and standard payment processing
+**✅ WooCommerce Appointments Checkout** – Let customers pay for appointments through WooCommerce, reusing its gateways with automatic order sync
     
 **✅ Deposits & Refunds** - Configure fixed or percentage deposits with refund policy rules
     
@@ -88,7 +88,7 @@ https://youtu.be/e4zK0ziDQEw?si=gmqQ0jGaqareBZEO
 
 ### 🙋 Customer Self-Service Portal
 
-[Every customer gets their own private booking portal](https://roxbooking.com/appointment/customer/?utm_source=org&utm_medium=readme) — completely separate from the WordPress admin. Once logged in, customers can manage everything themselves without contacting you.
+[Every customer gets their own private booking portal](https://wpmet.com/plugin/rox-appointment-booking/customer/?utm_source=org&utm_medium=readme) — completely separate from the WordPress admin. Once logged in, customers can manage everything themselves without contacting you.
 
 **My Bookings** – View upcoming, past, and cancelled appointments. The next appointment is highlighted at the top. From here customers can:
 - Reschedule to another available slot (if you allow it)
@@ -107,7 +107,7 @@ The portal page is created automatically on plugin activation at `/rox-appointme
 
 ### 👤 Agent Portal
 
-[Staff members get their own focused dashboard](https://roxbooking.com/appointment/agents/?utm_source=org&utm_medium=readme) when they log in to WordPress — a deliberately streamlined view that shows only what they need:
+[Staff members get their own focused dashboard](https://wpmet.com/plugin/rox-appointment-booking/agents/?utm_source=org&utm_medium=readme) when they log in to WordPress — a deliberately streamlined view that shows only what they need:
 
 - **Appointments** – Read-only list of their own assigned bookings
 - **Calendar** – Read-only calendar filtered to their bookings
@@ -134,7 +134,7 @@ Agents never see the main WordPress dashboard, other agents' bookings, customer 
 
 ### 📅 Advanced Calendar View
 
-Track every appointment with [a full visual calendar](https://roxbooking.com/appointment/calendar/?utm_source=org&utm_medium=readme) in day, week, or month view. Filter by location, service, agent, or customer to focus on exactly what you need. Drag and drop any appointment to a new date or time slot to reschedule it instantly — no need to open the appointment first. Agents get a read-only version of the calendar showing only their own bookings.
+Track every appointment with [a full visual calendar](https://wpmet.com/plugin/rox-appointment-booking/calendar/?utm_source=org&utm_medium=readme) in day, week, or month view. Filter by location, service, agent, or customer to focus on exactly what you need. Drag and drop any appointment to a new date or time slot to reschedule it instantly — no need to open the appointment first. Agents get a read-only version of the calendar showing only their own bookings.
 
 ### Custom Controls of Appointments
 
@@ -147,7 +147,7 @@ Track every appointment with [a full visual calendar](https://roxbooking.com/app
 
 ### Customer Management within Booking Plugin
 
-Maintain [a full customer database](https://roxbooking.com/appointment/customer/?utm_source=org&utm_medium=readme) with search, filter, add, edit, and bulk delete. Each customer record stores their contact details, booking history, and communication preferences. Auto-create customer accounts at booking time so first-time bookers get a login without any extra steps.
+Maintain [a full customer database](https://wpmet.com/plugin/rox-appointment-booking/customer/?utm_source=org&utm_medium=readme) with search, filter, add, edit, and bulk delete. Each customer record stores their contact details, booking history, and communication preferences. Auto-create customer accounts at booking time so first-time bookers get a login without any extra steps.
 
 Customers can also log in to their own self-service portal (see Customer Self-Service Portal below) where they manage their own bookings completely independently, without ever touching the WordPress dashboard.
 ### Types of Booking
@@ -203,7 +203,7 @@ Among WordPress booking plugins with Google Calendar integration, Rox Appointmen
 
 #### 🟢 Flexible Payment Processing
 
-As a robust online booking plugin for WordPress, accept payments through multiple gateways with deposit options and automated refund processing.
+As a robust online booking plugin for WordPress, accept payments through Stripe, PayPal, or WooCommerce appointments checkout, with deposit options and automated refund processing.
 
 #### 🟢 Scalability
 
@@ -273,6 +273,22 @@ After activation, you can configure the plugin settings from the WordPress admin
 
 
 == Changelog ==
+Version: 1.3.2 // 2026-10-13
+* Added: "Week Start Day" setting under Settings > General to choose the day every calendar starts its week on.
+* Added: Working hours lists, the "This Week" filter and the Overview's default range follow the Week Start Day.
+* Improved: Orders paid in full with Stripe now move from "Pending payment" to "Processing".
+* Improved: The Appointments table's "Created At" column shows a readable date in the site's timezone and follows the Time Format setting.
+* Improved: The Overview, the Orders page and the table date filters now count by the site's own days instead of UTC days.
+* Improved: Today's appointments, booked slots and order/payment dates now follow the site's timezone.
+* Improved: Notification times such as "5 minutes ago" now follow the site's timezone.
+* Improved: The customer's timezone is no longer saved or shown on the appointment while the timezone selector is switched off.
+* Improved: Hover colours on switches and on the category list's action menu.
+* Improved: Tab switch fade on the Services page and softer dropdown shadows.
+* Improved: Stricter checks when a customer or agent is linked to a WordPress account.
+* Improved: The booking panel’s right sidebar now displays the service and extra service durations.
+* Fixed: Bookings placed from the booking panel were missing from the admin notifications.
+* Fixed: Login form submission issue when pressing the Enter key.
+
 Version: 1.3.1 // 2026-10-04
 * Added: "Time Format" setting under Settings > General to show every time as 12-hour (1:00 PM) or 24-hour (13:00).
 * Improved: Appointment, Booking Restrictions and Booking Permissions moved from Settings > General to a new Settings > Bookings tab.
@@ -541,7 +557,7 @@ We welcome contributions! Please submit issues and pull requests on our developm
 
 == Privacy Policy ==
 
-Rox Appointment Booking does not collect or store any personal data outside of your WordPress installation. All booking information is stored in your WordPress database and follows WordPress data handling practices.
+Rox Appointment Booking does not collect or store any personal data outside of your WordPress installation. All booking information is stored in your WordPress database and follows WordPress data handling practices. For more visit our [privacy policy page.](https://wpmet.com/privacy-policy/?utm_source=org&utm_medium=readme)
 
 If an administrator turns on AI Assistant Access (MCP), the AI client they connect can read the booking, customer and order data its WordPress user may see, and that data is then processed by the AI provider behind that client. MCP is off by default, and nothing is shared until an administrator connects a client.
 
@@ -590,6 +606,9 @@ Yes. Each agent can have their own weekly working hours, holiday calendar, and s
 
 = Does the plugin support coupons and discounts? =
 Yes. You can create discount coupons with fixed or percentage values, usage limits, validity dates, and targeting rules for specific services, categories, or agents.
+
+= Can customers pay for appointments through WooCommerce?
+Yes (Pro). Turn on the WooCommerce Payment Gateway under Settings > Payments. Customers then complete their appointment checkout through WooCommerce, using any of its existing payment gateways, and the booking's payment status updates automatically once the WooCommerce order is paid.
 
 = Is customer data stored on my own server? =
 Yes. All booking and customer data is stored in your WordPress database. No data is sent to external servers except for payment processing via Stripe and map services via OpenStreetMap. If you turn on AI Assistant Access (MCP) and connect an AI client, that client can read your booking data and its AI provider processes it.

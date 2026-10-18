@@ -1,1 +1,1 @@
-<?php return array('dependencies' => array('react-jsx-runtime', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-i18n'), 'version' => '3f57e8a03a08f62da9fc', 'handle' => 'undefined-blocks/login-form/index');
+<?php return array('dependencies' => array('react-jsx-runtime', 'wp-block-editor', 'wp-blocks', 'wp-components', 'wp-i18n'), 'version' => 'ea62c846585368ca6e98', 'handle' => 'undefined-blocks/login-form/index');

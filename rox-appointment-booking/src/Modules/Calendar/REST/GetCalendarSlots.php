@@ -139,6 +139,14 @@ class GetCalendarSlots extends AbstractREST
             } catch (\Exception $e) {
                 // Ignore
             }
+
+            // A special-days-only agent works on no other date.
+            if (!$daySchedule && AgentService::isSpecialDaysOnly($agentService->getAgent((int) $agentId))) {
+                $daySchedule = [
+                    'day_name' => $dayOfWeek,
+                    'day_off' => true
+                ];
+            }
         }
 
         // Find the schedule for the selected day if no special day override exists

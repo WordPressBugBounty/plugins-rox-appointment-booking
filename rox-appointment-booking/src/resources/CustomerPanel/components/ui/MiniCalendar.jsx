@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { getMonthNames, siteLocale } from "../../../lib/locale.js";
+import { getMonthNames, getWeekdayHeaders, getMonthLeadingBlanks } from "../../../lib/locale.js";
 
 // Real, navigable month calendar (mockup `.reschedule-cal`). Controlled by a
 // `value` (a "YYYY-MM-DD" string) + `onChange(next)`. Dates before `minDate`
@@ -8,8 +8,8 @@ import { getMonthNames, siteLocale } from "../../../lib/locale.js";
 // / holidays) on top of the past-date rule.
 //
 // Names come from WordPress (see lib/locale.js), so the grid reads in the site
-// language. Sunday-first to match the cells, which are laid out from getDay().
-const DAY_HEADS = siteLocale.weekdaysShort;
+// language. Begins on the Week Start Day, like the cells.
+const DAY_HEADS = getWeekdayHeaders();
 const MONTHS = getMonthNames();
 
 const pad = (n) => String(n).padStart(2, "0");
@@ -27,7 +27,7 @@ export default function MiniCalendar({ value, onChange, minDate, isDisabled }) {
     return { year: y, month: m - 1 };
   });
 
-  const firstWeekday = new Date(view.year, view.month, 1).getDay();
+  const firstWeekday = getMonthLeadingBlanks(view.year, view.month);
   const daysInMonth = new Date(view.year, view.month + 1, 0).getDate();
   const [minY, minM] = minStr.split("-").map(Number);
   const canPrev =

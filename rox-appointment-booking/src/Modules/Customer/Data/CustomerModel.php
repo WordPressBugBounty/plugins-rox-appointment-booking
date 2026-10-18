@@ -35,7 +35,6 @@ class CustomerModel extends AbstractModel
         'gender',
         'dob',
         'allow_to_login',
-        'wp_user_id',
         'send_notifications',
         'internal_notes',
         'language',

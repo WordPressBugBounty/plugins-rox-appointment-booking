@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import  { useState, useRef } from "react";
 import { login, requestReset, setNewPassword, errorMessage } from "./api";
 // Explicit extension: webpack's `resolve.extensions` omits `.jsx`.
 import GoogleButton from "./GoogleButton.jsx";
@@ -119,6 +119,8 @@ export default function LoginFormApp({ config = {} }) {
   const [newPassword, setNewPasswordValue] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [isSettingPassword, setIsSettingPassword] = useState(false);
+  const emailInputRef = useRef(null);
+  const passwordInputRef = useRef(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -164,6 +166,18 @@ export default function LoginFormApp({ config = {} }) {
       return;
     }
 
+    if (!credentials.email) {
+      setLoginError(__("Email is required.", "rox-appointment-booking"));
+      emailInputRef.current?.focus();
+      return;
+    }
+
+    if (!credentials.password) {
+      setLoginError(__("Password is required.", "rox-appointment-booking"));
+      passwordInputRef.current?.focus();
+      return;
+    }
+
     setLoginError("");
     setIsLoggingIn(true);
 
@@ -184,6 +198,20 @@ export default function LoginFormApp({ config = {} }) {
     }
 
     setIsLoggingIn(false);
+  };
+
+  const handleLoginSubmit = (e) => {
+    e.preventDefault();
+    handleLogin();
+  };
+
+  // Enter in the email field moves on to an empty password field instead of
+  // submitting; once a password is filled, Enter submits the form as usual.
+  const handleEmailKeyDown = (e) => {
+    if (e.key === "Enter" && credentials.email && !credentials.password) {
+      e.preventDefault();
+      passwordInputRef.current?.focus();
+    }
   };
 
   const handleForgotPassword = () => {
@@ -422,49 +450,56 @@ export default function LoginFormApp({ config = {} }) {
 
   return (
     <div className="form-wrapper">
-      <div className="form-fields">
-        {resetMessage?.type === "success" && messageBox(resetMessage)}
-        {loginError && <div className="rlf-message rlf-message-error">{loginError}</div>}
-        <div className="form-group">
-          <label>Email</label>
-          <input
-            type="email"
-            name="email"
-            value={credentials.email}
-            onChange={handleChange}
-            placeholder={__("Enter email", "rox-appointment-booking")}
-            required
-          />
-        </div>
-        <div className="form-group">
-          <label>Password</label>
-          <input
-            type="password"
-            name="password"
-            value={credentials.password}
-            onChange={handleChange}
-            placeholder={__("Enter password", "rox-appointment-booking")}
-            required
-          />
-        </div>
-      </div>
-      <div className="footer-btn-container">
-        <div
-          className="primary-submit-btn"
-          onClick={handleLogin}
-          style={{
-            opacity: isLoggingIn ? 0.6 : 1,
-            cursor: isLoggingIn ? "not-allowed" : "pointer",
-          }}
-        >
-          {isLoggingIn ? "Logging in..." : config.loginLabel || "Login"}
-        </div>
-        <div className="forgot-password-container">
-          <div className="forgot-password-link" onClick={handleForgotPassword}>
-            Forgot password?
+      <form className="rlf-login-form" onSubmit={handleLoginSubmit} noValidate>
+        <div className="form-fields">
+          {resetMessage?.type === "success" && messageBox(resetMessage)}
+          {loginError && <div className="rlf-message rlf-message-error">{loginError}</div>}
+          <div className="form-group">
+            <label>Email</label>
+            <input
+              type="email"
+              name="email"
+              value={credentials.email}
+              onChange={handleChange}
+              ref={emailInputRef}
+              onKeyDown={handleEmailKeyDown}
+              autoComplete="username"
+              placeholder={__("Enter email", "rox-appointment-booking")}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Password</label>
+            <input
+              type="password"
+              name="password"
+              value={credentials.password}
+              onChange={handleChange}
+              ref={passwordInputRef}
+              autoComplete="current-password"
+              placeholder={__("Enter password", "rox-appointment-booking")}
+              required
+            />
           </div>
         </div>
-      </div>
+        <div className="footer-btn-container">
+          <button
+            type="submit"
+            className="primary-submit-btn"
+            style={{
+              opacity: isLoggingIn ? 0.6 : 1,
+              cursor: isLoggingIn ? "not-allowed" : "pointer",
+            }}
+          >
+            {isLoggingIn ? "Logging in..." : config.loginLabel || "Login"}
+          </button>
+          <div className="forgot-password-container">
+            <div className="forgot-password-link" onClick={handleForgotPassword}>
+              Forgot password?
+            </div>
+          </div>
+        </div>
+      </form>
       {config.google?.enabled && (
         <>
           <div className="google-login-divider">

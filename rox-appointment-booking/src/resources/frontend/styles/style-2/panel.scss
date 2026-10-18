@@ -186,12 +186,16 @@
   // in, because that is each one's own default. Same grey, radius and padding
   // as Style 1's frame so a site running both reads as one plugin.
   //
-  // The shell keeps its drop shadow either way: unframed is this design's
-  // shipped look, and the shadow is part of it.
+  // The shell's drop shadow belongs to the frame: switching the background off
+  // takes the shadow with it, the same as Style 1's `.no-background`.
   &.has-background {
     background-color: #f3f4f9;
     padding: 40px;
     border-radius: 10px;
+
+    .rbs1-shell {
+      box-shadow: 0 30px 50px -20px rgba(10, 11, 15, 0.2);
+    }
     // The frame is a block around a fixed-width panel, so it would otherwise
     // run the full width of the host's column with the panel adrift at its
     // left edge.
@@ -228,7 +232,6 @@
     height: var(--rbs1-height);
     background: var(--rbs1-bg-card);
     border-radius: 16px;
-    box-shadow: 0 30px 50px -20px rgba(10, 11, 15, 0.2);
     overflow: hidden;
 
     // Stacked, the two columns need the room they need — a fixed height here

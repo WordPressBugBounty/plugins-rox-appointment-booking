@@ -959,7 +959,7 @@ class BookingPanelWidget extends Widget_Base
                 'type'         => Controls_Manager::SWITCHER,
                 'return_value' => 'yes',
                 'default'      => '',
-                'description'  => esc_html__('Draws the grey frame (background and padding) around the panel. Off by default for this design, which sits flat on the page.', 'rox-appointment-booking'),
+                'description'  => esc_html__('Draws the grey frame (background, padding and shadow) around the panel. Off by default for this design, which sits flat on the page.', 'rox-appointment-booking'),
                 'condition'    => ['panel_style' => ['style-2']],
             ]
         );

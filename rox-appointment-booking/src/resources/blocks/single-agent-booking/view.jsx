@@ -22,7 +22,7 @@ import "../../frontend/scss/app.scss";
  * agent info card in place of the step sidebar) is driven entirely by the
  * `singleAgentId` / `singleAgentConfig` props derived from the surface's
  * `data-config`. The root class is unique to this feature so it never collides
- * with the booking-panel, service-list or login-form roots.
+ * with the booking-panel or login-form roots.
  */
 
 // Matches the frontend App's antd theme so the reused panel renders identically.

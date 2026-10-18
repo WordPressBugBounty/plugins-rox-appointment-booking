@@ -93,11 +93,11 @@ class GetDashboardPerformance extends AbstractREST
             $serviceId = absint($request->get_param('service_id') ?? 0);
 
             if (!$startDate || !$this->isValidDate($startDate)) {
-                $startDate = gmdate('Y-m-d', strtotime('-29 days'));
+                $startDate = (new \DateTime('-29 days', wp_timezone()))->format('Y-m-d');
             }
 
             if (!$endDate || !$this->isValidDate($endDate)) {
-                $endDate = gmdate('Y-m-d');
+                $endDate = current_time('Y-m-d');
             }
 
             if ($startDate > $endDate) {
@@ -107,7 +107,7 @@ class GetDashboardPerformance extends AbstractREST
             // --- 1. Fetch appointments in the date range --------------------------
             $apptQuery = AppointmentModel::query()
                 ->select(['id', 'agent_id', 'service_id'])
-                ->whereRaw('DATE(`created_at`) BETWEEN %s AND %s', [$startDate, $endDate]);
+                ->whereBetween('created_at', rox_appointment_booking_utc_day_bounds($startDate, $endDate));
 
             if ($agentId > 0) {
                 $apptQuery->where('agent_id', '=', $agentId);
@@ -146,8 +146,7 @@ class GetDashboardPerformance extends AbstractREST
             $apptIds = array_keys($apptMap);
 
             $orderRows = OrderModel::query()
-                ->select(['booking_ids', 'total_amount'])
-                ->selectRaw('DATE(created_at) AS order_date')
+                ->select(['booking_ids', 'total_amount', 'created_at'])
                 ->whereRaw('JSON_OVERLAPS(booking_ids, %s)', [json_encode(array_values($apptIds))])
                 ->get()
                 ->all();
@@ -168,7 +167,7 @@ class GetDashboardPerformance extends AbstractREST
                 }
 
                 $perBooking = (float) $order->total_amount / $totalInOrder;
-                $orderDate  = $order->order_date; // already DATE() from selectRaw
+                $orderDate  = wp_date('Y-m-d', strtotime($order->created_at));
 
                 foreach ($bookingIds as $bid) {
                     if (!isset($apptMap[(int) $bid])) {

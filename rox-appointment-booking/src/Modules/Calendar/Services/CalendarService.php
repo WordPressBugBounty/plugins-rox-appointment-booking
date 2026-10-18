@@ -611,6 +611,19 @@ class CalendarService
             ];
         }
         
+        // A special-days-only agent works on no other date.
+        $agentRecord = $agentService->getAgent($agentId);
+        if (
+            AgentService::isSpecialDaysOnly($agentRecord)
+            && !in_array($date, AgentService::specialWorkingDates($agentRecord), true)
+        ) {
+            $available = false;
+            $reasons[] = [
+                'type' => 'agent_special_days_only',
+                'message' => esc_html__('Agent is available on their special days only', 'rox-appointment-booking'),
+            ];
+        }
+
         // 4. Check agent's weekly schedule
         $agentScheduleInfo = null;
         try {

@@ -85,8 +85,13 @@ class NotificationModel extends AbstractModel
             return '';
         }
 
-        $time = strtotime($this->notification_time);
-        $diff = time() - $time;
+        // notification_time is site-local wall time, not UTC.
+        try {
+            $time = (new \DateTime((string) $this->notification_time, wp_timezone()))->getTimestamp();
+        } catch (\Exception $e) {
+            return '';
+        }
+        $diff = max(0, time() - $time);
 
         if ($diff < 60) {
             // translators: %d = number of seconds
@@ -101,7 +106,7 @@ class NotificationModel extends AbstractModel
             // translators: %d = number of days
             return sprintf(esc_html__('%d days ago', 'rox-appointment-booking'), floor($diff / 86400));
         } else {
-            return date_i18n(get_option('date_format'), $time);
+            return wp_date(get_option('date_format'), $time);
         }
     }
 
@@ -118,7 +123,12 @@ class NotificationModel extends AbstractModel
      */
     public function scopeByUser($query, $userId)
     {
-        return $query->where('user_id', $userId);
+        // Rows without an owner come from logged-out bookings and are shown to everyone.
+        return $query->where(function ($nested) use ($userId) {
+            $nested->where('user_id', $userId)
+                ->whereNull('user_id', 'or')
+                ->orWhere('user_id', 0);
+        });
     }
 
     /**

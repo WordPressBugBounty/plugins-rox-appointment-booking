@@ -132,6 +132,7 @@ class GetAgent extends AbstractREST
                 // components expecting an array.
                 'weekly_schedule' => json_decode($agent->weekly_schedule ?? '[]', true) ?? [],
                 'special_days' => json_decode($agent->special_days ?? '[]', true) ?? [],
+                'special_days_only' => !empty($agent->special_days_only),
                 'availability' => $agent->availability ?? [],
                 'holiday' => json_decode($agent->holiday ?? '[]', true) ?? [],
                 'internal_notes' => $agent->internal_notes ?? null,

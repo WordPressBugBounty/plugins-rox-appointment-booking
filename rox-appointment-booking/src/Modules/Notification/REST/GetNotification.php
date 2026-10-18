@@ -165,7 +165,8 @@ class GetNotification extends AbstractREST
             'type' => $notification->type,
             'title' => $notification->title,
             'description' => $notification->description,
-            'created_at' => $notification->created_at,
+            // Sent with its UTC offset so the browser doesn't read it as local time.
+            'created_at' => $notification->created_at ? gmdate('c', strtotime($notification->created_at)) : null,
             'time_ago' => $notification->getTimeAgo(),
             'status' => (int) (bool) $notification->is_viewed,
             'route' => $this->resolveNotificationRoute($notification),

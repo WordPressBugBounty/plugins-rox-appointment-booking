@@ -83,6 +83,18 @@ export default function BookingCard({ booking, onAction, onOpenDetail }) {
               {action.label}
             </Button>
           ))}
+          {(booking.ical_calendar_links?.ics || booking.ical_download_url) && (
+            <a
+              href={booking.ical_calendar_links?.ics || booking.ical_download_url}
+              download
+              rel="noreferrer"
+              title="Add to Calendar"
+              onClick={(e) => e.stopPropagation()}
+              style={{ display: "inline-flex", alignItems: "center", color: "var(--text-secondary)", fontSize: "12px", textDecoration: "none", gap: "4px" }}
+            >
+              📅 .ics
+            </a>
+          )}
         </div>
       </div>
     </div>

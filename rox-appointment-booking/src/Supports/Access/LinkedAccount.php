@@ -35,17 +35,16 @@ class LinkedAccount
      */
     public static function canChange(int $userId, array $plainRoles): bool
     {
-        if (current_user_can('edit_user', $userId)) {
-            return true;
-        }
-
         $user = get_userdata($userId);
         if (!$user) {
             return false;
         }
 
-        // A super admin may hold no role on this site at all.
         if (is_super_admin($userId) || user_can($user, 'manage_options') || user_can($user, 'edit_users')) {
+            return false;
+        }
+
+        if (!current_user_can('edit_user', $userId)) {
             return false;
         }
 

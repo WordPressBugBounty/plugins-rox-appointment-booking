@@ -61,7 +61,8 @@ const themeConfig = {
       colorPrimary: "rgb(53,96,251)",
       colorPrimaryHover: "rgb(53,96,251)",
       colorPrimaryBorder: "rgb(34, 113, 177)",
-      colorText: "rgb(53,96,251)"
+      colorText: "rgb(53,96,251)",
+      colorTextTertiary: "rgba(0,0,0,0.25)"
     },
     Drawer: {
       zIndexPopup: 99999,
@@ -119,6 +120,9 @@ const themeConfig = {
     Checkbox: {
       controlInteractiveSize: 20,
       lineWidth: 2
+    },
+    Dropdown: {
+      boxShadowSecondary: "      0 10px 30px -10px rgba(10, 11, 15, 0.20)  "
     }
   },
 };

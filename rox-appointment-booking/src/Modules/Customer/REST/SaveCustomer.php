@@ -220,6 +220,8 @@ class SaveCustomer extends AbstractREST
                 }
             }
 
+            unset($params['wp_user_id']);
+            $previous_email = $customer->email;
             $fillable_data = array_intersect_key($params, array_flip($customer->getFillable()));
             $customer->fill($fillable_data);
 
@@ -236,30 +238,34 @@ class SaveCustomer extends AbstractREST
 
             $customer->save();
 
-            // Update WordPress user if linked and customer details changed
+            // Update WordPress user if linked and customer details changed.
+            // Only propagate changes when the linked WP account's email still
+            // matches what the customer row had before this save — a mismatch
+            // means the link is stale or was injected, and silently overwriting
+            // that account's email would enable an account-takeover.
             if ($id && $customer->wp_user_id && LinkedAccount::canChange((int) $customer->wp_user_id, LinkedAccount::CUSTOMER_ROLES)) {
-                $wp_user_data = [
-                    'ID' => $customer->wp_user_id,
-                ];
-                
-                // Update first name if changed
-                if (isset($params['first_name'])) {
-                    $wp_user_data['first_name'] = $params['first_name'];
-                }
-                
-                // Update last name if changed
-                if (isset($params['last_name'])) {
-                    $wp_user_data['last_name'] = $params['last_name'];
-                }
-                
-                // Update email if changed
-                if (isset($params['email'])) {
-                    $wp_user_data['user_email'] = $params['email'];
-                }
-                
-                // Only update if there are changes beyond the ID
-                if (count($wp_user_data) > 1) {
-                    $wp_update_result = wp_update_user($wp_user_data);
+                $linked_user = get_userdata((int) $customer->wp_user_id);
+
+                if ($linked_user && $linked_user->user_email === $previous_email) {
+                    $wp_user_data = [
+                        'ID' => $customer->wp_user_id,
+                    ];
+
+                    if (isset($params['first_name'])) {
+                        $wp_user_data['first_name'] = $params['first_name'];
+                    }
+
+                    if (isset($params['last_name'])) {
+                        $wp_user_data['last_name'] = $params['last_name'];
+                    }
+
+                    if (isset($params['email'])) {
+                        $wp_user_data['user_email'] = $params['email'];
+                    }
+
+                    if (count($wp_user_data) > 1) {
+                        $wp_update_result = wp_update_user($wp_user_data);
+                    }
                 }
             }
 

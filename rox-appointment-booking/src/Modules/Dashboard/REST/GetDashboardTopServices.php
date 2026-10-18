@@ -99,11 +99,11 @@ class GetDashboardTopServices extends AbstractREST
                 if ($startDate > $endDate) {
                     [$startDate, $endDate] = [$endDate, $startDate];
                 }
-                $query->whereRaw('DATE(`created_at`) BETWEEN %s AND %s', [$startDate, $endDate]);
+                $query->whereBetween('created_at', rox_appointment_booking_utc_day_bounds($startDate, $endDate));
             } elseif ($startDate && $this->isValidDate($startDate)) {
-                $query->whereRaw('DATE(`created_at`) >= %s', [$startDate]);
+                $query->where('created_at', '>=', rox_appointment_booking_utc_day_bounds($startDate, $startDate)[0]);
             } elseif ($endDate && $this->isValidDate($endDate)) {
-                $query->whereRaw('DATE(`created_at`) <= %s', [$endDate]);
+                $query->where('created_at', '<=', rox_appointment_booking_utc_day_bounds($endDate, $endDate)[1]);
             }
 
             $rows = $query

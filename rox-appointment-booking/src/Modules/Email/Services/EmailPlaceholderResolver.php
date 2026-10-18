@@ -257,6 +257,7 @@ class EmailPlaceholderResolver
                 '{appointment_id}'         => '',
                 '{appointment_count}'      => '0',
                 '{meet_link}'              => '',
+                '{ical_download_url}'      => '',
                 '{internal_notes}'         => '',
             ];
         }
@@ -268,6 +269,7 @@ class EmailPlaceholderResolver
         // Answered by Pro's Google Calendar integration when the appointment
         // synced with a Meet link; empty otherwise.
         $meetLink = apply_filters('rox_appointment_booking_meet_link', '', $first->id ?? 0);
+        $icalDownloadUrl = apply_filters('rox_appointment_booking_ical_download_url', '', $first->id ?? 0);
 
         $status = (string) ($context['appointment_status'] ?? ($first->status ?? ''));
 
@@ -302,6 +304,7 @@ class EmailPlaceholderResolver
             '{appointment_id}'         => (string) ($first->id ?? ''),
             '{appointment_count}'      => (string) count($appointments),
             '{meet_link}'              => (string) $meetLink,
+            '{ical_download_url}'      => (string) $icalDownloadUrl,
             '{internal_notes}'         => (string) ($first->internal_notes ?? ''),
         ];
     }

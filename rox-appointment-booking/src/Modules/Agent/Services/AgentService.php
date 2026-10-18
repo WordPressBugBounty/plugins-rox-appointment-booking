@@ -199,4 +199,51 @@ class AgentService
             'special_days' => $special_days_data ?? []
         ];
     }
+
+    /**
+     * Whether the agent can be booked on their special days only
+     *
+     * Special Days is a Pro feature, so the switch is ignored while Pro is inactive.
+     *
+     * @param AgentModel|null $agent Agent to check
+     * @return bool True when the weekly working hours must be ignored
+     */
+    public static function isSpecialDaysOnly(?AgentModel $agent): bool
+    {
+        return defined('ROX_APPOINTMENT_BOOKING_PRO_VERSION') && $agent && !empty($agent->special_days_only);
+    }
+
+    /**
+     * Dates the agent works on, from their special days
+     *
+     * @param AgentModel $agent Agent to read
+     * @param string $from Earliest date to include in Y-m-d format, '' for all
+     * @return array Dates in Y-m-d format, earliest first
+     */
+    public static function specialWorkingDates(AgentModel $agent, string $from = ''): array
+    {
+        $special_days = is_string($agent->special_days)
+            ? json_decode($agent->special_days, true)
+            : $agent->special_days;
+
+        if (!is_array($special_days)) {
+            return [];
+        }
+
+        $dates = [];
+        foreach ($special_days as $day) {
+            $date = is_array($day) ? (string) ($day['date'] ?? '') : '';
+            $schedule = is_array($day) ? ($day['schedule'] ?? []) : [];
+
+            // A special day without hours is a day off, not a working day.
+            if ($date !== '' && $date >= $from && is_array($schedule) && count($schedule) >= 2) {
+                $dates[] = $date;
+            }
+        }
+
+        $dates = array_values(array_unique($dates));
+        sort($dates);
+
+        return $dates;
+    }
 }

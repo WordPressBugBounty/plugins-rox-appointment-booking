@@ -104,7 +104,7 @@ class CustomerPaymentsService
         $title = $this->transactionTitle($order, $status, $bookingId);
         $method = $this->methodLabel($payment['payment_method'] ?? '', $status);
         $when = !empty($payment['payment_time']) ? $payment['payment_time'] : ($payment['created_at'] ?? '');
-        $dateLabel = $when ? gmdate('F d, Y', strtotime($when)) : '';
+        $dateLabel = $when ? wp_date('F d, Y', strtotime($when)) : '';
 
         [$uiStatus, $sign, $payable] = $this->statusMeta($status);
 

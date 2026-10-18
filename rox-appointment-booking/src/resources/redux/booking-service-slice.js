@@ -229,7 +229,7 @@ const actions = {
   
   // Config actions
   setContent(content) {
-    // Every booking surface (panel, service-list block, single-agent block)
+    // Every booking surface (panel, single-agent block)
     // funnels its booking-panel-structure response through here, so the
     // timezone module is configured from this one place — and before anything
     // renders off the new content, which a component effect could not promise.

@@ -293,6 +293,7 @@ class EmailTemplateRegistry
             '{appointment_count}',
             '{meet_link}',
             '{meet_link_block}',
+            '{ical_download_url}',
             '{internal_notes}',
             '{appointments_table}',
         ];

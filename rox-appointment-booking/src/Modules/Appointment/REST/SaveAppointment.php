@@ -412,7 +412,7 @@ class SaveAppointment extends AbstractREST
             // than matching one specific time format, since callers send
             // times in different shapes (24h "HH:MM:SS" vs 12h "hh:mm A").
             if (!preg_match('/^\d{4}-\d{2}-\d{2}/', $datetime)) {
-                $date = $defaultDate ?? gmdate('Y-m-d');
+                $date = $defaultDate ?? current_time('Y-m-d');
                 $datetime = $date . ' ' . $datetime;
             }
 

@@ -2,6 +2,7 @@ import React from "react";
 import Drawer from "../ui/Drawer.jsx";
 import Button from "../ui/Button.jsx";
 import Pill from "../ui/Pill.jsx";
+import CalendarLinksPopover from "./CalendarLinksPopover.jsx";
 
 // Appointment detail drawer (mockup `#apptDrawer`). Summary header is driven by
 // the selected booking; the info/payment/notes sections come from booking.detail.
@@ -75,6 +76,17 @@ export default function BookingDetailDrawer({
                     <span className="value">{row.value}</span>
                   </div>
                 ))}
+                {(booking.ical_calendar_links?.google || booking.ical_download_url) && (
+                  <div className="detail-row">
+                    <span className="label">Calendar</span>
+                    <span className="value">
+                      <CalendarLinksPopover
+                        calendarLinks={booking.ical_calendar_links}
+                        icsUrl={booking.ical_download_url}
+                      />
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="detail-section">

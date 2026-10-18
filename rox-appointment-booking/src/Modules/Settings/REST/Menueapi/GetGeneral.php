@@ -81,6 +81,7 @@ class GetGeneral extends AbstractREST
                 'default_phone_country_code' => rox_appointment_booking_general_settings('default_phone_country_code'),
                 'default_appointment_status' => 'pending',
                 'time_system' => '12_hour',
+                'week_start_day' => rox_appointment_booking_week_start(),
                 'date_format' => 'MM/DD/YYYY',
                 'show_appointment_end_time' => false,
                 // Off by default: with the selector hidden the booking panel
@@ -120,6 +121,9 @@ class GetGeneral extends AbstractREST
                 $general_settings['show_slot_time_range'],
                 FILTER_VALIDATE_BOOLEAN
             );
+
+            // A real integer for the select, whatever was stored.
+            $general_settings['week_start_day'] = rox_appointment_booking_week_start();
 
             // Stored on the Payments settings option (read/used everywhere via
             // rox_appointment_booking_payment_settings()), surfaced here since
